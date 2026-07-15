@@ -11,3 +11,112 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+
+//--------------------------------------------------------------------------------
+
+
+// ============================================
+// SUPER ADMIN
+// ============================================
+
+model SuperAdmin {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("super_admins")
+}
+
+// ============================================
+// INSTRUCTOR (كان اسمه Admin قبل كده)
+// ============================================
+
+model Instructor {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  instructorGroups InstructorGroup[]
+
+  @@map("instructors")
+}
+
+// ============================================
+// STUDENT
+// ============================================
+
+model Student {
+  id        String   @id // كود الطالب اللي بيستخدمه كـ"باسورد" - مش auto-generated
+  email     String   @unique
+  name      String
+  groupId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  group Group @relation(fields: [groupId], references: [id])
+
+  @@map("students")
+}
+
+// ============================================
+// BATCH
+// ============================================
+
+model Batch {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  groups Group[]
+
+  @@map("batches")
+}
+
+// ============================================
+// GROUP
+// ============================================
+
+model Group {
+  id        String   @id @default(uuid())
+  name      String
+  batchId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  batch             Batch              @relation(fields: [batchId], references: [id])
+  students          Student[]
+  instructorGroups  InstructorGroup[]
+
+  @@map("groups")
+}
+
+// ============================================
+// INSTRUCTOR_GROUP (كان اسمه AdminGroup قبل كده)
+// ============================================
+
+model InstructorGroup {
+  id           String   @id @default(uuid())
+  instructorId String
+  groupId      String
+  createdAt    DateTime @default(now())
+
+  // Relations
+  instructor Instructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+  group      Group      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([instructorId, groupId])
+  @@map("instructor_groups")
+}
+
+
+//--------------------------------------------------------------------------------
