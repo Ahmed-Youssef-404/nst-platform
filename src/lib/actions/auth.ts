@@ -52,3 +52,9 @@ export async function loginAction(input: LoginInput): Promise<LoginResult> {
 
     redirect(destinationByRole[role]);
 }
+
+export async function logoutAction() {
+  const supabase = await createClient();
+  await supabase.auth.signOut();
+  redirect("/login");
+}
