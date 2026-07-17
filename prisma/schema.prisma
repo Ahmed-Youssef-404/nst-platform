@@ -1,9 +1,4 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
-generator client {
+    generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
 }
@@ -93,9 +88,10 @@ model Group {
   updatedAt DateTime @updatedAt
 
   // Relations
-  batch             Batch              @relation(fields: [batchId], references: [id])
-  students          Student[]
-  instructorGroups  InstructorGroup[]
+  batch            Batch              @relation(fields: [batchId], references: [id])
+  students         Student[]
+  instructorGroups InstructorGroup[]
+  levels           Level[]
 
   @@map("groups")
 }
@@ -120,3 +116,115 @@ model InstructorGroup {
 
 
 //--------------------------------------------------------------------------------
+
+
+// ============================================
+// LEVEL
+// ============================================
+// كل Group ليه الـ Levels الخاصة بيه (مش جدول عام مشترك).
+// في أي لحظة، Level واحد بس isActive = true لكل Group.
+// لما الـ Instructor "ينقل" الـ Group لـ Level جديد:
+//   1) الـ Level الحالي isActive -> false
+//   2) Level جديد بيتعمل/يتفعّل بـ isActive = true و startDate = now()
+//   3) level_st بتاع كل طلاب الـ Group يتصفّر (منطق ده هيبقى في Phase 4)
+
+model Level {
+  id          String    @id @default(uuid())
+  groupId     String
+  name        String
+  description String?
+  levelNumber Int
+  startDate   DateTime  @default(now())
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  group    Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  sessions Session[]
+
+  @@map("levels")
+}
+
+// ============================================
+// SESSION
+// ============================================
+// موعد فعلي (تاريخ + وقت + مدة) تابع لـ Level معيّن.
+// الـ status (upcoming/ongoing/completed) بيتحسب runtime من
+// startTime و durationMinutes، مش عمود مخزّن.
+
+model Session {
+  id               String   @id @default(uuid())
+  levelId          String
+  title            String
+  startTime        DateTime
+  durationMinutes  Int
+  recordingLink    String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  level Level  @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  tasks Task[]
+
+  @@map("sessions")
+}
+
+// ============================================
+// TASK TYPE ENUM
+// ============================================
+// INTERNAL: Task كاملة (Level 1) - ليها Submission + Hints
+// EXTERNAL: Task خارجية (Level 2) - رابط خارجي بس + Hints
+
+enum TaskType {
+  INTERNAL
+  EXTERNAL
+}
+
+// ============================================
+// TASK
+// ============================================
+// كل Task تابعة لـ Session واحدة.
+// deadline لازم يكون قبل بداية الـ Session اللي بعدها.
+// isBonus بتفرّق الـ Task العادية عن الـ Bonus (بيأثر على الـ ST reward في Phase 4).
+
+model Task {
+  id          String   @id @default(uuid())
+  sessionId   String
+  title       String
+  description String
+  type        TaskType
+  deadline    DateTime
+  isBonus     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  hints   Hint[]
+
+  @@map("tasks")
+}
+
+// ============================================
+// HINT
+// ============================================
+// كل Task ليها بالظبط 3 Hints. مفيش ترتيب إجباري للفتح.
+// cost بيتخصم مرة واحدة، وبعدها الـ Hint مفتوح للأبد لنفس الطالب
+// (تتبّع "مين فتح إيه" هيبقى في HintUnlock - Phase 3).
+
+model Hint {
+  id        String   @id @default(uuid())
+  taskId    String
+  order     Int // 1, 2, or 3 - للعرض بس
+  content   String
+  cost      Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, order])
+  @@map("hints")
+}
