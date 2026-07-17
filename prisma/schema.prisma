@@ -55,7 +55,10 @@ model Student {
   updatedAt DateTime @updatedAt
 
   // Relations
-  group Group @relation(fields: [groupId], references: [id])
+  group       Group        @relation(fields: [groupId], references: [id])
+  submissions Submission[]
+  hintUnlocks HintUnlock[]
+  attendance  Attendance[]
 
   @@map("students")
 }
@@ -164,8 +167,9 @@ model Session {
   updatedAt        DateTime @updatedAt
 
   // Relations
-  level Level  @relation(fields: [levelId], references: [id], onDelete: Cascade)
-  tasks Task[]
+  level      Level        @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  tasks      Task[]
+  attendance Attendance[]
 
   @@map("sessions")
 }
@@ -200,8 +204,9 @@ model Task {
   updatedAt   DateTime @updatedAt
 
   // Relations
-  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  hints   Hint[]
+  session     Session      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  hints       Hint[]
+  submissions Submission[]
 
   @@map("tasks")
 }
@@ -223,8 +228,131 @@ model Hint {
   updatedAt DateTime @updatedAt
 
   // Relations
-  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task        Task         @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  hintUnlocks HintUnlock[]
 
   @@unique([taskId, order])
   @@map("hints")
+}
+
+
+//--------------------------------------------------------------------------------
+
+
+// ============================================
+// SUBMISSION MODE ENUM
+// ============================================
+// FILE: رفع ملف واحد (أي نوع، حد أقصى 5MB) على Supabase Storage
+// LINK: رابط خارجي (مثلاً GitHub, CodeSandbox, ...)
+// TEXT: نص ملصوق مباشرة
+
+enum SubmissionMode {
+  FILE
+  LINK
+  TEXT
+}
+
+// ============================================
+// SUBMISSION
+// ============================================
+// Row واحد بس لكل (studentId, taskId) - unique constraint.
+// الـ resubmit = UPDATE على نفس الـ row (submittedAt بيتحدث تلقائيًا)،
+// المحتوى القديم بيتمسح، مفيش history table.
+//
+// الـ resubmit بيتمنع لو:
+//   1) الـ deadline بتاع الـ Task عدى، أو
+//   2) isLocked = true (بيتفعّل لما الـ Instructor يقيّم الـ submission -
+//      حتى لو ده حصل قبل الـ deadline، عشان التقييم ميبقاش على نسخة اتغيرت بعده)
+//
+// ملحوظة معمارية مهمة: رفع الـ Submission وحده مبيديش ST فورًا.
+// الـ ST (submit +5 / not-submitted -10) بتتحسب بعد ما الـ deadline يعدي
+// (Phase 4 scheduled check)، والـ rubric grading (+0 إلى +10) بيحصل
+// في أي وقت بعد التسليم بفعل الـ Instructor - مش مرتبط بالـ deadline.
+
+model Submission {
+  id            String         @id @default(uuid())
+  studentId     String
+  taskId        String
+  mode          SubmissionMode
+
+  // محتوى التسليم - عمود واحد بس هيتملي حسب الـ mode
+  fileUrl       String? // لو mode = FILE (مسار الملف في Supabase Storage)
+  externalLink  String? // لو mode = LINK
+  textContent   String? // لو mode = TEXT
+
+  submittedAt   DateTime       @default(now()) @updatedAt
+  isLocked      Boolean        @default(false) // بيتفعّل وقت التقييم، بيمنع أي resubmit بعد كده
+
+  // Evaluation (merged في نفس الـ row - مش جدول منفصل)
+  understandingScore  Int? // 0-2
+  approachScore       Int? // 0-3
+  correctnessScore    Int? // 0-3
+  implementationScore Int? // 0-2
+  instructorComment   String?
+  gradedAt            DateTime?
+  gradedBy            String? // instructorId اللي قيّم
+
+  createdAt     DateTime       @default(now())
+
+  // Relations
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  task    Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, taskId])
+  @@map("submissions")
+}
+
+// ============================================
+// HINT UNLOCK
+// ============================================
+// بيتبّع مين فتح إيه من الـ Hints. الفتح بيحصل مرة واحدة بس لكل
+// (studentId, hintId) - unique constraint - وبعدها الـ Hint مفتوح للأبد.
+// costPaid بيسجّل الكلفة وقت الفتح فعليًا (snapshot)، عشان لو الـ cost
+// اتغيّر بعدين في الـ Hint نفسها، السجل التاريخي مايتأثرش.
+
+model HintUnlock {
+  id         String   @id @default(uuid())
+  studentId  String
+  hintId     String
+  costPaid   Int
+  unlockedAt DateTime @default(now())
+
+  // Relations
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  hint    Hint    @relation(fields: [hintId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, hintId])
+  @@map("hint_unlocks")
+}
+
+// ============================================
+// ATTENDANCE STATUS ENUM
+// ============================================
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+}
+
+// ============================================
+// ATTENDANCE
+// ============================================
+// تسجيل يدوي بالكامل من الـ Instructor أثناء/بعد الـ Session.
+// مفيش حالة LATE - PRESENT أو ABSENT بس.
+// (studentId, sessionId) unique - تسجيل واحد بس لكل طالب لكل Session.
+
+model Attendance {
+  id         String           @id @default(uuid())
+  studentId  String
+  sessionId  String
+  status     AttendanceStatus
+  recordedBy String // instructorId اللي سجّل الحضور
+  recordedAt DateTime         @default(now())
+
+  // Relations
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, sessionId])
+  @@map("attendance")
 }
