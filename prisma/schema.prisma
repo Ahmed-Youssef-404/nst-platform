@@ -51,14 +51,18 @@ model Student {
   email     String   @unique
   name      String
   groupId   String
+  levelSt   Int      @default(50) // بترجع 50 مع كل Level جديد، مفيش حد أدنى (ممكن تطلع سالبة)
+  totalSt   Int      @default(0)  // تراكمي طول الـ Batch، مفيش حد أدنى (ممكن تطلع سالبة)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relations
-  group       Group        @relation(fields: [groupId], references: [id])
-  submissions Submission[]
-  hintUnlocks HintUnlock[]
-  attendance  Attendance[]
+  group             Group              @relation(fields: [groupId], references: [id])
+  submissions       Submission[]
+  hintUnlocks       HintUnlock[]
+  attendance        Attendance[]
+  stTransactions    STTransaction[]
+  storeInventory    StudentInventory[]
 
   @@map("students")
 }
@@ -143,8 +147,9 @@ model Level {
   updatedAt   DateTime  @updatedAt
 
   // Relations
-  group    Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  sessions Session[]
+  group          Group           @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  sessions       Session[]
+  stTransactions STTransaction[]
 
   @@map("levels")
 }
@@ -355,4 +360,129 @@ model Attendance {
 
   @@unique([studentId, sessionId])
   @@map("attendance")
+}
+
+
+//--------------------------------------------------------------------------------
+
+
+// ============================================
+// ST TRANSACTION TYPE ENUM
+// ============================================
+
+enum STTransactionType {
+  REWARD
+  PENALTY
+}
+
+// ============================================
+// ST REASON ENUM
+// ============================================
+// السبب الثابت اللي خلّى الحركة تحصل. كل الأسباب المتفق عليها في
+// نظام الـ ST economy، ثابتة كـ enum عشان consistency و validation
+// على مستوى الـ DB.
+
+enum STReason {
+  // Rewards
+  ATTENDANCE
+  SESSION_ENGAGEMENT
+  SUBMIT_BEFORE_DEADLINE
+  BONUS_TASK_SOLVED
+  FIRST_SOLVER
+  FINISH_ALL_TASKS
+  RUBRIC_GRADING
+  WEEKLY_MISSION
+
+  // Penalties
+  HINT_UNLOCK
+  MISSED_SESSION
+  TASK_NOT_SUBMITTED
+
+  // Store
+  STORE_PURCHASE
+
+  // Manual
+  MANUAL_ADJUSTMENT
+}
+
+// ============================================
+// ST TRANSACTION
+// ============================================
+// سجل تدقيق (audit log) كامل لكل حركة ST تحصل لأي طالب، سواء كانت
+// موجبة (REWARD) أو سالبة (PENALTY). amount دايمًا رقم موجب - الإشارة
+// بتتحدد من type.
+//
+// levelId: الـ Level اللي الحركة حصلت فيه فعليًا وقتها - بيتسجّل عشان
+// لو الطالب اتنقل لـ Level تاني بعدين، السجل التاريخي يفضل دقيق.
+//
+// relatedEntityId: عمود generic (من غير FK فعلي) بيخزن ID أي entity
+// سبّب الحركة - مثلاً taskId لو SUBMIT_BEFORE_DEADLINE، hintId لو
+// HINT_UNLOCK، sessionId لو ATTENDANCE، storeItemId لو STORE_PURCHASE.
+//
+// levelStBalance / totalStBalance: snapshot لرصيد الطالب مباشرة بعد
+// تنفيذ هذه الحركة بالذات - عشان نقدر نعرض تاريخ الرصيد بالظبط في أي
+// لحظة من غير ما نضطر نجمع كل الحركات من الأول كل مرة.
+
+model STTransaction {
+  id              String            @id @default(uuid())
+  studentId       String
+  levelId         String
+  type            STTransactionType
+  reason          STReason
+  amount          Int // دايمًا موجب
+  relatedEntityId String? // generic - بدون foreign key فعلي
+  levelStBalance  Int // snapshot بعد الحركة
+  totalStBalance  Int // snapshot بعد الحركة
+  createdAt       DateTime          @default(now())
+
+  // Relations
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  level   Level   @relation(fields: [levelId], references: [id])
+
+  @@map("st_transactions")
+}
+
+// ============================================
+// STORE ITEM
+// ============================================
+// المتجر حاليًا Avatar items بس (ميزة الـ Editorial اتلغت بالكامل
+// من العميل). isActive بيسمح للـ SuperAdmin يوقف منتج مؤقتًا من
+// غير ما يمسحه (عشان الطلاب اللي امتلكوه يفضل ظاهر عندهم).
+
+model StoreItem {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  imageUrl    String?
+  cost        Int
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  purchases StudentInventory[]
+
+  @@map("store_items")
+}
+
+// ============================================
+// STUDENT INVENTORY
+// ============================================
+// إيه اللي الطالب امتلكه فعليًا من الـ Store. (studentId, storeItemId)
+// unique - الطالب يقدر يمتلك نفس الـ item مرة واحدة بس، مفيش شراء متكرر.
+// isEquipped بيحدد هل الطالب "لابس" الـ item ده دلوقتي في الـ Avatar بتاعه.
+
+model StudentInventory {
+  id          String   @id @default(uuid())
+  studentId   String
+  storeItemId String
+  isEquipped  Boolean  @default(false)
+  purchasedAt DateTime @default(now())
+
+  // Relations
+  student   Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  storeItem StoreItem @relation(fields: [storeItemId], references: [id])
+
+  @@unique([studentId, storeItemId])
+  @@map("student_inventory")
 }
