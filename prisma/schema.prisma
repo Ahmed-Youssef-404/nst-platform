@@ -486,3 +486,65 @@ model StudentInventory {
   @@unique([studentId, storeItemId])
   @@map("student_inventory")
 }
+
+
+// ============================================
+// إضافات مطلوبة على schema.prisma
+// ============================================
+
+// 1) Enum جديد: الـ slot بتاع كل قطعة أفاتار (16 قيمة)
+enum AvatarSlot {
+  SKIN_TONE       // مشترك - لازم يبقى فيه واحد مختار دايمًا
+  GLASSES         // مشترك (بما فيها المستقبلية)
+  FACE_ACCESSORY  // مشترك (Eye Patch, Bandage, Mask)
+  AURA            // مشترك (Glow, Stars, Fire, Lightning, Snow, Electric)
+  FRAME           // مشترك (عادي، ذهبي، نيون، دايموند)
+  HAIR            // ولاد + بنات (items مختلفة)
+  FACIAL_HAIR     // ولاد (ذقن وشنب)
+  HAT             // مشترك (بما فيها قبعة الساحر)
+  HEADPHONES      // ولاد
+  BOW             // بنات
+  HAIR_FLOWER     // بنات
+  NECKLACE        // بنات
+  EYELASHES       // بنات
+  HEADBAND        // بنات
+  CAT_EARS        // مستقل
+  CYBER_VISOR     // مستقل
+}
+
+// 2) Enum جديد: تصنيف العرض في المتجر (UI tab بس - مفيش تأثير على الـ logic)
+enum StoreGenderTab {
+  UNISEX
+  MALE
+  FEMALE
+}
+
+// 3) Enum جديد: الندرة
+enum StoreRarity {
+  COMMON
+  RARE
+  EPIC
+}
+
+// ============================================
+// تعديل على موديل StoreItem الموجود
+// أضف الأعمدة دي:
+// ============================================
+//
+// slot        AvatarSlot
+// genderTab   StoreGenderTab
+// rarity      StoreRarity
+//
+// (الأعمدة الموجودة زي ما هي: id, name, description, imageUrl, cost, isActive)
+
+// ============================================
+// تعديل على موديل StudentInventory
+// الـ isEquipped uniqueness بقى لازم يبقى على أساس الـ slot
+// بتاع الـ StoreItem المرتبط، مش الـ category القديمة.
+//
+// ده مش constraint مباشر في الـ DB schema (لأن الـ slot موجود
+// جوا StoreItem مش جوا StudentInventory نفسها)، فهيتطبق في
+// الـ business logic (Server Action) وقت الـ equip:
+// "قبل ما تعمل isEquipped=true لأي item، دور على أي item تاني
+// نفس الـ slot عند نفس الطالب وisEquipped=true، وحطله false"
+// ============================================
