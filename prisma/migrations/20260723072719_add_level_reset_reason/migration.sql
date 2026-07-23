@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "STReason" ADD VALUE 'LEVEL_RESET';

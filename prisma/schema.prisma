@@ -403,6 +403,10 @@ enum STReason {
 
   // Manual
   MANUAL_ADJUSTMENT
+
+  // Level transition (SuperAdmin moves a Group to a new Level -> every
+  // student's levelSt resets to 50; logged here for audit purposes)
+  LEVEL_RESET
 }
 
 // ============================================
