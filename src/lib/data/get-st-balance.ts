@@ -15,10 +15,13 @@ const prisma = new PrismaClient({ adapter });
 export async function getStudentBalance(studentId: string) {
     const student = await prisma.student.findUniqueOrThrow({
         where: { id: studentId },
-        select: { levelSt: true, totalSt: true },
+        select: { name: true, levelSt: true, totalSt: true },
     });
 
-    return getBalanceStatus(student.levelSt, student.totalSt);
+    return {
+        name: student.name,
+        ...getBalanceStatus(student.levelSt, student.totalSt),
+    };
 }
 
 export async function getStudentSTHistory(studentId: string, limit = 50) {

@@ -4,6 +4,11 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { UserRole } from "@/types/types";
+import { PrismaClient } from "@/generated/prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const prisma = new PrismaClient({ adapter });
 
 export interface CurrentUser {
     id: string;
@@ -36,4 +41,29 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
         email: user.email!,
         role,
     };
+}
+
+// IMPORTANT: For students, the Supabase Auth user id (a UUID) is NOT the
+// same as the `id` column in the `students` table (which is the student's
+// login code, e.g. "NST-1001" - see create-student.ts). Every server-side
+// query that needs the real students-table id (to read/write ST balances,
+// submissions, attendance, hint unlocks, etc.) must resolve it through
+// this function - bridging via the unique `email` column - rather than
+// assuming CurrentUser.id can be used directly as a Student foreign key.
+//
+// SuperAdmin and Instructor do NOT have this mismatch (their tables use
+// the Supabase Auth id directly), so this helper is student-specific.
+export async function getCurrentStudentId(): Promise<string | null> {
+    const user = await getCurrentUser();
+
+    if (!user || user.role !== "student") {
+        return null;
+    }
+
+    const student = await prisma.student.findUnique({
+        where: { email: user.email },
+        select: { id: true },
+    });
+
+    return student?.id ?? null;
 }

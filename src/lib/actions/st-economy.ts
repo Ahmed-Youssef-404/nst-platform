@@ -7,6 +7,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/require-role";
+import { getCurrentStudentId } from "@/lib/auth/get-current-user";
 import { recordAttendance, recordSessionEngagement, gradeSubmission } from "@/lib/st-economy/instructor-events";
 import { unlockHint } from "@/lib/st-economy/hint-unlock";
 import { reconcileStudentST } from "@/lib/st-economy/reconcile";
@@ -73,9 +74,10 @@ export async function gradeSubmissionAction(input: GradeSubmissionInput) {
 // ------------------------------------------------------------------
 
 export async function unlockHintAction(input: UnlockHintInput) {
-    const user = await requireRole(["student"]);
+    await requireRole(["student"]);
+    const studentId = await getCurrentStudentId();
 
-    if (user.id !== input.studentId) {
+    if (!studentId || studentId !== input.studentId) {
         return { success: false, error: "You can only unlock hints for your own account." };
     }
 
@@ -103,8 +105,11 @@ export async function unlockHintAction(input: UnlockHintInput) {
 export async function reconcileStudentSTAction(studentId: string) {
     const user = await requireRole(["student", "instructor", "super_admin"]);
 
-    if (user.role === "student" && user.id !== studentId) {
-        return { success: false, error: "You can only reconcile your own account." };
+    if (user.role === "student") {
+        const currentStudentId = await getCurrentStudentId();
+        if (!currentStudentId || currentStudentId !== studentId) {
+            return { success: false, error: "You can only reconcile your own account." };
+        }
     }
 
     try {
