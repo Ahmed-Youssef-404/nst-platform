@@ -230,12 +230,17 @@ async function setupTestData(): Promise<TestContext> {
 }
 
 async function cleanupTestData(ctx: TestContext) {
-    // Deleting the Batch cascades through Group -> Level -> Session ->
-    // Task -> Hint/Submission, and Student -> STTransaction/HintUnlock/
-    // Attendance, per the onDelete: Cascade relations in schema.prisma.
+    // Deletion order matters here: Group.batch has NO onDelete: Cascade
+    // (by design - see manage-batch.ts / manage-group.ts: a Batch should
+    // never be deletable while it still has Groups, to prevent accidental
+    // data loss). So we delete bottom-up: Students first (cascades to
+    // their STTransaction/HintUnlock/Attendance/Submission rows), then the
+    // Group (which DOES cascade to Level -> Session -> Task -> Hint, per
+    // schema.prisma), then finally the Batch.
     await prisma.student.deleteMany({
         where: { id: { in: [ctx.studentAId, ctx.studentBId] } },
     });
+    await prisma.group.delete({ where: { id: ctx.groupId } });
     await prisma.batch.delete({ where: { id: ctx.batchId } });
 }
 
@@ -564,17 +569,21 @@ async function main() {
     await step("Student A attended + submitted everything in week 0 -> +30", async () => {
         // Student A needs an Attendance=PRESENT row for pastSessionId too,
         // since Weekly Mission requires attending ALL sessions in the week.
+        const beforeAttendance = await prisma.student.findUniqueOrThrow({ where: { id: ctx.studentAId } });
+
         await recordAttendance({
             studentId: ctx.studentAId,
             sessionId: ctx.pastSessionId,
             status: "PRESENT",
             recordedBy: ctx.instructorId,
         });
+        const afterAttendance = await prisma.student.findUniqueOrThrow({ where: { id: ctx.studentAId } });
+        assert(afterAttendance.levelSt === beforeAttendance.levelSt + 10, `attendance added exactly +10 (${beforeAttendance.levelSt} -> ${afterAttendance.levelSt})`);
 
-        const before = await prisma.student.findUniqueOrThrow({ where: { id: ctx.studentAId } });
+        const beforeMission = afterAttendance;
         await reconcileWeeklyMission(ctx.studentAId);
-        const after = await printBalance(ctx.studentAId, "Student A after weekly mission reconcile");
-        assert(after.levelSt === before.levelSt + 30 + 10, `levelSt increased by 40 (attendance +10, then weekly mission +30) (${before.levelSt} -> ${after.levelSt})`);
+        const afterMission = await printBalance(ctx.studentAId, "Student A after weekly mission reconcile");
+        assert(afterMission.levelSt === beforeMission.levelSt + 30, `weekly mission added exactly +30 (${beforeMission.levelSt} -> ${afterMission.levelSt})`);
     });
 
     await step("Student B did not attend/submit everything -> no Weekly Mission reward", async () => {
