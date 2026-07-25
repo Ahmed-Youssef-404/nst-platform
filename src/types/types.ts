@@ -171,3 +171,103 @@ export interface UnlockHintInput {
 export interface ReconcileStudentInput {
     studentId: string;
 }
+
+// ============================================
+// SESSION / TASK / HINT MANAGEMENT
+// ============================================
+// These string unions mirror the Prisma enums TaskType / SubmissionMode.
+// Kept as plain string types here (not imported from @/generated/prisma)
+// so this file has no dependency on the generated client.
+
+export type TaskTypeCode = "INTERNAL" | "EXTERNAL";
+
+export type SubmissionModeCode = "FILE" | "LINK" | "TEXT";
+
+export interface CreateHintInput {
+    content: string;
+    cost: number;
+}
+
+export interface CreateTaskInput {
+    title: string;
+    description: string;
+    type: TaskTypeCode;
+    deadline: Date;
+    isBonus: boolean;
+    // null = الطالب يختار بحرّية. يجب أن يكون null دائمًا لو type = EXTERNAL.
+    allowedSubmissionMode?: SubmissionModeCode | null;
+    hints: [CreateHintInput, CreateHintInput, CreateHintInput]; // بالظبط 3
+}
+
+export interface CreateSessionInput {
+    levelId: string;
+    title: string;
+    startTime: Date;
+    durationMinutes: number;
+    recordingLink?: string | null;
+    tasks: CreateTaskInput[]; // ممكن تكون []
+    createdBy: string; // instructorId (من requireRole/getCurrentUser)
+}
+
+export interface SessionWithTasks {
+    id: string;
+    levelId: string;
+    title: string;
+    startTime: Date;
+    durationMinutes: number;
+    recordingLink: string | null;
+    tasks: {
+        id: string;
+        title: string;
+        description: string;
+        type: TaskTypeCode;
+        deadline: Date;
+        isBonus: boolean;
+        allowedSubmissionMode: SubmissionModeCode | null;
+        hints: { id: string; content: string; cost: number; order: number }[];
+    }[];
+}
+
+// Only the fields that remain editable while a Session is still upcoming.
+export interface UpdateSessionInput {
+    sessionId: string;
+    instructorId: string; // must be assigned to the Session's Group
+    title?: string;
+    startTime?: Date;
+    durationMinutes?: number;
+    recordingLink?: string | null;
+}
+
+// ============================================
+// SUBMISSION
+// ============================================
+
+// One of these three must be provided, matching `mode`.
+export interface CreateOrUpdateSubmissionInput {
+    studentId: string;
+    taskId: string;
+    mode: SubmissionModeCode;
+    fileUrl?: string | null; // Supabase Storage path, set after upload
+    externalLink?: string | null;
+    textContent?: string | null;
+}
+
+export interface SubmissionResult {
+    id: string;
+    studentId: string;
+    taskId: string;
+    mode: SubmissionModeCode;
+    fileUrl: string | null;
+    externalLink: string | null;
+    textContent: string | null;
+    submittedAt: Date;
+    isLocked: boolean;
+}
+
+// Allowed file constraints for FILE-mode submissions (Supabase Storage).
+export const SUBMISSION_MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
+export const SUBMISSION_ALLOWED_MIME_TYPES = [
+    "application/pdf",
+    "application/zip",
+    "application/x-zip-compressed",
+] as const;
