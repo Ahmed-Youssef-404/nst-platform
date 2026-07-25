@@ -271,3 +271,46 @@ export const SUBMISSION_ALLOWED_MIME_TYPES = [
     "application/zip",
     "application/x-zip-compressed",
 ] as const;
+
+// ============================================
+// LEVEL MANAGEMENT
+// ============================================
+
+export interface LevelSummary {
+    id: string;
+    name: string;
+    description: string | null;
+    levelNumber: number;
+    startDate: Date;
+}
+
+export interface GroupWithActiveLevel {
+    id: string;
+    name: string;
+    batchId: string;
+    activeLevel: LevelSummary | null;
+}
+
+export interface BatchWithGroupsAndLevels {
+    id: string;
+    name: string;
+    groups: GroupWithActiveLevel[];
+}
+
+// Creates one Level row per Group in groupIds, all sharing the same
+// name/description/levelNumber. Each targeted Group's previous active
+// Level (if any) is deactivated as part of the same operation.
+export interface CreateLevelInput {
+    name: string;
+    description?: string | null;
+    levelNumber: number;
+    groupIds: string[]; // at least one
+}
+
+export interface CreateLevelResult {
+    id: string;
+    groupId: string;
+    name: string;
+    levelNumber: number;
+    startDate: Date;
+}

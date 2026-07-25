@@ -22,6 +22,12 @@ export default function SuperAdminLayout({
                         >
                             Batches
                         </Link>
+                        <Link
+                            href="/super-admin/levels"
+                            className="hover:text-foreground"
+                        >
+                            Levels
+                        </Link>
                     </nav>
                 </div>
                 <LogoutButton />
