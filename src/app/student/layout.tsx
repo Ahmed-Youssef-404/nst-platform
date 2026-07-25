@@ -12,7 +12,7 @@ export default function StudentLayout({
                 <h1 className="text-lg font-semibold">NST Platform</h1>
                 <LogoutButton />
             </header>
-            <main className="mx-auto max-w-2xl px-6 py-10">{children}</main>
+            <main className="mx-auto max-w-3xl px-6 py-10">{children}</main>
         </div>
     );
 }
