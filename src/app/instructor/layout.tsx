@@ -1,6 +1,7 @@
 // src/app/instructor/layout.tsx
 import Link from "next/link";
 import { LogoutButton } from "@/components/logout-button";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function InstructorLayout({
     children,
@@ -18,6 +19,7 @@ export default function InstructorLayout({
                     </Link>
                 </div>
                 <LogoutButton />
+                <ThemeToggle />
             </header>
             <main className="mx-auto max-w-3xl px-6 py-10">{children}</main>
         </div>
