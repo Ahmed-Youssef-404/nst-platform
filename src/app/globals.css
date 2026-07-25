@@ -238,3 +238,24 @@ button {
 button:disabled {
   cursor: not-allowed !important;
 }
+
+/* ============================================
+   PREMIUM SKELETON SHIMMER
+   A diagonal light sweep instead of a flat pulse —
+   reads as "loading a polished product" rather than
+   a placeholder gray box. Subtle gold tint ties it
+   to the brand instead of a generic gray sheen.
+   ============================================ */
+
+@keyframes shimmer-sweep {
+  from {
+    transform: translateX(-150%);
+  }
+  to {
+    transform: translateX(150%);
+  }
+}
+
+@theme inline {
+  --animate-shimmer-sweep: shimmer-sweep 1.8s ease-in-out infinite;
+}
