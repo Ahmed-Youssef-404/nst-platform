@@ -13,6 +13,19 @@ import type { TaskTypeCode, SubmissionModeCode } from "@/types/types";
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
+// One row per Student in the Group, for attendance/engagement tracking on
+// this Session. `attendanceStatus` is null until the Instructor records it
+// (no default - we don't want to silently assume PRESENT or ABSENT).
+// `engagementGiven` is one-way: true once recorded, and recordSessionEngagement
+// throws if called again for the same (student, session) - there is no UI
+// path to un-give it, matching the backend.
+export interface SessionDetailRosterEntry {
+    studentId: string;
+    studentName: string;
+    attendanceStatus: "PRESENT" | "ABSENT" | null;
+    engagementGiven: boolean;
+}
+
 export interface SessionDetailHint {
     id: string;
     order: number;
@@ -69,6 +82,9 @@ export interface SessionDetail {
     recordingLink: string | null;
     status: SessionStatus;
     tasks: SessionDetailTask[];
+    // Attendance/engagement roster - only meaningful once status is
+    // "completed" (see comment in session-detail-view.tsx for why).
+    roster: SessionDetailRosterEntry[];
 }
 
 export async function getSessionDetail(
@@ -110,6 +126,26 @@ export async function getSessionDetail(
         orderBy: { name: "asc" },
     });
 
+    // Existing Attendance rows for this Session (one per student max,
+    // enforced by the unique constraint) and any SESSION_ENGAGEMENT
+    // transactions already recorded for it - both drive the roster below.
+    const [attendanceRows, engagementTransactions] = await Promise.all([
+        prisma.attendance.findMany({
+            where: { sessionId },
+            select: { studentId: true, status: true },
+        }),
+        prisma.sTTransaction.findMany({
+            where: { reason: "SESSION_ENGAGEMENT", relatedEntityId: sessionId },
+            select: { studentId: true },
+        }),
+    ]);
+    const attendanceByStudent = new Map(
+        attendanceRows.map((a) => [a.studentId, a.status])
+    );
+    const engagedStudentIds = new Set(
+        engagementTransactions.map((t) => t.studentId)
+    );
+
     return {
         id: session.id,
         levelId: session.levelId,
@@ -121,6 +157,12 @@ export async function getSessionDetail(
         durationMinutes: session.durationMinutes,
         recordingLink: session.recordingLink,
         status: computeSessionStatus(session.startTime, session.durationMinutes),
+        roster: groupStudents.map((student) => ({
+            studentId: student.id,
+            studentName: student.name,
+            attendanceStatus: attendanceByStudent.get(student.id) ?? null,
+            engagementGiven: engagedStudentIds.has(student.id),
+        })),
         tasks: session.tasks.map((task) => ({
             id: task.id,
             title: task.title,

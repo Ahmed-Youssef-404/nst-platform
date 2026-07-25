@@ -20,8 +20,13 @@ import {
     SessionDetail,
     SessionDetailTask,
     SessionDetailSubmission,
+    SessionDetailRosterEntry,
 } from "@/lib/data/get-session-detail";
-import { gradeSubmissionAction } from "@/lib/actions/st-economy";
+import {
+    gradeSubmissionAction,
+    recordAttendanceAction,
+    recordSessionEngagementAction,
+} from "@/lib/actions/st-economy";
 import { getSubmissionFileUrlAction } from "@/lib/actions/submission-management";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
@@ -117,6 +122,14 @@ export function SessionDetailView({
                 </CardContent>
             </Card>
 
+            {session.status === "completed" && (
+                <AttendanceRoster
+                    sessionId={session.id}
+                    roster={session.roster}
+                    instructorId={instructorId}
+                />
+            )}
+
             <div className="space-y-4">
                 <h3 className="text-sm font-semibold">
                     Tasks {session.tasks.length > 0 && `(${session.tasks.length})`}
@@ -181,6 +194,144 @@ export function SessionDetailView({
                     ))
                 )}
             </div>
+        </div>
+    );
+}
+
+// ============================================
+// ATTENDANCE / ENGAGEMENT ROSTER
+// ============================================
+// Only rendered once the Session is "completed" - an Instructor
+// shouldn't be marking attendance for a Session that's still upcoming or
+// in progress. Attendance can be set and later corrected (PRESENT <->
+// ABSENT) at any time after that, since recordAttendance reverses the
+// prior ST effect before applying the new one. Engagement is one-way:
+// once given it can't be un-given or re-given from this UI, matching
+// recordSessionEngagement throwing on a duplicate call.
+
+function AttendanceRoster({
+    sessionId,
+    roster,
+    instructorId,
+}: {
+    sessionId: string;
+    roster: SessionDetailRosterEntry[];
+    instructorId: string;
+}) {
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Attendance &amp; engagement</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+                {roster.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                        No Students in this Group.
+                    </p>
+                ) : (
+                    roster.map((entry) => (
+                        <RosterRow
+                            key={entry.studentId}
+                            sessionId={sessionId}
+                            entry={entry}
+                            instructorId={instructorId}
+                        />
+                    ))
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
+function RosterRow({
+    sessionId,
+    entry,
+    instructorId,
+}: {
+    sessionId: string;
+    entry: SessionDetailRosterEntry;
+    instructorId: string;
+}) {
+    const router = useRouter();
+    const [isSavingAttendance, setIsSavingAttendance] = useState(false);
+    const [isSavingEngagement, setIsSavingEngagement] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    async function handleAttendance(status: "PRESENT" | "ABSENT") {
+        if (status === entry.attendanceStatus) return;
+        setError(null);
+        setIsSavingAttendance(true);
+        const result = await recordAttendanceAction({
+            studentId: entry.studentId,
+            sessionId,
+            status,
+            recordedBy: instructorId,
+        });
+        setIsSavingAttendance(false);
+
+        if (result.success) {
+            router.refresh();
+        } else {
+            setError(result.error ?? "Could not save attendance.");
+        }
+    }
+
+    async function handleEngagement() {
+        setError(null);
+        setIsSavingEngagement(true);
+        const result = await recordSessionEngagementAction({
+            studentId: entry.studentId,
+            sessionId,
+            recordedBy: instructorId,
+        });
+        setIsSavingEngagement(false);
+
+        if (result.success) {
+            router.refresh();
+        } else {
+            setError(result.error ?? "Could not record engagement.");
+        }
+    }
+
+    return (
+        <div className="rounded-md border p-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="text-sm font-medium">{entry.studentName}</span>
+                <div className="flex items-center gap-2">
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant={entry.attendanceStatus === "PRESENT" ? "default" : "outline"}
+                        disabled={isSavingAttendance}
+                        onClick={() => handleAttendance("PRESENT")}
+                    >
+                        Present
+                    </Button>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant={entry.attendanceStatus === "ABSENT" ? "default" : "outline"}
+                        disabled={isSavingAttendance}
+                        onClick={() => handleAttendance("ABSENT")}
+                    >
+                        Absent
+                    </Button>
+                    {entry.engagementGiven ? (
+                        <Badge variant="success">Engagement +5 given</Badge>
+                    ) : (
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={isSavingEngagement}
+                            onClick={handleEngagement}
+                        >
+                            {isSavingEngagement ? "Saving..." : "Give engagement (+5 ST)"}
+                        </Button>
+                    )}
+                </div>
+            </div>
+            {error && <p className="mt-2 text-sm text-error">{error}</p>}
         </div>
     );
 }
