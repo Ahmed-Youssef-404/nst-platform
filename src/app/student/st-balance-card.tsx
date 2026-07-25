@@ -20,11 +20,11 @@ const ZONE_STYLES: Record<BalanceZone, { label: string; className: string }> = {
     },
     warning: {
         label: "Warning",
-        className: "border-yellow-400 bg-yellow-50 text-yellow-900",
+        className: "border-warning bg-warning-bg text-warning",
     },
     danger: {
         label: "Danger Zone",
-        className: "border-red-400 bg-red-50 text-red-900",
+        className: "border-error bg-error-bg text-error",
     },
 };
 
