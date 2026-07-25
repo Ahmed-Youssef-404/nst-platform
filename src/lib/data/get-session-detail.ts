@@ -20,6 +20,30 @@ export interface SessionDetailHint {
     cost: number;
 }
 
+// One row per Student in the Group, for a single INTERNAL Task.
+// `submission` is null when the Student hasn't submitted anything yet -
+// the Instructor still needs to see the Student's name in that case, to
+// know who's late.
+export interface SessionDetailSubmission {
+    studentId: string;
+    studentName: string;
+    submission: {
+        id: string;
+        mode: SubmissionModeCode;
+        fileUrl: string | null;
+        externalLink: string | null;
+        textContent: string | null;
+        submittedAt: Date;
+        isLocked: boolean;
+        isGraded: boolean;
+        understandingScore: number | null;
+        approachScore: number | null;
+        correctnessScore: number | null;
+        implementationScore: number | null;
+        instructorComment: string | null;
+    } | null;
+}
+
 export interface SessionDetailTask {
     id: string;
     title: string;
@@ -29,6 +53,8 @@ export interface SessionDetailTask {
     isBonus: boolean;
     allowedSubmissionMode: SubmissionModeCode | null;
     hints: SessionDetailHint[];
+    // Only populated for INTERNAL tasks - EXTERNAL tasks have no submissions.
+    submissions: SessionDetailSubmission[];
 }
 
 export interface SessionDetail {
@@ -54,7 +80,10 @@ export async function getSessionDetail(
         include: {
             level: { include: { group: true } },
             tasks: {
-                include: { hints: { orderBy: { order: "asc" } } },
+                include: {
+                    hints: { orderBy: { order: "asc" } },
+                    submissions: true,
+                },
             },
         },
     });
@@ -71,6 +100,15 @@ export async function getSessionDetail(
     });
 
     if (!assignment) return null;
+
+    // Every Student in the Group, needed so the grading UI can show who
+    // hasn't submitted yet - not just who has. Fetched once and reused
+    // across every INTERNAL task in this Session.
+    const groupStudents = await prisma.student.findMany({
+        where: { groupId: session.level.groupId },
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
+    });
 
     return {
         id: session.id,
@@ -97,6 +135,35 @@ export async function getSessionDetail(
                 content: hint.content,
                 cost: hint.cost,
             })),
+            submissions:
+                task.type === "INTERNAL"
+                    ? groupStudents.map((student) => {
+                        const submission = task.submissions.find(
+                            (s) => s.studentId === student.id
+                        );
+                        return {
+                            studentId: student.id,
+                            studentName: student.name,
+                            submission: submission
+                                ? {
+                                    id: submission.id,
+                                    mode: submission.mode as SubmissionModeCode,
+                                    fileUrl: submission.fileUrl,
+                                    externalLink: submission.externalLink,
+                                    textContent: submission.textContent,
+                                    submittedAt: submission.submittedAt,
+                                    isLocked: submission.isLocked,
+                                    isGraded: !!submission.gradedAt,
+                                    understandingScore: submission.understandingScore,
+                                    approachScore: submission.approachScore,
+                                    correctnessScore: submission.correctnessScore,
+                                    implementationScore: submission.implementationScore,
+                                    instructorComment: submission.instructorComment,
+                                }
+                                : null,
+                        };
+                    })
+                    : [],
         })),
     };
 }

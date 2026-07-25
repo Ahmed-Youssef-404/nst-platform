@@ -32,5 +32,5 @@ export default async function SessionDetailPage({
         );
     }
 
-    return <SessionDetailView session={session} />;
+    return <SessionDetailView session={session} instructorId={user.id} />;
 }

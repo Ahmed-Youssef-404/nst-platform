@@ -16,7 +16,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { updateSessionAction } from "@/lib/actions/session-management";
 import { SessionStatus } from "@/lib/data/get-my-groups";
-import { SessionDetail } from "@/lib/data/get-session-detail";
+import {
+    SessionDetail,
+    SessionDetailTask,
+    SessionDetailSubmission,
+} from "@/lib/data/get-session-detail";
+import { gradeSubmissionAction } from "@/lib/actions/st-economy";
+import { getSubmissionFileUrlAction } from "@/lib/actions/submission-management";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 // import type { SessionDetail } from "@/lib/data/get-session-detail";
 // import type { SessionStatus } from "@/lib/data/get-my-groups";
 
@@ -36,7 +44,13 @@ function toDatetimeLocal(date: Date): string {
     )}:${pad(date.getMinutes())}`;
 }
 
-export function SessionDetailView({ session }: { session: SessionDetail }) {
+export function SessionDetailView({
+    session,
+    instructorId,
+}: {
+    session: SessionDetail;
+    instructorId: string;
+}) {
     const [isEditing, setIsEditing] = useState(false);
     const statusStyle = STATUS_STYLES[session.status];
 
@@ -156,12 +170,349 @@ export function SessionDetailView({ session }: { session: SessionDetail }) {
                                         </div>
                                     ))}
                                 </div>
+                                {task.type === "INTERNAL" && (
+                                    <SubmissionsSection
+                                        task={task}
+                                        instructorId={instructorId}
+                                    />
+                                )}
                             </CardContent>
                         </Card>
                     ))
                 )}
             </div>
         </div>
+    );
+}
+
+// ============================================
+// SUBMISSIONS / GRADING
+// ============================================
+
+function submissionStatusLabel(row: SessionDetailSubmission): {
+    label: string;
+    variant: "outline" | "success" | "secondary" | "warning";
+} {
+    if (!row.submission) return { label: "Not submitted", variant: "outline" };
+    if (row.submission.isGraded) return { label: "Graded", variant: "success" };
+    return { label: "Awaiting grading", variant: "warning" };
+}
+
+function SubmissionsSection({
+    task,
+    instructorId,
+}: {
+    task: SessionDetailTask;
+    instructorId: string;
+}) {
+    const [openStudentId, setOpenStudentId] = useState<string | null>(null);
+
+    return (
+        <div className="space-y-2 border-t border-border pt-3">
+            <p className="text-xs font-medium text-muted-foreground">
+                Submissions ({task.submissions.filter((s) => s.submission).length}/
+                {task.submissions.length})
+            </p>
+            <div className="space-y-2">
+                {task.submissions.map((row) => {
+                    const status = submissionStatusLabel(row);
+                    const isOpen = openStudentId === row.studentId;
+                    return (
+                        <div key={row.studentId} className="rounded-md border">
+                            <button
+                                type="button"
+                                className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm"
+                                onClick={() =>
+                                    setOpenStudentId(isOpen ? null : row.studentId)
+                                }
+                                disabled={!row.submission}
+                            >
+                                <span>{row.studentName}</span>
+                                <span className="flex items-center gap-2">
+                                    <Badge variant={status.variant}>{status.label}</Badge>
+                                    {row.submission && (
+                                        <span className="text-muted-foreground">
+                                            {isOpen ? "▲" : "▼"}
+                                        </span>
+                                    )}
+                                </span>
+                            </button>
+                            {isOpen && row.submission && (
+                                <div className="border-t border-border p-3">
+                                    <SubmissionDetail
+                                        studentId={row.studentId}
+                                        submission={row.submission}
+                                        instructorId={instructorId}
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
+function SubmissionDetail({
+    studentId,
+    submission,
+    instructorId,
+}: {
+    studentId: string;
+    submission: NonNullable<SessionDetailSubmission["submission"]>;
+    instructorId: string;
+}) {
+    const [isDownloading, setIsDownloading] = useState(false);
+    const [downloadError, setDownloadError] = useState<string | null>(null);
+
+    async function handleDownload() {
+        if (!submission.fileUrl) return;
+        setDownloadError(null);
+        setIsDownloading(true);
+        const result = await getSubmissionFileUrlAction(submission.fileUrl);
+        setIsDownloading(false);
+
+        if (result.success && result.data) {
+            window.open(result.data, "_blank");
+        } else {
+            setDownloadError(result.error ?? "Could not open the file.");
+        }
+    }
+
+    return (
+        <div className="space-y-3 text-sm">
+            <p className="text-xs text-muted-foreground">
+                Submitted{" "}
+                {submission.submittedAt.toLocaleString(undefined, {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                })}{" "}
+                · {submission.mode}
+            </p>
+
+            {submission.mode === "TEXT" && (
+                <p className="whitespace-pre-wrap rounded-md bg-muted/50 p-3">
+                    {submission.textContent}
+                </p>
+            )}
+            {submission.mode === "LINK" && (
+                <a
+                    href={submission.externalLink ?? "#"}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary hover:underline"
+                >
+                    {submission.externalLink}
+                </a>
+            )}
+            {submission.mode === "FILE" && (
+                <div className="space-y-1">
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={handleDownload}
+                        disabled={isDownloading}
+                    >
+                        {isDownloading ? "Opening..." : "View submitted file"}
+                    </Button>
+                    {downloadError && (
+                        <p className="text-xs text-error">{downloadError}</p>
+                    )}
+                </div>
+            )}
+
+            {submission.isGraded ? (
+                <div className="rounded-md bg-muted/50 p-3">
+                    <p className="font-medium">
+                        Score:{" "}
+                        {(submission.understandingScore ?? 0) +
+                            (submission.approachScore ?? 0) +
+                            (submission.correctnessScore ?? 0) +
+                            (submission.implementationScore ?? 0)}{" "}
+                        / 10
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        Understanding {submission.understandingScore}/2 · Approach{" "}
+                        {submission.approachScore}/3 · Correctness{" "}
+                        {submission.correctnessScore}/3 · Implementation{" "}
+                        {submission.implementationScore}/2
+                    </p>
+                    {submission.instructorComment && (
+                        <p className="mt-2 text-muted-foreground">
+                            {submission.instructorComment}
+                        </p>
+                    )}
+                </div>
+            ) : (
+                <GradingForm
+                    submissionId={submission.id}
+                    instructorId={instructorId}
+                />
+            )}
+        </div>
+    );
+}
+
+function GradingForm({
+    submissionId,
+    instructorId,
+}: {
+    submissionId: string;
+    instructorId: string;
+}) {
+    const router = useRouter();
+    const [understandingScore, setUnderstandingScore] = useState("");
+    const [approachScore, setApproachScore] = useState("");
+    const [correctnessScore, setCorrectnessScore] = useState("");
+    const [implementationScore, setImplementationScore] = useState("");
+    const [instructorComment, setInstructorComment] = useState("");
+    const [isFirstSolver, setIsFirstSolver] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    function parseScore(value: string, max: number): number | null {
+        if (value.trim() === "") return null;
+        const n = Number(value);
+        if (!Number.isInteger(n) || n < 0 || n > max) return null;
+        return n;
+    }
+
+    async function handleSubmit(e: React.FormEvent) {
+        e.preventDefault();
+        setError(null);
+
+        const understanding = parseScore(understandingScore, 2);
+        const approach = parseScore(approachScore, 3);
+        const correctness = parseScore(correctnessScore, 3);
+        const implementation = parseScore(implementationScore, 2);
+
+        if (
+            understanding === null ||
+            approach === null ||
+            correctness === null ||
+            implementation === null
+        ) {
+            setError(
+                "Enter each score within its range: Understanding 0-2, Approach 0-3, Correctness 0-3, Implementation 0-2."
+            );
+            return;
+        }
+
+        setIsSubmitting(true);
+        const result = await gradeSubmissionAction({
+            submissionId,
+            understandingScore: understanding,
+            approachScore: approach,
+            correctnessScore: correctness,
+            implementationScore: implementation,
+            instructorComment: instructorComment.trim() || undefined,
+            gradedBy: instructorId,
+            isFirstSolver,
+        });
+        setIsSubmitting(false);
+
+        if (result.success) {
+            router.refresh();
+        } else {
+            setError(result.error ?? "Something went wrong. Please try again.");
+        }
+    }
+
+    return (
+        <form onSubmit={handleSubmit} className="mt-3 space-y-3 border-t border-border pt-3">
+            <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                    <Label htmlFor={`understanding-${submissionId}`}>
+                        Understanding (0-2)
+                    </Label>
+                    <Input
+                        id={`understanding-${submissionId}`}
+                        type="number"
+                        min={0}
+                        max={2}
+                        value={understandingScore}
+                        onChange={(e) => setUnderstandingScore(e.target.value)}
+                        required
+                    />
+                </div>
+                <div className="space-y-1">
+                    <Label htmlFor={`approach-${submissionId}`}>Approach (0-3)</Label>
+                    <Input
+                        id={`approach-${submissionId}`}
+                        type="number"
+                        min={0}
+                        max={3}
+                        value={approachScore}
+                        onChange={(e) => setApproachScore(e.target.value)}
+                        required
+                    />
+                </div>
+                <div className="space-y-1">
+                    <Label htmlFor={`correctness-${submissionId}`}>
+                        Correctness (0-3)
+                    </Label>
+                    <Input
+                        id={`correctness-${submissionId}`}
+                        type="number"
+                        min={0}
+                        max={3}
+                        value={correctnessScore}
+                        onChange={(e) => setCorrectnessScore(e.target.value)}
+                        required
+                    />
+                </div>
+                <div className="space-y-1">
+                    <Label htmlFor={`implementation-${submissionId}`}>
+                        Implementation (0-2)
+                    </Label>
+                    <Input
+                        id={`implementation-${submissionId}`}
+                        type="number"
+                        min={0}
+                        max={2}
+                        value={implementationScore}
+                        onChange={(e) => setImplementationScore(e.target.value)}
+                        required
+                    />
+                </div>
+            </div>
+
+            <div className="space-y-1">
+                <Label htmlFor={`comment-${submissionId}`}>Comment (optional)</Label>
+                <Textarea
+                    id={`comment-${submissionId}`}
+                    value={instructorComment}
+                    onChange={(e) => setInstructorComment(e.target.value)}
+                    placeholder="Feedback for the student..."
+                />
+            </div>
+
+            <div className="flex items-center gap-2">
+                <Checkbox
+                    id={`first-solver-${submissionId}`}
+                    checked={isFirstSolver}
+                    onCheckedChange={(checked) => setIsFirstSolver(checked === true)}
+                />
+                <Label
+                    htmlFor={`first-solver-${submissionId}`}
+                    className="text-sm font-normal"
+                >
+                    First solver in group (+5 ST)
+                </Label>
+            </div>
+
+            {error && (
+                <p className="rounded-md bg-error-bg px-3 py-2 text-sm text-error">
+                    {error}
+                </p>
+            )}
+
+            <Button type="submit" size="sm" disabled={isSubmitting}>
+                {isSubmitting ? "Grading..." : "Submit grade"}
+            </Button>
+        </form>
     );
 }
 
