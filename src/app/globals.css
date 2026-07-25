@@ -7,117 +7,146 @@
 
 /* ============================================
    RAW COLOR VALUES (Light & Dark modes)
-   shadcn's standard tokens, using OKLCH.
-   These are placeholder values - to be replaced
-   with the client's actual brand colors later.
+   NST Platform brand system — Luxury Gold & Black.
+   Source hex (from client):
+     primary        #bdae1f  (olive gold)
+     secondary      #e09d32  (honey gold)
+     accent         #c73d23  (terracotta red) — unified with error/destructive
+     primary-light  #d4c43a  (gradient helper only)
+     accent-light   #d95438  (gradient helper only)
+     accent-dark    #9e301c  (gradient helper only)
    ============================================ */
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  /* Warm ivory background instead of stark white — softer, premium feel */
+  --background: oklch(0.985 0.006 85);
+  /* Warm near-black instead of pure black — pairs better with gold */
+  --foreground: oklch(0.18 0.016 75);
+
+  --card: oklch(0.995 0.004 85);
+  --card-foreground: oklch(0.18 0.016 75);
+  --popover: oklch(0.995 0.004 85);
+  --popover-foreground: oklch(0.18 0.016 75);
+
+  /* Brand primary — olive gold. Dark text on top (gold is mid-lightness,
+     white text would be low-contrast; luxury/gold brands use dark-on-gold). */
+  --primary: oklch(0.741 0.148 102.8);
+  --primary-foreground: oklch(0.16 0.015 75);
+
+  /* Brand secondary — honey gold. Same lightness band as primary, same treatment. */
+  --secondary: oklch(0.744 0.141 74.2);
+  --secondary-foreground: oklch(0.16 0.015 75);
+
+  --muted: oklch(0.955 0.008 85);
+  --muted-foreground: oklch(0.5 0.014 80);
+
+  /* Accent = unified with error/destructive per brand decision (terracotta red) */
+  --accent: oklch(0.559 0.179 32.8);
+  --accent-foreground: oklch(0.98 0.006 85);
+
+  --destructive: oklch(0.559 0.179 32.8);
+  --destructive-foreground: oklch(0.98 0.006 85);
+
+  --border: oklch(0.9 0.01 85);
+  --input: oklch(0.9 0.01 85);
+  --ring: oklch(0.741 0.148 102.8);
   --radius: 0.625rem;
 
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  /* Chart palette pulled straight from the brand system for visual consistency */
+  --chart-1: oklch(0.741 0.148 102.8);
+  --chart-2: oklch(0.744 0.141 74.2);
+  --chart-3: oklch(0.559 0.179 32.8);
+  --chart-4: oklch(0.81 0.152 102.5);
+  --chart-5: oklch(0.617 0.173 33.6);
 
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: oklch(0.995 0.004 85);
+  --sidebar-foreground: oklch(0.18 0.016 75);
+  --sidebar-primary: oklch(0.741 0.148 102.8);
+  --sidebar-primary-foreground: oklch(0.16 0.015 75);
+  --sidebar-accent: oklch(0.955 0.008 85);
+  --sidebar-accent-foreground: oklch(0.18 0.016 75);
+  --sidebar-border: oklch(0.9 0.01 85);
+  --sidebar-ring: oklch(0.741 0.148 102.8);
 
   /* ---- Custom additions (not covered by shadcn defaults) ---- */
 
-  /* Disabled text - shadcn doesn't have a dedicated token for this */
-  --text-disabled: oklch(0.708 0 0);
+  --text-disabled: oklch(0.68 0.012 80);
 
-  /* Feedback / semantic states */
-  --success: oklch(0.72 0.19 149);
-  --success-bg: oklch(0.97 0.03 149);
-  --warning: oklch(0.77 0.16 70);
-  --warning-bg: oklch(0.97 0.05 70);
-  --error: oklch(0.63 0.24 27);
-  --error-bg: oklch(0.97 0.03 27);
-  --info: oklch(0.62 0.19 260);
-  --info-bg: oklch(0.97 0.03 260);
+  /* Feedback / semantic states — error is the unified brand accent (terracotta) */
+  --success: oklch(0.62 0.13 152);
+  --success-bg: oklch(0.96 0.03 152);
+  --warning: oklch(0.75 0.16 55);
+  --warning-bg: oklch(0.97 0.045 55);
+  --error: oklch(0.559 0.179 32.8);
+  --error-bg: oklch(0.96 0.035 32.8);
+  --info: oklch(0.55 0.14 250);
+  --info-bg: oklch(0.96 0.03 250);
 
-  /* Gamification (ST Coins) - placeholder, tune with brand later */
-  --coin: oklch(0.79 0.17 85);
-  --coin-bg: oklch(0.97 0.05 85);
+  /* Gamification (ST Coins) — deliberately distinct from primary/secondary gold:
+     brighter, more saturated, purer yellow, reads as "shiny coin" not "brand button" */
+  --coin: oklch(0.83 0.19 95);
+  --coin-bg: oklch(0.97 0.045 95);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --background: oklch(0.16 0.015 75);
+  --foreground: oklch(0.96 0.008 85);
 
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --card: oklch(0.21 0.017 75);
+  --card-foreground: oklch(0.96 0.008 85);
+  --popover: oklch(0.21 0.017 75);
+  --popover-foreground: oklch(0.96 0.008 85);
 
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --primary: oklch(0.741 0.148 102.8);
+  --primary-foreground: oklch(0.14 0.012 75);
+
+  --secondary: oklch(0.744 0.141 74.2);
+  --secondary-foreground: oklch(0.14 0.012 75);
+
+  --muted: oklch(0.27 0.02 75);
+  --muted-foreground: oklch(0.68 0.014 80);
+
+  /* Slightly lighter/more chroma than light mode for legibility against near-black */
+  --accent: oklch(0.64 0.175 33);
+  --accent-foreground: oklch(0.97 0.006 85);
+
+  --destructive: oklch(0.64 0.175 33);
+  --destructive-foreground: oklch(0.97 0.006 85);
+
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 16%);
+  --ring: oklch(0.741 0.148 102.8);
+
+  --chart-1: oklch(0.741 0.148 102.8);
+  --chart-2: oklch(0.744 0.141 74.2);
+  --chart-3: oklch(0.64 0.175 33);
+  --chart-4: oklch(0.81 0.152 102.5);
+  --chart-5: oklch(0.65 0.17 33.6);
+
+  --sidebar: oklch(0.13 0.013 75);
+  --sidebar-foreground: oklch(0.96 0.008 85);
+  --sidebar-primary: oklch(0.741 0.148 102.8);
+  --sidebar-primary-foreground: oklch(0.14 0.012 75);
+  --sidebar-accent: oklch(0.27 0.02 75);
+  --sidebar-accent-foreground: oklch(0.96 0.008 85);
+  --sidebar-border: oklch(1 0 0 / 12%);
+  --sidebar-ring: oklch(0.741 0.148 102.8);
 
   /* ---- Custom additions ---- */
 
-  --text-disabled: oklch(0.4 0 0);
+  --text-disabled: oklch(0.45 0.014 78);
 
-  --success: oklch(0.77 0.18 149);
-  --success-bg: oklch(0.27 0.06 149);
-  --warning: oklch(0.82 0.15 70);
-  --warning-bg: oklch(0.28 0.06 70);
-  --error: oklch(0.71 0.19 27);
-  --error-bg: oklch(0.28 0.06 27);
-  --info: oklch(0.7 0.16 260);
-  --info-bg: oklch(0.27 0.06 260);
+  --success: oklch(0.72 0.15 152);
+  --success-bg: oklch(0.26 0.045 152);
+  --warning: oklch(0.8 0.16 58);
+  --warning-bg: oklch(0.28 0.05 58);
+  --error: oklch(0.64 0.175 33);
+  --error-bg: oklch(0.27 0.06 33);
+  --info: oklch(0.68 0.15 250);
+  --info-bg: oklch(0.26 0.05 250);
 
-  --coin: oklch(0.84 0.15 85);
-  --coin-bg: oklch(0.28 0.06 85);
+  --coin: oklch(0.85 0.18 95);
+  --coin-bg: oklch(0.28 0.06 95);
 }
 
 /* ============================================
@@ -140,6 +169,7 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -191,9 +221,11 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+
   html {
     @apply font-sans;
   }
