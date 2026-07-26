@@ -47,7 +47,7 @@ export function SessionDetailView({
                     <span>
                         {session.startTime.toLocaleString(undefined, {
                             dateStyle: "medium",
-                            timeStyle: "short",
+                            // timeStyle: "short",
                         })}
                     </span>
                     {session.recordingLink && (
