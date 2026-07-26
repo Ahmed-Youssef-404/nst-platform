@@ -7,9 +7,10 @@
 //   Footer  = fixed placeholder avatar (same for every student until the
 //             real Avatar/Store system is built) + student's name + Logout
 //
-// The ST Balance card is deliberately NOT here - it lives in the page
-// content itself so it's always fully visible regardless of whether the
-// sidebar is collapsed or expanded.
+// The ST Balance is deliberately NOT here - it lives in the sticky top bar
+// above the page content (see student-top-bar.tsx) so it's always fully
+// visible on every /student page, regardless of whether the sidebar is
+// collapsed or expanded.
 
 import Link from "next/link";
 import { CalendarCheck } from "lucide-react";
