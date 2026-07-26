@@ -4,7 +4,7 @@ import { Reveal } from "@/components/reveal";
 const STATS = [
     { value: "+30", label: "Members" },
     { value: "+7", label: "Instructors" },
-    { value: "+50", label: "Challenges Solved" },
+    { value: "+2", label: "Batches" },
 ];
 
 export function Stats() {
