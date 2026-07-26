@@ -66,7 +66,7 @@ export function StudentSidebar({ studentName }: { studentName: string }) {
                 </SidebarMenu>
             </SidebarContent>
 
-            <SidebarFooter className="gap-3 border-t border-sidebar-border p-3">
+            <SidebarFooter className="flex flex-row justify-between gap-3 border-t border-sidebar-border p-3">
                 <div className="flex items-center gap-2 overflow-hidden">
                     <Avatar size="sm" className="shrink-0">
                         <AvatarImage src="/avatar-placeholder.svg" alt="" />

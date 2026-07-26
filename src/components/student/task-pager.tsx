@@ -37,7 +37,7 @@ export function TaskPager({
 
     return (
         <Card>
-            <CardHeader className="flex-row items-center justify-between space-y-0">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
                 <Button
                     type="button"
                     variant="outline"
@@ -48,7 +48,7 @@ export function TaskPager({
                 >
                     <ChevronLeft />
                 </Button>
-                <p className="text-sm font-medium text-muted-foreground">
+                <p className="text-sm font-bold text-muted-foreground">
                     Task {index + 1} of {tasks.length}
                 </p>
                 <Button
