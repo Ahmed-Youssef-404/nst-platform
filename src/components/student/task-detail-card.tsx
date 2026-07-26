@@ -21,6 +21,7 @@ import {
     submitFileAction,
     getSubmissionFileUrlAction,
 } from "@/lib/actions/submission-management";
+import { MarkdownContent } from "@/components/markdown-content";
 import type { StudentTaskView, StudentHintView } from "@/lib/data/get-student-level";
 import type { SubmissionModeCode } from "@/types/types";
 
@@ -41,9 +42,10 @@ export function TaskDetailCard({
             <div className="flex items-start justify-between gap-3">
                 <div>
                     <p className="font-display font-medium">{task.title}</p>
-                    <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
-                        {task.description}
-                    </p>
+                    <MarkdownContent
+                        content={task.description}
+                        className="mt-1 text-muted-foreground"
+                    />
                 </div>
                 <div className="flex shrink-0 gap-2">
                     {task.isBonus && <Badge variant="warning">Bonus</Badge>}
@@ -108,31 +110,31 @@ function HintsList({
     }
 
     return (
-        <div className="space-y-2 border-t border-border pt-3">
+        <div className="space-y-3 border-t border-border pt-3">
             <p className="text-xs font-medium text-muted-foreground">Hints</p>
             {hints.map((hint) => (
-                <div key={hint.id} className="flex items-start justify-between gap-3 text-sm">
-                    {hint.isUnlocked ? (
-                        <span>
-                            {hint.order}. {hint.content}
+                <div key={hint.id} className="space-y-1.5 text-sm">
+                    <div className="flex items-center justify-between gap-3">
+                        <span className={hint.isUnlocked ? "font-medium" : "text-muted-foreground"}>
+                            Hint {hint.order}
+                            {!hint.isUnlocked && " — Locked"}
                         </span>
-                    ) : (
-                        <span className="text-muted-foreground">
-                            {hint.order}. Locked
-                        </span>
-                    )}
-                    {!hint.isUnlocked && (
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            disabled={unlockingId === hint.id}
-                            onClick={() => handleUnlock(hint)}
-                        >
-                            {unlockingId === hint.id
-                                ? "Unlocking..."
-                                : `Unlock (${hint.cost} ST)`}
-                        </Button>
+                        {!hint.isUnlocked && (
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                disabled={unlockingId === hint.id}
+                                onClick={() => handleUnlock(hint)}
+                            >
+                                {unlockingId === hint.id
+                                    ? "Unlocking..."
+                                    : `Unlock (${hint.cost} ST)`}
+                            </Button>
+                        )}
+                    </div>
+                    {hint.isUnlocked && hint.content && (
+                        <MarkdownContent content={hint.content} />
                     )}
                 </div>
             ))}
