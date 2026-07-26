@@ -16,7 +16,7 @@ type LoginMode = "staff" | "student";
  * landing page's Get Started / Join Us buttons) without duplicating logic.
  */
 export function LoginFormFields() {
-    const [mode, setMode] = useState<LoginMode>("staff");
+    const [mode, setMode] = useState<LoginMode>("student");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -49,8 +49,8 @@ export function LoginFormFields() {
             }}
         >
             <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="staff">Staff</TabsTrigger>
                 <TabsTrigger value="student">Student</TabsTrigger>
+                <TabsTrigger value="staff">Staff</TabsTrigger>
             </TabsList>
 
             <TabsContent value="staff">
@@ -99,7 +99,7 @@ export function LoginFormFields() {
                         <Input
                             id="student-code"
                             type="text"
-                            placeholder="NST-1000"
+                            placeholder="NST-0000"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
