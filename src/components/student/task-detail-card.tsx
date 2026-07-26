@@ -24,6 +24,7 @@ import {
 import { MarkdownContent } from "@/components/markdown-content";
 import type { StudentTaskView, StudentHintView } from "@/lib/data/get-student-level";
 import type { SubmissionModeCode } from "@/types/types";
+import { formatDateTime } from "@/lib/format-date";
 
 // ============================================
 // TASK DETAIL (title/description/deadline + Hints + Submission)
@@ -58,10 +59,7 @@ export function TaskDetailCard({
                     }`}
             >
                 Deadline:{" "}
-                {task.deadline.toLocaleString(undefined, {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                })}
+                {formatDateTime(task.deadline)}
                 {task.isDeadlinePassed && " — passed"}
             </p>
 
@@ -228,10 +226,7 @@ function SubmissionPanel({
                 <div className="rounded-md bg-muted/50 p-3 text-sm space-y-1">
                     <p className="text-xs text-muted-foreground">
                         Submitted{" "}
-                        {submission.submittedAt.toLocaleString(undefined, {
-                            dateStyle: "medium",
-                            timeStyle: "short",
-                        })}{" "}
+                        {formatDateTime(submission.submittedAt)}{" "}
                         · {submission.mode}
                     </p>
                     {submission.mode === "TEXT" && (

@@ -6,6 +6,7 @@ import { TaskPager } from "@/components/student/task-pager";
 import { computeTaskProgress } from "@/lib/task-progress";
 import type { StudentSessionView } from "@/lib/data/get-student-level";
 import type { SessionStatus } from "@/lib/data/get-my-groups";
+import { formatDateTime } from "@/lib/format-date";
 
 const STATUS_STYLES: Record<
     SessionStatus,
@@ -45,10 +46,7 @@ export function SessionDetailView({
                 </div>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                     <span>
-                        {session.startTime.toLocaleString(undefined, {
-                            dateStyle: "medium",
-                            // timeStyle: "short",
-                        })}
+                        {formatDateTime(session.startTime)}
                     </span>
                     {session.recordingLink && (
                         <a

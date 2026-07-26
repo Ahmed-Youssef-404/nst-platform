@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { StudentLevelView, StudentSessionView } from "@/lib/data/get-student-level";
 import type { SessionStatus } from "@/lib/data/get-my-groups";
+import { formatDateTime } from "@/lib/format-date";
 
 const STATUS_STYLES: Record<
     SessionStatus,
@@ -82,10 +83,7 @@ function SessionListCard({ session }: { session: StudentSessionView }) {
             </CardHeader>
             <CardContent className="flex items-center justify-between text-sm text-muted-foreground">
                 <span>
-                    {session.startTime.toLocaleString(undefined, {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                    })}
+                    {formatDateTime(session.startTime)}
                 </span>
                 <span>
                     {taskCount} {taskCount === 1 ? "task" : "tasks"}

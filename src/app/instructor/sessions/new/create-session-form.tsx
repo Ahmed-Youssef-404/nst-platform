@@ -30,6 +30,7 @@ import type {
     SubmissionModeCode,
     TaskTypeCode,
 } from "@/types/types";
+import { formatDateTime } from "@/lib/format-date";
 
 // "ANY" is a UI-only sentinel meaning "student chooses freely" -> null
 // on the wire. Kept as a string because Select needs a string value.
@@ -213,10 +214,7 @@ export function CreateSessionForm({ level }: { level: LevelForInstructor }) {
                     {level.nextSessionStartTime && (
                         <p className="text-xs text-muted-foreground">
                             The next Session in this Level starts at{" "}
-                            {level.nextSessionStartTime.toLocaleString(undefined, {
-                                dateStyle: "medium",
-                                timeStyle: "short",
-                            })}
+                            {formatDateTime(level.nextSessionStartTime)}. Task deadlines below
                             . Task deadlines below must land before that.
                         </p>
                     )}

@@ -30,6 +30,7 @@ import {
 import { getSubmissionFileUrlAction } from "@/lib/actions/submission-management";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
+import { formatDateTime } from "@/lib/format-date";
 // import type { SessionDetail } from "@/lib/data/get-session-detail";
 // import type { SessionStatus } from "@/lib/data/get-my-groups";
 
@@ -93,10 +94,7 @@ export function SessionDetailView({
                         <div className="space-y-2 text-sm">
                             <p>
                                 <span className="text-muted-foreground">Start: </span>
-                                {session.startTime.toLocaleString(undefined, {
-                                    dateStyle: "medium",
-                                    timeStyle: "short",
-                                })}
+                                {formatDateTime(session.startTime)}
                             </p>
                             <p>
                                 <span className="text-muted-foreground">Duration: </span>
@@ -154,10 +152,7 @@ export function SessionDetailView({
                                 <p className="whitespace-pre-wrap">{task.description}</p>
                                 <p className="text-muted-foreground">
                                     Deadline:{" "}
-                                    {task.deadline.toLocaleString(undefined, {
-                                        dateStyle: "medium",
-                                        timeStyle: "short",
-                                    })}
+                                    {formatDateTime(task.deadline)}
                                 </p>
                                 {task.type === "INTERNAL" && (
                                     <p className="text-muted-foreground">
