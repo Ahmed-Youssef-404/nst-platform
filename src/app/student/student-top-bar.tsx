@@ -58,8 +58,9 @@ export async function StudentTopBar({ studentId }: { studentId: string }) {
         >
             <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-x-4 gap-y-1">
                 <div className="flex min-w-0 items-center gap-2">
-                    <span className="truncate text-sm font-medium">
-                        Welcome, {balance.name}
+                    <span className="truncate text-base font-medium">
+                        {/* Welcome, {balance.name} */}
+                        {balance.name}
                     </span>
                     {zoneStyle.label && (
                         <Badge variant={zoneStyle.badgeVariant}>{zoneStyle.label}</Badge>

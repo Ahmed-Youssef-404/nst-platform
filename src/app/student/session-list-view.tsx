@@ -42,7 +42,8 @@ export function SessionListView({ level }: { level: StudentLevelView | null }) {
         <div className="space-y-4">
             <div>
                 <h2 className="font-display text-lg font-semibold">
-                    Level {level.levelNumber} — {level.name}
+                    {/* Level {level.levelNumber} — {level.name} */}
+                    Level {level.levelNumber}
                 </h2>
                 <p className="text-sm text-muted-foreground">{level.groupName}</p>
             </div>
