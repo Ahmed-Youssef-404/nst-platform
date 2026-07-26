@@ -1,13 +1,24 @@
 // src/components/landing/contact.tsx
 import { Reveal } from "@/components/reveal";
-import { MessageCircle, Mail, Phone } from "lucide-react";
+import { Mail } from "lucide-react";
+import { FaWhatsapp, FaInstagram } from "react-icons/fa";
 
-// Placeholder hrefs — swap for the real Discord invite, mailto, and
-// WhatsApp link once the client provides them.
 const CHANNELS = [
-    { icon: MessageCircle, label: "Discord", href: "#" },
-    { icon: Mail, label: "Email", href: "#" },
-    { icon: Phone, label: "WhatsApp", href: "#" },
+    { 
+        icon: FaWhatsapp, 
+        label: "WhatsApp", 
+        href: "https://wa.me/201159169762" 
+    },
+    { 
+        icon: Mail, 
+        label: "Email", 
+        href: "mailto:we.northernstar@gmail.com" 
+    },
+    { 
+        icon: FaInstagram, 
+        label: "Instagram", 
+        href: "https://www.instagram.com/nst_northernstar/" 
+    },
 ];
 
 export function Contact() {
@@ -35,6 +46,8 @@ export function Contact() {
                     <Reveal key={channel.label} delay={i * 100}>
                         <a
                             href={channel.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
                             className="flex items-center gap-2.5 rounded-full border border-border bg-card px-6 py-3 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
                         >
                             <channel.icon className="size-4.5" />
