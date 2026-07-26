@@ -28,7 +28,7 @@ export function Hero() {
                 </Reveal>
 
                 <Reveal delay={220}>
-                    <p className="mt-6 max-w-2xl text-balance text-base leading-relaxed text-zinc-300 sm:text-lg">
+                    <p className="mt-6 max-w-3xl text-balance text-base leading-relaxed text-zinc-300 sm:text-lg">
                         At Northern Stars Team (NST), we don&apos;t just teach Problem
                         Solving—we help you build the way a programmer thinks. Through
                         structured roadmaps, practical challenges, projects, and a

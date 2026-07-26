@@ -30,7 +30,7 @@ export function Features() {
     return (
         <section id="features" className="mx-auto max-w-6xl px-6 py-28">
             <Reveal>
-                <div className="mx-auto max-w-2xl text-center">
+                <div className="mx-auto max-w-3xl text-center">
                     <span className="text-sm font-medium tracking-wide text-primary uppercase">
                         What Makes NST Different?
                     </span>

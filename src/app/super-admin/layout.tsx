@@ -32,7 +32,7 @@ export default function SuperAdminLayout({
                 </div>
                 <LogoutButton />
             </header>
-            <main className="mx-auto max-w-2xl px-6 py-10">{children}</main>
+            <main className="mx-auto max-w-3xl px-6 py-10">{children}</main>
         </div>
     );
 }

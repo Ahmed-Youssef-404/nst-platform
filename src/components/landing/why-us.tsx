@@ -31,7 +31,7 @@ export function WhyUs() {
                 </Reveal>
 
                 <Reveal delay={340}>
-                    <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-balance text-zinc-400">
+                    <p className="mx-auto mt-6 max-w-3xl text-base leading-relaxed text-balance text-zinc-400">
                         Just as the Northern Stars guided travelers to their destination,
                         we aim to guide students through their learning journey, helping
                         them avoid unnecessary detours, learn the right concepts in the
