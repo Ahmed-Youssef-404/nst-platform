@@ -89,12 +89,14 @@
 }
 
 .dark {
-  --background: oklch(0.16 0.015 75);
+  /* --background: oklch(0.16 0.015 75); */
+  --background: oklch(8.687% 0.00838 74.892);
   --foreground: oklch(0.96 0.008 85);
 
   --card: oklch(0.21 0.017 75);
   --card-foreground: oklch(0.96 0.008 85);
-  --popover: oklch(0.21 0.017 75);
+  /* --popover: oklch(0.21 0.017 75); */
+  --popover: oklch(0.1 0.02 98.83);
   --popover-foreground: oklch(0.96 0.008 85);
 
   --primary: oklch(0.741 0.148 102.8);
@@ -216,6 +218,10 @@
 /* ============================================
    BASE STYLES
    ============================================ */
+
+@theme inline {
+  --font-display-family: var(--font-display);
+}
 
 @layer base {
   * {
