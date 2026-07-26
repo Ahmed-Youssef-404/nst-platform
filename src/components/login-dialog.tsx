@@ -29,7 +29,7 @@ export function LoginDialog({ children }: LoginDialogProps) {
                 <DialogHeader>
                     <DialogTitle className="text-lg">Log in to NST Platform</DialogTitle>
                     <DialogDescription>
-                        Staff and students use different credentials — pick your tab below.
+                        <p>If you lost your credentials, contact with <a href="https://wa.me/201159169762" target="_blank" className="underline">support</a>.</p>
                     </DialogDescription>
                 </DialogHeader>
                 <LoginFormFields />
