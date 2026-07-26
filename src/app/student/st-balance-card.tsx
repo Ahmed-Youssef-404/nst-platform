@@ -52,10 +52,10 @@ export function STBalanceCard({
                     <p className="text-sm text-muted-foreground">Level ST</p>
                     <p className="text-3xl font-bold">{levelSt}</p>
                 </div>
-                <div>
+                {/* <div>
                     <p className="text-sm text-muted-foreground">Total ST</p>
                     <p className="text-3xl font-bold">{totalSt}</p>
-                </div>
+                </div> */}
                 {zone === "warning" && (
                     <p className="col-span-2 text-sm">
                         Your Level ST is at or below {warningThreshold}. Keep an eye on it.
