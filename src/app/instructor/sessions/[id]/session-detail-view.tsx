@@ -430,10 +430,7 @@ function SubmissionDetail({
         <div className="space-y-3 text-sm">
             <p className="text-xs text-muted-foreground">
                 Submitted{" "}
-                {submission.submittedAt.toLocaleString(undefined, {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                })}{" "}
+                {formatDateTime(submission.submittedAt)}{" "}
                 · {submission.mode}
             </p>
 
