@@ -12,7 +12,7 @@ function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
       data-slot="skeleton"
       className={cn(
         "relative overflow-hidden rounded-md bg-muted",
-        "before:absolute before:inset-0 before:content-[''] before:bg-gradient-to-r before:from-transparent before:via-primary/20 before:to-transparent before:animate-shimmer-sweep",
+        "before:absolute before:inset-0 before:content-[''] before:bg-gradient-to-r before:from-transparent before:via-[#2e3c49] before:to-transparent before:animate-shimmer-sweep",
         className
       )}
       {...props}

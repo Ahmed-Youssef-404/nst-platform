@@ -20,6 +20,7 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/s
 import { StudentSidebar } from "@/components/student-sidebar";
 import { StudentTopBar } from "./student-top-bar";
 import { StudentTopBarSkeleton } from "./student-top-bar-skeleton";
+import StarsBackground from "@/components/StarsBackground";
 
 export default async function StudentLayout({
     children,
@@ -38,6 +39,7 @@ export default async function StudentLayout({
         <SidebarProvider>
             <StudentSidebar studentName={name} />
             <SidebarInset>
+                {/* backdrop-blur-md bg-white/5  */}
                 <header className="flex items-center gap-2 border-b border-border px-4 py-3 md:hidden">
                     <SidebarTrigger />
                     <span className="font-display text-sm font-semibold">
@@ -47,7 +49,8 @@ export default async function StudentLayout({
                 <Suspense fallback={<StudentTopBarSkeleton />}>
                     <StudentTopBar studentId={studentId} />
                 </Suspense>
-                <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-10">
+                <StarsBackground />
+                <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-10 relative z-10">
                     {children}
                 </main>
             </SidebarInset>

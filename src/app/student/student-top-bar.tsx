@@ -54,7 +54,11 @@ export async function StudentTopBar({ studentId }: { studentId: string }) {
 
     return (
         <div
-            className={`sticky top-0 z-20 border-b px-6 py-3 ${zoneStyle.barClassName}`}
+            className={`
+            sticky top-0 z-20 border-b px-6 py-3 
+            backdrop-blur-md bg-white/5 
+            ${zoneStyle.barClassName}
+        `}
         >
             <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-x-4 gap-y-1">
                 <div className="flex min-w-0 items-center gap-2">
