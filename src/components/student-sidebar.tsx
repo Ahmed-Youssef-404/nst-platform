@@ -3,7 +3,8 @@
 //   Header  = platform name + collapse trigger
 //   Content = nav links (starts with just "My Sessions" - more links like
 //             Store/Profile are added later once those doors are built,
-//             not as disabled placeholders now)
+//             not as disabled placeholders now; "Send Feedback" was added
+//             once that door was actually built)
 //   Footer  = fixed placeholder avatar (same for every student until the
 //             real Avatar/Store system is built) + student's name + Logout
 //
@@ -13,7 +14,7 @@
 // collapsed or expanded.
 
 import Link from "next/link";
-import { CalendarCheck } from "lucide-react";
+import { CalendarCheck, MessageSquareWarning } from "lucide-react";
 import {
     Sidebar,
     SidebarContent,
@@ -29,6 +30,7 @@ import { LogoutButton } from "@/components/logout-button";
 
 const NAV_ITEMS = [
     { href: "/student", label: "My Sessions", icon: CalendarCheck },
+    { href: "/student/feedback", label: "Send Feedback", icon: MessageSquareWarning },
 ];
 
 export function StudentSidebar({ studentName }: { studentName: string }) {

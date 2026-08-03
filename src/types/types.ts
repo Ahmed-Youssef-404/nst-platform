@@ -314,3 +314,18 @@ export interface CreateLevelResult {
     levelNumber: number;
     startDate: Date;
 }
+
+// ============================================
+// FEEDBACK
+// ============================================
+// Student -> Telegram only. No DB table by design (client decision) -
+// see src/lib/telegram/send-feedback.ts. Not persisted anywhere in the
+// app; if the Telegram send fails, the feedback is simply lost and the
+// student is told to retry.
+
+export type FeedbackTypeCode = "PROBLEM" | "SUGGESTION" | "COMPLAINT" | "OTHER";
+
+export interface SubmitFeedbackInput {
+    type: FeedbackTypeCode;
+    message: string;
+}
