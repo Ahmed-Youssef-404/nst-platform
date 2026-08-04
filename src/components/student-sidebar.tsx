@@ -43,7 +43,7 @@ export function StudentSidebar({ studentName }: { studentName: string }) {
 
     return (
         <Sidebar collapsible="icon">
-            <SidebarHeader className="flex-row items-center justify-between px-3 py-2.5 backdrop-blur-md bg-[#14161d]">
+            <SidebarHeader className="flex-row items-center justify-between px-3 py-2.5 backdrop-blur-md bg-sidebar">
                 <Link
                     href="/student"
                     className="truncate font-display text-sm font-semibold group-data-[collapsible=icon]:hidden"
@@ -53,7 +53,7 @@ export function StudentSidebar({ studentName }: { studentName: string }) {
                 <SidebarTrigger />
             </SidebarHeader>
 
-            <SidebarContent className=" backdrop-blur-md bg-[#14161d]">
+            <SidebarContent className=" backdrop-blur-md bg-sidebar">
                 <SidebarMenu className="px-2">
                     {NAV_ITEMS.map((item) => (
                         <SidebarMenuItem key={item.href}>
@@ -69,7 +69,7 @@ export function StudentSidebar({ studentName }: { studentName: string }) {
                 </SidebarMenu>
             </SidebarContent>
 
-            <SidebarFooter className=" backdrop-blur-md bg-[#14161d] flex flex-row justify-between gap-3 border-t border-sidebar-border p-3">
+            <SidebarFooter className=" backdrop-blur-md bg-sidebar flex flex-row justify-between gap-3 border-t border-sidebar-border p-3">
                 <div className="flex items-center gap-2 overflow-hidden">
                     <Avatar size="sm" className="shrink-0">
                         <AvatarImage src="/avatar-placeholder.svg" alt="" />
