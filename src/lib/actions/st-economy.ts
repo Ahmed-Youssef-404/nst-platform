@@ -13,6 +13,7 @@ import { getCurrentStudentId } from "@/lib/auth/get-current-user";
 import { recordAttendance, recordSessionEngagement, gradeSubmission } from "@/lib/st-economy/instructor-events";
 import { unlockHint } from "@/lib/st-economy/hint-unlock";
 import { reconcileStudentST } from "@/lib/st-economy/reconcile";
+import { getStudentSTHistory } from "@/lib/data/get-st-balance";
 import type {
     RecordAttendanceInput,
     RecordSessionEngagementInput,
@@ -138,6 +139,32 @@ export async function unlockHintAction(input: UnlockHintInput) {
         const hintUnlock = await unlockHint(input);
         revalidatePath("/student");
         return { success: true, data: hintUnlock };
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : "Unknown error occurred",
+        };
+    }
+}
+
+// ------------------------------------------------------------------
+// ST History pagination - Student only, and only for their own account.
+// The first page is fetched directly in the page.tsx Server Component;
+// this action exists only so the client can load subsequent pages
+// ("Load more") without a full page navigation.
+// ------------------------------------------------------------------
+
+export async function getStudentSTHistoryAction(cursor?: string) {
+    await requireRole(["student"]);
+    const studentId = await getCurrentStudentId();
+
+    if (!studentId) {
+        return { success: false, error: "You must be logged in as a student." };
+    }
+
+    try {
+        const page = await getStudentSTHistory(studentId, { cursor });
+        return { success: true, data: page };
     } catch (error) {
         return {
             success: false,

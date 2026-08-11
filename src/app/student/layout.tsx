@@ -49,7 +49,7 @@ export default async function StudentLayout({
                 <Suspense fallback={<StudentTopBarSkeleton />}>
                     <StudentTopBar studentId={studentId} />
                 </Suspense>
-                <StarsBackground />
+                <StarsBackground /> 
                 <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-10 relative z-10">
                     {children}
                 </main>

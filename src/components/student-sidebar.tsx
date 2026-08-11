@@ -1,10 +1,10 @@
 // src/components/student-sidebar.tsx
 // Sidebar navigation for the Student area. Structure per design decision:
 //   Header  = platform name + collapse trigger
-//   Content = nav links (starts with just "My Sessions" - more links like
-//             Store/Profile are added later once those doors are built,
-//             not as disabled placeholders now; "Send Feedback" was added
-//             once that door was actually built)
+//   Content = nav links - grows one at a time as each door is actually
+//             built (never disabled placeholders for unbuilt features).
+//             Currently: My Sessions, ST History, Send Feedback. Store/
+//             Profile will be added the same way once those doors land.
 //   Footer  = fixed placeholder avatar (same for every student until the
 //             real Avatar/Store system is built) + student's name + Logout
 //
@@ -14,7 +14,7 @@
 // collapsed or expanded.
 
 import Link from "next/link";
-import { CalendarCheck, MessageSquareWarning } from "lucide-react";
+import { CalendarCheck, Coins, MessageSquareWarning } from "lucide-react";
 import {
     Sidebar,
     SidebarContent,
@@ -30,6 +30,7 @@ import { LogoutButton } from "@/components/logout-button";
 
 const NAV_ITEMS = [
     { href: "/student", label: "My Sessions", icon: CalendarCheck },
+    { href: "/student/st-history", label: "ST History", icon: Coins },
     { href: "/student/feedback", label: "Send Feedback", icon: MessageSquareWarning },
 ];
 
