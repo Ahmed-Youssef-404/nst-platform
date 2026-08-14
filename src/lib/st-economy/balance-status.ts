@@ -11,7 +11,7 @@
 
 import { BalanceStatus, BalanceZone } from "@/types/types";
 
-export const DEFAULT_WARNING_THRESHOLD = 20;
+export const DEFAULT_WARNING_THRESHOLD = 250;
 
 export function getBalanceStatus(
     levelSt: number,
