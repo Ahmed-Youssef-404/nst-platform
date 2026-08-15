@@ -13,15 +13,25 @@
 // in schema.prisma:
 //   1) that Group's current isActive Level (if any) -> isActive = false
 //   2) the new Level is created with isActive = true, startDate = now()
+//   3) every Student in that Group gets levelSt reset to exactly 50, with a
+//      LEVEL_RESET STTransaction recorded for each (see
+//      resetLevelStForTransition in create-transaction.ts). totalSt is left
+//      untouched - it's the cumulative, never-resets balance.
+// The old Level row is NOT deleted or hidden - it stays exactly as-is
+// (isActive: false) with all its Sessions/Tasks/Submissions intact, so
+// nothing about it disappears for the Student or Instructor; only the
+// Group's "current" pointer moves.
 //
-// NOT handled here (deliberately deferred, matches the existing TBD note
-// "Group Level transition business logic" / "Phase 4" in schema.prisma):
-//   - resetting each Student's level_st balance in the affected Groups
-// If/when that lands, it should run in the same $transaction as below.
+// All of the above - Level deactivate, Level create, and every affected
+// Student's ST reset - happens inside ONE Prisma transaction per call, so
+// a partial failure (e.g. a reset failing halfway through a large Group)
+// never leaves the Group pointed at a new Level while some students still
+// carry their old balance.
 
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { CreateLevelInput, CreateLevelResult } from "@/types/types";
+import { resetLevelStForTransition } from "@/lib/st-economy/create-transaction";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -57,7 +67,8 @@ export async function createLevel(
     }
 
     // Create everything atomically: either every Group gets its new Level
-    // (with its old one deactivated), or nothing changes at all.
+    // (with its old one deactivated and every Student's levelSt reset to
+    // 50), or nothing changes at all.
     const created = await prisma.$transaction(async (tx) => {
         const results = [];
 
@@ -79,6 +90,22 @@ export async function createLevel(
             });
 
             results.push(level);
+
+            // Reset every Student currently in this Group to levelSt = 50,
+            // no exceptions - including students who joined the Group late
+            // during the previous Level (they don't carry any separate
+            // "old" balance, so they reset just like everyone else).
+            const students = await tx.student.findMany({
+                where: { groupId },
+                select: { id: true },
+            });
+
+            for (const student of students) {
+                await resetLevelStForTransition(tx, {
+                    studentId: student.id,
+                    newLevelId: level.id,
+                });
+            }
         }
 
         return results;

@@ -252,9 +252,12 @@ function CreateLevelCard({ groups }: { groups: GroupForSelection[] }) {
                             </div>
                         )}
                         {selectedGroupIds.size > 0 && (
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-xs text-warning">
                                 Any currently active Level in the selected Groups will be
-                                deactivated and replaced by this new one.
+                                deactivated and replaced by this new one. Every student in
+                                the selected Groups will have their Level ST reset to 50
+                                (their total ST is not affected). The old Level and all its
+                                Sessions/Tasks/Submissions stay intact.
                             </p>
                         )}
                     </div>

@@ -19,7 +19,7 @@
 //   snapshot (levelStBalance/totalStBalance), so history is always
 //   reconstructable and consistent with the live balance.
 
-import { PrismaClient } from "@/generated/prisma/client";
+import { PrismaClient, Prisma } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { ApplySTChangeInput, STTransactionResult } from "@/types/types";
 
@@ -101,4 +101,63 @@ export async function applySTChangeOnce(
     }
 
     return applySTChange(input);
+}
+
+// ------------------------------------------------------------------
+// Level transition reset: the one exception to "always increment/decrement".
+// When a Group moves to a new Level, every Student's levelSt must land on
+// EXACTLY 50, regardless of what it was before (could be negative, could
+// be 300) - so this uses `set`, not `increment`. totalSt is untouched by
+// design (it's the cumulative, never-resets balance).
+//
+// Still produces exactly one STTransaction row per student, same audit
+// guarantee as applySTChange: type/amount are derived from the gap between
+// the old balance and 50 purely so the ledger records a real, non-zero
+// delta (an entry showing "amount: 0" would look like a no-op transaction
+// in the history UI). The reason code (LEVEL_RESET) is what actually tells
+// the student/instructor "this was a Level transition", not the type -
+// see reason-labels.ts, which renders it neutrally either way.
+//
+// Meant to be called from inside the same $transaction as the Level
+// create/deactivate in manage-level.ts, via the `tx` client passed in -
+// so the Level change and every Student's reset either all land together
+// or all roll back together.
+export async function resetLevelStForTransition(
+    tx: Prisma.TransactionClient,
+    input: { studentId: string; newLevelId: string }
+): Promise<STTransactionResult | null> {
+    const TARGET = 50;
+
+    const student = await tx.student.findUniqueOrThrow({
+        where: { id: input.studentId },
+        select: { levelSt: true, totalSt: true },
+    });
+
+    const delta = TARGET - student.levelSt;
+
+    // Already at 50 (e.g. a brand-new student who never earned/spent
+    // anything yet in the old Level) - nothing to record, totalSt is
+    // never touched here anyway.
+    if (delta === 0) return null;
+
+    const updatedStudent = await tx.student.update({
+        where: { id: input.studentId },
+        data: { levelSt: TARGET }, // set, not increment - the whole point
+        select: { levelSt: true, totalSt: true },
+    });
+
+    const transaction = await tx.sTTransaction.create({
+        data: {
+            studentId: input.studentId,
+            levelId: input.newLevelId,
+            type: delta > 0 ? "REWARD" : "PENALTY",
+            reason: "LEVEL_RESET",
+            amount: Math.abs(delta),
+            relatedEntityId: input.newLevelId,
+            levelStBalance: updatedStudent.levelSt,
+            totalStBalance: updatedStudent.totalSt,
+        },
+    });
+
+    return transaction as STTransactionResult;
 }
