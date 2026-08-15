@@ -20,9 +20,15 @@ const STATUS_STYLES: Record<
 export function SessionDetailView({
     studentId,
     session,
+    isHistorical = false,
 }: {
     studentId: string;
     session: StudentSessionView;
+    // True when this Session belongs to a past (non-active) Level, i.e. it
+    // was opened from Level History rather than My Sessions. Only changes
+    // the back-link target and the Hints/read-only framing passed down to
+    // TaskPager - the Session data itself is fetched the same way either way.
+    isHistorical?: boolean;
 }) {
     const statusStyle = STATUS_STYLES[session.status];
     const progress = computeTaskProgress(session.tasks);
@@ -30,11 +36,11 @@ export function SessionDetailView({
     return (
         <div className="space-y-6">
             <Link
-                href="/student"
+                href={isHistorical ? "/student/levels" : "/student"}
                 className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
             >
                 <ArrowLeft className="size-4" />
-                Back to My Sessions
+                {isHistorical ? "Back to Level History" : "Back to My Sessions"}
             </Link>
 
             <div className="space-y-2">
@@ -43,6 +49,7 @@ export function SessionDetailView({
                         {session.title}
                     </h1>
                     <Badge variant={statusStyle.variant}>{statusStyle.label}</Badge>
+                    {isHistorical && <Badge variant="outline">Past Level</Badge>}
                 </div>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                     <span>
@@ -67,7 +74,11 @@ export function SessionDetailView({
                 {progress.notSubmitted} not submitted
             </p>
 
-            <TaskPager studentId={studentId} tasks={session.tasks} />
+            <TaskPager
+                studentId={studentId}
+                tasks={session.tasks}
+                isHistorical={isHistorical}
+            />
         </div>
     );
 }

@@ -34,9 +34,17 @@ import { formatDateTime } from "@/lib/format-date";
 export function TaskDetailCard({
     studentId,
     task,
+    isHistorical = false,
 }: {
     studentId: string;
     task: StudentTaskView;
+    // True for a Task under a past (non-active) Level - see task-pager.tsx.
+    // Hints render fully open with no Unlock button (past Levels are free
+    // study material, not something worth spending ST on) and the
+    // Submission panel is always read-only, regardless of task.isDeadlinePassed
+    // (which is already true for every historical Task anyway, but this
+    // keeps the intent explicit rather than relying on that coincidence).
+    isHistorical?: boolean;
 }) {
     return (
         <div className="space-y-4">
@@ -63,10 +71,18 @@ export function TaskDetailCard({
                 {task.isDeadlinePassed && " — passed"}
             </p>
 
-            <HintsList studentId={studentId} hints={task.hints} />
+            <HintsList
+                studentId={studentId}
+                hints={task.hints}
+                isHistorical={isHistorical}
+            />
 
             {task.type === "INTERNAL" && (
-                <SubmissionPanel studentId={studentId} task={task} />
+                <SubmissionPanel
+                    studentId={studentId}
+                    task={task}
+                    isHistorical={isHistorical}
+                />
             )}
         </div>
     );
@@ -79,9 +95,11 @@ export function TaskDetailCard({
 function HintsList({
     studentId,
     hints,
+    isHistorical = false,
 }: {
     studentId: string;
     hints: StudentHintView[];
+    isHistorical?: boolean;
 }) {
     const [unlockingId, setUnlockingId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -109,33 +127,41 @@ function HintsList({
 
     return (
         <div className="space-y-3 border-t border-border pt-3">
-            <p className="text-xs font-medium text-muted-foreground">Hints</p>
-            {hints.map((hint) => (
-                <div key={hint.id} className="space-y-1.5 text-sm">
-                    <div className="flex items-center justify-between gap-3">
-                        <span className={hint.isUnlocked ? "font-medium" : "text-muted-foreground"}>
-                            Hint {hint.order}
-                            {!hint.isUnlocked && " — Locked"}
-                        </span>
-                        {!hint.isUnlocked && (
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                disabled={unlockingId === hint.id}
-                                onClick={() => handleUnlock(hint)}
-                            >
-                                {unlockingId === hint.id
-                                    ? "Unlocking..."
-                                    : `Unlock (${hint.cost} ST)`}
-                            </Button>
+            <p className="text-xs font-medium text-muted-foreground">
+                Hints{isHistorical && " (free to view — this Level has ended)"}
+            </p>
+            {hints.map((hint) => {
+                // Historical Levels: the data layer already returns every
+                // Hint's content unlocked and free (see get-student-level.ts),
+                // so there is nothing to gate here - just show it, no button.
+                const showLocked = !isHistorical && !hint.isUnlocked;
+                return (
+                    <div key={hint.id} className="space-y-1.5 text-sm">
+                        <div className="flex items-center justify-between gap-3">
+                            <span className={showLocked ? "text-muted-foreground" : "font-medium"}>
+                                Hint {hint.order}
+                                {showLocked && " — Locked"}
+                            </span>
+                            {showLocked && (
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={unlockingId === hint.id}
+                                    onClick={() => handleUnlock(hint)}
+                                >
+                                    {unlockingId === hint.id
+                                        ? "Unlocking..."
+                                        : `Unlock (${hint.cost} ST)`}
+                                </Button>
+                            )}
+                        </div>
+                        {!showLocked && hint.content && (
+                            <MarkdownContent content={hint.content} />
                         )}
                     </div>
-                    {hint.isUnlocked && hint.content && (
-                        <MarkdownContent content={hint.content} />
-                    )}
-                </div>
-            ))}
+                );
+            })}
             {error && <p className="text-sm text-error">{error}</p>}
         </div>
     );
@@ -155,14 +181,21 @@ function buildFileFormData(taskId: string, file: File): FormData {
 function SubmissionPanel({
     studentId,
     task,
+    isHistorical = false,
 }: {
     studentId: string;
     task: StudentTaskView;
+    isHistorical?: boolean;
 }) {
     const router = useRouter();
     const submission = task.submission;
     const isGraded = submission?.isGraded ?? false;
-    const canEdit = !task.isDeadlinePassed && !(submission?.isLocked ?? false);
+    // isHistorical is belt-and-suspenders here: task.isDeadlinePassed is
+    // already true for every Task under a past Level, so canEdit would be
+    // false anyway - but checking isHistorical directly keeps this panel
+    // correct even if that assumption ever stops holding.
+    const canEdit =
+        !isHistorical && !task.isDeadlinePassed && !(submission?.isLocked ?? false);
 
     const [mode, setMode] = useState<SubmissionModeCode>(
         task.allowedSubmissionMode ?? submission?.mode ?? "TEXT"

@@ -1,12 +1,24 @@
 // src/lib/data/get-student-level.ts
-// Fetches everything a Student needs to see on their dashboard: their
-// Group's currently active Level, every Session under it (with a
-// runtime-computed status, same as get-my-groups.ts), and every Task with
-// its Hints and this Student's own Submission (if any).
+// Fetches everything a Student needs to see about a Level: its Sessions
+// (with a runtime-computed status, same as get-my-groups.ts), and every
+// Task with its Hints and this Student's own Submission (if any).
 //
-// Hint content is only ever included for Hints this Student has already
-// unlocked (join filtered by studentId) - locked Hints come back with
-// content = null so nothing leaks to the client before it's paid for.
+// Two entry points, both built on the same internal fetcher:
+//   - getStudentLevel(studentId)              -> the Group's active Level
+//   - getStudentLevelById(studentId, levelId) -> any Level (active or
+//     historical), scoped to the student's own Group so a student can
+//     never read another Group's Level by guessing its id (see Level
+//     History feature - src/app/student/levels).
+//
+// Hint content: for the ACTIVE Level, content is only ever included for
+// Hints this Student has already unlocked (join filtered by studentId) -
+// locked Hints come back with content = null so nothing leaks before it's
+// paid for. For a NON-active (historical) Level, every Hint's content is
+// returned unlocked and free - the client decided that once a Level is
+// over, hints are just study material, not something worth paying ST for
+// (see Level History feature design). isUnlocked still reflects whether
+// THIS student actually paid for it back when the Level was active, since
+// that's still meaningful history - only `content` visibility changes.
 //
 // A Student's Group can have no active Level yet (nothing created) - that
 // is a valid, empty state the UI must handle (returns null).
@@ -23,7 +35,7 @@ export interface StudentHintView {
     id: string;
     order: number;
     cost: number;
-    content: string | null; // null until this Student unlocks it
+    content: string | null; // null until unlocked (active Levels only)
     isUnlocked: boolean;
 }
 
@@ -68,11 +80,18 @@ export interface StudentLevelView {
     name: string;
     levelNumber: number;
     groupName: string;
+    isActive: boolean;
     sessions: StudentSessionView[];
 }
 
-export async function getStudentLevel(
-    studentId: string
+// Prisma's `where` for the single Level we resolve on Group.levels - either
+// "the active one" or "this specific id" (further scoped to the student's
+// own Group by virtue of being nested under `student.group.levels`).
+type LevelSelector = { isActive: true } | { id: string };
+
+async function fetchStudentLevelView(
+    studentId: string,
+    levelWhere: LevelSelector
 ): Promise<StudentLevelView | null> {
     const student = await prisma.student.findUniqueOrThrow({
         where: { id: studentId },
@@ -81,12 +100,13 @@ export async function getStudentLevel(
                 select: {
                     name: true,
                     levels: {
-                        where: { isActive: true },
+                        where: levelWhere,
                         take: 1,
                         select: {
                             id: true,
                             name: true,
                             levelNumber: true,
+                            isActive: true,
                             sessions: {
                                 orderBy: { startTime: "asc" },
                                 select: {
@@ -146,17 +166,18 @@ export async function getStudentLevel(
         },
     });
 
-    const activeLevel = student.group.levels[0];
-    if (!activeLevel) return null;
+    const level = student.group.levels[0];
+    if (!level) return null;
 
     const now = new Date();
 
     return {
-        id: activeLevel.id,
-        name: activeLevel.name,
-        levelNumber: activeLevel.levelNumber,
+        id: level.id,
+        name: level.name,
+        levelNumber: level.levelNumber,
         groupName: student.group.name,
-        sessions: activeLevel.sessions.map((session) => ({
+        isActive: level.isActive,
+        sessions: level.sessions.map((session) => ({
             id: session.id,
             title: session.title,
             startTime: session.startTime,
@@ -183,11 +204,16 @@ export async function getStudentLevel(
                     isDeadlinePassed: task.deadline <= now,
                     hints: task.hints.map((hint) => {
                         const isUnlocked = hint.hintUnlocks.length > 0;
+                        // Historical (non-active) Levels: every Hint reads as
+                        // free study material regardless of whether this
+                        // student ever paid to unlock it back when the Level
+                        // was live. Active Levels: unchanged, paywalled.
+                        const contentVisible = !level.isActive || isUnlocked;
                         return {
                             id: hint.id,
                             order: hint.order,
                             cost: hint.cost,
-                            content: isUnlocked ? hint.content : null,
+                            content: contentVisible ? hint.content : null,
                             isUnlocked,
                         };
                     }),
@@ -214,4 +240,21 @@ export async function getStudentLevel(
             }),
         })),
     };
+}
+
+export async function getStudentLevel(
+    studentId: string
+): Promise<StudentLevelView | null> {
+    return fetchStudentLevelView(studentId, { isActive: true });
+}
+
+// Scoped to the student's own Group implicitly (levelId is looked up inside
+// `student.group.levels`, so a Level belonging to a different Group simply
+// won't match and this resolves to null - same "doesn't exist for you"
+// shape as an unknown id, nothing leaks about other Groups).
+export async function getStudentLevelById(
+    studentId: string,
+    levelId: string
+): Promise<StudentLevelView | null> {
+    return fetchStudentLevelView(studentId, { id: levelId });
 }

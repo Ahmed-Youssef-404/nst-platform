@@ -17,9 +17,11 @@ import type { StudentTaskView } from "@/lib/data/get-student-level";
 export function TaskPager({
     studentId,
     tasks,
+    isHistorical = false,
 }: {
     studentId: string;
     tasks: StudentTaskView[];
+    isHistorical?: boolean;
 }) {
     const [index, setIndex] = useState(0);
 
@@ -67,6 +69,7 @@ export function TaskPager({
                     key={currentTask.id}
                     studentId={studentId}
                     task={currentTask}
+                    isHistorical={isHistorical}
                 />
             </CardContent>
         </Card>
