@@ -8,6 +8,12 @@
 //
 // This does NOT touch any of your real students, groups, or batches.
 //
+// Updated for the LevelStBalance / avgSt redesign: balances now live in
+// LevelStBalance (per Student x Level, frozen once the Level ends) rather
+// than directly on Student.levelSt/totalSt. Student.avgSt is a cached
+// Math.round(average) over all of a student's LevelStBalance rows. See
+// create-transaction.ts for the mechanics.
+//
 // Run with:
 //   npx tsx prisma/test-st-economy.ts
 //
@@ -18,7 +24,7 @@ import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import "dotenv/config";
 
-import { applySTChange, applySTChangeOnce } from "../src/lib/st-economy/create-transaction";
+import { applySTChange, applySTChangeOnce, createLevelStBalanceForTransition } from "../src/lib/st-economy/create-transaction";
 import { recordAttendance, recordSessionEngagement, gradeSubmission } from "../src/lib/st-economy/instructor-events";
 import { unlockHint } from "../src/lib/st-economy/hint-unlock";
 import { reconcileTaskDeadlines, reconcileFinishAllTasks } from "../src/lib/st-economy/deadline-events";
@@ -63,16 +69,36 @@ function assert(condition: boolean, message: string) {
     }
 }
 
-async function printBalance(studentId: string, label: string) {
+// Reads a student's LevelStBalance.balance for a specific Level - the
+// direct replacement for the old `student.levelSt` column read. Returns
+// null if no row exists yet for that (student, level) pair.
+async function getLevelStBalance(
+    studentId: string,
+    levelId: string
+): Promise<number | null> {
+    const row = await prisma.levelStBalance.findUnique({
+        where: { studentId_levelId: { studentId, levelId } },
+        select: { balance: true },
+    });
+    return row?.balance ?? null;
+}
+
+async function getAvgSt(studentId: string): Promise<number> {
     const student = await prisma.student.findUniqueOrThrow({
         where: { id: studentId },
-        select: { levelSt: true, totalSt: true },
+        select: { avgSt: true },
     });
-    const status = getBalanceStatus(student.levelSt, student.totalSt);
+    return student.avgSt;
+}
+
+async function printBalance(studentId: string, levelId: string, label: string) {
+    const levelSt = (await getLevelStBalance(studentId, levelId)) ?? 0;
+    const avgSt = await getAvgSt(studentId);
+    const status = getBalanceStatus(levelSt, avgSt);
     console.log(
-        `  📊 [${label}] levelSt=${status.levelSt} totalSt=${status.totalSt} zone=${status.zone}`
+        `  📊 [${label}] levelSt=${status.levelSt} avgSt=${status.avgSt} zone=${status.zone}`
     );
-    return student;
+    return { levelSt, avgSt };
 }
 
 async function printHistory(studentId: string) {
@@ -84,7 +110,7 @@ async function printHistory(studentId: string) {
     for (const tx of history) {
         const sign = tx.type === "REWARD" ? "+" : "-";
         console.log(
-            `     ${sign}${tx.amount} [${tx.reason}] -> levelSt=${tx.levelStBalance} totalSt=${tx.totalStBalance}`
+            `     ${sign}${tx.amount} [${tx.reason}] -> levelStBalance=${tx.levelStBalance} avgStBalance=${tx.avgStBalance}`
         );
     }
 }
@@ -194,6 +220,22 @@ async function setupTestData(): Promise<TestContext> {
         },
     });
 
+    // Every student needs a LevelStBalance row for the active Level before
+    // applySTChange can operate on them - this is normally created by
+    // manage-level.ts's createLevelStBalanceForTransition() at Level-
+    // transition time. We call it directly here since this script creates
+    // its Level manually rather than going through manage-level.ts.
+    await prisma.$transaction(async (tx) => {
+        await createLevelStBalanceForTransition(tx, {
+            studentId: studentA.id,
+            newLevelId: level.id,
+        });
+        await createLevelStBalanceForTransition(tx, {
+            studentId: studentB.id,
+            newLevelId: level.id,
+        });
+    });
+
     // Student A submits the non-bonus task BEFORE the deadline (we
     // backdate submittedAt-equivalent by simply creating it now, since
     // "now" in this script is still before we run deadline checks against
@@ -234,9 +276,9 @@ async function cleanupTestData(ctx: TestContext) {
     // (by design - see manage-batch.ts / manage-group.ts: a Batch should
     // never be deletable while it still has Groups, to prevent accidental
     // data loss). So we delete bottom-up: Students first (cascades to
-    // their STTransaction/HintUnlock/Attendance/Submission rows), then the
-    // Group (which DOES cascade to Level -> Session -> Task -> Hint, per
-    // schema.prisma), then finally the Batch.
+    // their STTransaction/HintUnlock/Attendance/Submission/LevelStBalance
+    // rows), then the Group (which DOES cascade to Level -> Session ->
+    // Task -> Hint, per schema.prisma), then finally the Batch.
     await prisma.student.deleteMany({
         where: { id: { in: [ctx.studentAId, ctx.studentBId] } },
     });
@@ -256,11 +298,12 @@ async function main() {
     console.log(`  Bonus task (deadline passed): ${ctx.bonusTaskId}`);
     console.log(`  Hints: ${ctx.hintIds.join(", ")}`);
 
-    await printBalance(ctx.studentAId, "initial");
-    await step("Initial balances are the schema defaults (50 / 0)", async () => {
-        const s = await prisma.student.findUniqueOrThrow({ where: { id: ctx.studentAId } });
-        assert(s.levelSt === 50, `Student A starts at levelSt=50 (got ${s.levelSt})`);
-        assert(s.totalSt === 0, `Student A starts at totalSt=0 (got ${s.totalSt})`);
+    await printBalance(ctx.studentAId, ctx.levelId, "initial");
+    await step("Initial balances are 50 / 50 (one LevelStBalance row so far -> avg == that row)", async () => {
+        const levelSt = await getLevelStBalance(ctx.studentAId, ctx.levelId);
+        const avgSt = await getAvgSt(ctx.studentAId);
+        assert(levelSt === 50, `Student A starts at levelSt=50 (got ${levelSt})`);
+        assert(avgSt === 50, `Student A starts at avgSt=50 (got ${avgSt})`);
     });
 
     // ================================================================
@@ -274,9 +317,9 @@ async function main() {
             reason: "MANUAL_ADJUSTMENT",
             amount: 5,
         });
-        const s = await printBalance(ctx.studentAId, "after +5");
+        const s = await printBalance(ctx.studentAId, ctx.levelId, "after +5");
         assert(s.levelSt === 55, `levelSt is 55 (got ${s.levelSt})`);
-        assert(s.totalSt === 5, `totalSt is 5 (got ${s.totalSt})`);
+        assert(s.avgSt === 55, `avgSt is 55 - still one Level, so avg == that Level's balance (got ${s.avgSt})`);
     });
 
     await step("Apply a manual -30 penalty (should allow going negative on levelSt later)", async () => {
@@ -287,15 +330,16 @@ async function main() {
             reason: "MANUAL_ADJUSTMENT",
             amount: 30,
         });
-        const s = await printBalance(ctx.studentAId, "after -30");
+        const s = await printBalance(ctx.studentAId, ctx.levelId, "after -30");
         assert(s.levelSt === 25, `levelSt is 25 (got ${s.levelSt})`);
-        assert(s.totalSt === -25, `totalSt is -25 (got ${s.totalSt})`);
+        assert(s.avgSt === 25, `avgSt is 25 - still one Level (got ${s.avgSt})`);
     });
 
-    await step("Balance zone is 'warning' at levelSt=25 with default threshold 20? (should be normal, 25 > 20)", async () => {
-        const s = await prisma.student.findUniqueOrThrow({ where: { id: ctx.studentAId } });
-        const status = getBalanceStatus(s.levelSt, s.totalSt);
-        assert(status.zone === "normal", `zone is 'normal' at levelSt=25 (got ${status.zone})`);
+    await step("Balance zone is 'warning' at levelSt=25 with default threshold 300? (should be warning, 25 <= 300)", async () => {
+        const levelSt = (await getLevelStBalance(ctx.studentAId, ctx.levelId))!;
+        const avgSt = await getAvgSt(ctx.studentAId);
+        const status = getBalanceStatus(levelSt, avgSt);
+        assert(status.zone === "warning", `zone is 'warning' at levelSt=25 (got ${status.zone})`);
     });
 
     await step("Reject a non-positive amount", async () => {
@@ -329,7 +373,7 @@ async function main() {
     });
 
     await step("Second call with same reason+relatedEntityId is a no-op", async () => {
-        const before = await prisma.student.findUniqueOrThrow({ where: { id: ctx.studentAId } });
+        const before = await getLevelStBalance(ctx.studentAId, ctx.levelId);
         const result = await applySTChangeOnce({
             studentId: ctx.studentAId,
             levelId: ctx.levelId,
@@ -338,9 +382,9 @@ async function main() {
             amount: 5,
             relatedEntityId: ctx.taskId,
         });
-        const after = await prisma.student.findUniqueOrThrow({ where: { id: ctx.studentAId } });
+        const after = await getLevelStBalance(ctx.studentAId, ctx.levelId);
         assert(result === null, "second call returns null (deduped)");
-        assert(before.levelSt === after.levelSt, "balance unchanged on the duplicate call");
+        assert(before === after, "balance unchanged on the duplicate call");
     });
 
     // ================================================================
@@ -353,20 +397,20 @@ async function main() {
             status: "PRESENT",
             recordedBy: ctx.instructorId,
         });
-        const s = await printBalance(ctx.studentBId, "after PRESENT");
+        const s = await printBalance(ctx.studentBId, ctx.levelId, "after PRESENT");
         assert(s.levelSt === 60, `levelSt is 60 (got ${s.levelSt})`);
     });
 
     await step("Re-submitting the SAME status is a no-op (no double reward)", async () => {
-        const before = await prisma.student.findUniqueOrThrow({ where: { id: ctx.studentBId } });
+        const before = await getLevelStBalance(ctx.studentBId, ctx.levelId);
         await recordAttendance({
             studentId: ctx.studentBId,
             sessionId: ctx.pastSessionId,
             status: "PRESENT",
             recordedBy: ctx.instructorId,
         });
-        const after = await prisma.student.findUniqueOrThrow({ where: { id: ctx.studentBId } });
-        assert(before.levelSt === after.levelSt, "balance unchanged when re-submitting same status");
+        const after = await getLevelStBalance(ctx.studentBId, ctx.levelId);
+        assert(before === after, "balance unchanged when re-submitting same status");
     });
 
     await step("Correcting PRESENT -> ABSENT reverses +10 and applies -20", async () => {
@@ -376,7 +420,7 @@ async function main() {
             status: "ABSENT",
             recordedBy: ctx.instructorId,
         });
-        const s = await printBalance(ctx.studentBId, "after correction to ABSENT");
+        const s = await printBalance(ctx.studentBId, ctx.levelId, "after correction to ABSENT");
         // 60 (after PRESENT) - 10 (reverse PRESENT) - 20 (apply ABSENT) = 30
         assert(s.levelSt === 30, `levelSt is 30 after reversal+penalty (got ${s.levelSt})`);
     });
@@ -392,7 +436,7 @@ async function main() {
             sessionId: ctx.pastSessionId,
             recordedBy: ctx.instructorId,
         });
-        await printBalance(ctx.studentAId, "after engagement +5");
+        await printBalance(ctx.studentAId, ctx.levelId, "after engagement +5");
     });
 
     await step("Recording engagement twice for the same session throws", async () => {
@@ -412,23 +456,23 @@ async function main() {
     section("TEST 5: Hint unlock (deduction + duplicate protection)");
     // ================================================================
     await step("Unlock Hint 1 (-5) for Student A", async () => {
-        const before = await prisma.student.findUniqueOrThrow({ where: { id: ctx.studentAId } });
+        const before = await getLevelStBalance(ctx.studentAId, ctx.levelId);
         await unlockHint({ studentId: ctx.studentAId, hintId: ctx.hintIds[0] });
-        const after = await printBalance(ctx.studentAId, "after Hint 1 unlock");
-        assert(after.levelSt === before.levelSt - 5, `levelSt decreased by exactly 5 (${before.levelSt} -> ${after.levelSt})`);
+        const after = await printBalance(ctx.studentAId, ctx.levelId, "after Hint 1 unlock");
+        assert(after.levelSt === before! - 5, `levelSt decreased by exactly 5 (${before} -> ${after.levelSt})`);
     });
 
     await step("Unlocking the SAME hint again does not charge twice", async () => {
-        const before = await prisma.student.findUniqueOrThrow({ where: { id: ctx.studentAId } });
+        const before = await getLevelStBalance(ctx.studentAId, ctx.levelId);
         await unlockHint({ studentId: ctx.studentAId, hintId: ctx.hintIds[0] });
-        const after = await prisma.student.findUniqueOrThrow({ where: { id: ctx.studentAId } });
-        assert(before.levelSt === after.levelSt, "no additional charge on re-unlock");
+        const after = await getLevelStBalance(ctx.studentAId, ctx.levelId);
+        assert(before === after, "no additional charge on re-unlock");
     });
 
     await step("Unlock Hint 2 (-15) and Hint 3 (-30)", async () => {
         await unlockHint({ studentId: ctx.studentAId, hintId: ctx.hintIds[1] });
         await unlockHint({ studentId: ctx.studentAId, hintId: ctx.hintIds[2] });
-        await printBalance(ctx.studentAId, "after all 3 hints unlocked");
+        await printBalance(ctx.studentAId, ctx.levelId, "after all 3 hints unlocked");
     });
 
     await step("HintUnlock rows exist for all 3 hints with correct costPaid snapshots", async () => {
@@ -450,7 +494,7 @@ async function main() {
         const submission = await prisma.submission.findUniqueOrThrow({
             where: { studentId_taskId: { studentId: ctx.studentAId, taskId: ctx.taskId } },
         });
-        const before = await prisma.student.findUniqueOrThrow({ where: { id: ctx.studentAId } });
+        const before = await getLevelStBalance(ctx.studentAId, ctx.levelId);
 
         await gradeSubmission({
             submissionId: submission.id,
@@ -465,8 +509,8 @@ async function main() {
         // Note: FIRST_SOLVER for ctx.taskId was already awarded in TEST 2's
         // applySTChangeOnce call above (same relatedEntityId), so this
         // should NOT add another +5 - it should be deduped.
-        const after = await printBalance(ctx.studentAId, "after rubric grading (8) + first-solver attempt");
-        assert(after.levelSt === before.levelSt + 8, `levelSt increased by exactly 8 (rubric only, first-solver deduped) (${before.levelSt} -> ${after.levelSt})`);
+        const after = await printBalance(ctx.studentAId, ctx.levelId, "after rubric grading (8) + first-solver attempt");
+        assert(after.levelSt === before! + 8, `levelSt increased by exactly 8 (rubric only, first-solver deduped) (${before} -> ${after.levelSt})`);
     });
 
     await step("Submission is now locked (isLocked = true)", async () => {
@@ -506,7 +550,7 @@ async function main() {
                 textContent: "Bonus submission",
             },
         });
-        const before = await prisma.student.findUniqueOrThrow({ where: { id: ctx.studentAId } });
+        const before = await getLevelStBalance(ctx.studentAId, ctx.levelId);
 
         await gradeSubmission({
             submissionId: bonusSubmission.id,
@@ -517,50 +561,50 @@ async function main() {
             gradedBy: ctx.instructorId,
         });
 
-        const after = await printBalance(ctx.studentAId, "after bonus task graded (10 rubric + 10 bonus)");
-        assert(after.levelSt === before.levelSt + 20, `levelSt increased by 20 (10 rubric + 10 bonus) (${before.levelSt} -> ${after.levelSt})`);
+        const after = await printBalance(ctx.studentAId, ctx.levelId, "after bonus task graded (10 rubric + 10 bonus)");
+        assert(after.levelSt === before! + 20, `levelSt increased by 20 (10 rubric + 10 bonus) (${before} -> ${after.levelSt})`);
     });
 
     // ================================================================
     section("TEST 7: Deadline-triggered reconciliation");
     // ================================================================
     await step("reconcileTaskDeadlines: Student A (submitted on time) gets +5", async () => {
-        const before = await prisma.student.findUniqueOrThrow({ where: { id: ctx.studentAId } });
+        const before = await getLevelStBalance(ctx.studentAId, ctx.levelId);
         await reconcileTaskDeadlines(ctx.studentAId);
-        const after = await printBalance(ctx.studentAId, "Student A after task-deadline reconcile");
-        assert(after.levelSt === before.levelSt + 5, `levelSt increased by 5 (SUBMIT_BEFORE_DEADLINE) (${before.levelSt} -> ${after.levelSt})`);
+        const after = await printBalance(ctx.studentAId, ctx.levelId, "Student A after task-deadline reconcile");
+        assert(after.levelSt === before! + 5, `levelSt increased by 5 (SUBMIT_BEFORE_DEADLINE) (${before} -> ${after.levelSt})`);
     });
 
     await step("reconcileTaskDeadlines: Student B (never submitted) gets -10", async () => {
-        const before = await prisma.student.findUniqueOrThrow({ where: { id: ctx.studentBId } });
+        const before = await getLevelStBalance(ctx.studentBId, ctx.levelId);
         await reconcileTaskDeadlines(ctx.studentBId);
-        const after = await printBalance(ctx.studentBId, "Student B after task-deadline reconcile");
-        assert(after.levelSt === before.levelSt - 10, `levelSt decreased by 10 (TASK_NOT_SUBMITTED) (${before.levelSt} -> ${after.levelSt})`);
+        const after = await printBalance(ctx.studentBId, ctx.levelId, "Student B after task-deadline reconcile");
+        assert(after.levelSt === before! - 10, `levelSt decreased by 10 (TASK_NOT_SUBMITTED) (${before} -> ${after.levelSt})`);
     });
 
     await step("Running reconcileTaskDeadlines again is a no-op (idempotent)", async () => {
-        const beforeA = await prisma.student.findUniqueOrThrow({ where: { id: ctx.studentAId } });
-        const beforeB = await prisma.student.findUniqueOrThrow({ where: { id: ctx.studentBId } });
+        const beforeA = await getLevelStBalance(ctx.studentAId, ctx.levelId);
+        const beforeB = await getLevelStBalance(ctx.studentBId, ctx.levelId);
         await reconcileTaskDeadlines(ctx.studentAId);
         await reconcileTaskDeadlines(ctx.studentBId);
-        const afterA = await prisma.student.findUniqueOrThrow({ where: { id: ctx.studentAId } });
-        const afterB = await prisma.student.findUniqueOrThrow({ where: { id: ctx.studentBId } });
-        assert(beforeA.levelSt === afterA.levelSt, "Student A balance unchanged on 2nd run");
-        assert(beforeB.levelSt === afterB.levelSt, "Student B balance unchanged on 2nd run");
+        const afterA = await getLevelStBalance(ctx.studentAId, ctx.levelId);
+        const afterB = await getLevelStBalance(ctx.studentBId, ctx.levelId);
+        assert(beforeA === afterA, "Student A balance unchanged on 2nd run");
+        assert(beforeB === afterB, "Student B balance unchanged on 2nd run");
     });
 
     await step("reconcileFinishAllTasks: Student A finished the only non-bonus task in the session -> +10", async () => {
-        const before = await prisma.student.findUniqueOrThrow({ where: { id: ctx.studentAId } });
+        const before = await getLevelStBalance(ctx.studentAId, ctx.levelId);
         await reconcileFinishAllTasks(ctx.studentAId);
-        const after = await printBalance(ctx.studentAId, "Student A after finish-all-tasks reconcile");
-        assert(after.levelSt === before.levelSt + 10, `levelSt increased by 10 (FINISH_ALL_TASKS) (${before.levelSt} -> ${after.levelSt})`);
+        const after = await printBalance(ctx.studentAId, ctx.levelId, "Student A after finish-all-tasks reconcile");
+        assert(after.levelSt === before! + 10, `levelSt increased by 10 (FINISH_ALL_TASKS) (${before} -> ${after.levelSt})`);
     });
 
     await step("reconcileFinishAllTasks: Student B did NOT finish -> no change", async () => {
-        const before = await prisma.student.findUniqueOrThrow({ where: { id: ctx.studentBId } });
+        const before = await getLevelStBalance(ctx.studentBId, ctx.levelId);
         await reconcileFinishAllTasks(ctx.studentBId);
-        const after = await prisma.student.findUniqueOrThrow({ where: { id: ctx.studentBId } });
-        assert(before.levelSt === after.levelSt, "Student B balance unchanged (didn't finish all tasks)");
+        const after = await getLevelStBalance(ctx.studentBId, ctx.levelId);
+        assert(before === after, "Student B balance unchanged (didn't finish all tasks)");
     });
 
     // ================================================================
@@ -569,7 +613,7 @@ async function main() {
     await step("Student A attended + submitted everything in week 0 -> +30", async () => {
         // Student A needs an Attendance=PRESENT row for pastSessionId too,
         // since Weekly Mission requires attending ALL sessions in the week.
-        const beforeAttendance = await prisma.student.findUniqueOrThrow({ where: { id: ctx.studentAId } });
+        const beforeAttendance = await getLevelStBalance(ctx.studentAId, ctx.levelId);
 
         await recordAttendance({
             studentId: ctx.studentAId,
@@ -577,29 +621,88 @@ async function main() {
             status: "PRESENT",
             recordedBy: ctx.instructorId,
         });
-        const afterAttendance = await prisma.student.findUniqueOrThrow({ where: { id: ctx.studentAId } });
-        assert(afterAttendance.levelSt === beforeAttendance.levelSt + 10, `attendance added exactly +10 (${beforeAttendance.levelSt} -> ${afterAttendance.levelSt})`);
+        const afterAttendance = await getLevelStBalance(ctx.studentAId, ctx.levelId);
+        assert(afterAttendance === beforeAttendance! + 10, `attendance added exactly +10 (${beforeAttendance} -> ${afterAttendance})`);
 
         const beforeMission = afterAttendance;
         await reconcileWeeklyMission(ctx.studentAId);
-        const afterMission = await printBalance(ctx.studentAId, "Student A after weekly mission reconcile");
-        assert(afterMission.levelSt === beforeMission.levelSt + 30, `weekly mission added exactly +30 (${beforeMission.levelSt} -> ${afterMission.levelSt})`);
+        const afterMission = await printBalance(ctx.studentAId, ctx.levelId, "Student A after weekly mission reconcile");
+        assert(afterMission.levelSt === beforeMission! + 30, `weekly mission added exactly +30 (${beforeMission} -> ${afterMission.levelSt})`);
     });
 
     await step("Student B did not attend/submit everything -> no Weekly Mission reward", async () => {
-        const before = await prisma.student.findUniqueOrThrow({ where: { id: ctx.studentBId } });
+        const before = await getLevelStBalance(ctx.studentBId, ctx.levelId);
         await reconcileWeeklyMission(ctx.studentBId);
-        const after = await prisma.student.findUniqueOrThrow({ where: { id: ctx.studentBId } });
+        const after = await getLevelStBalance(ctx.studentBId, ctx.levelId);
         // Student B's attendance for pastSessionId was set to ABSENT earlier
         // in TEST 3, so the mission should fail (not all sessions attended).
-        assert(before.levelSt === after.levelSt, "Student B balance unchanged (mission not completed)");
+        assert(before === after, "Student B balance unchanged (mission not completed)");
     });
 
     await step("Running reconcileWeeklyMission again is idempotent", async () => {
-        const before = await prisma.student.findUniqueOrThrow({ where: { id: ctx.studentAId } });
+        const before = await getLevelStBalance(ctx.studentAId, ctx.levelId);
         await reconcileWeeklyMission(ctx.studentAId);
-        const after = await prisma.student.findUniqueOrThrow({ where: { id: ctx.studentAId } });
-        assert(before.levelSt === after.levelSt, "no double reward on 2nd Weekly Mission run");
+        const after = await getLevelStBalance(ctx.studentAId, ctx.levelId);
+        assert(before === after, "no double reward on 2nd Weekly Mission run");
+    });
+
+    // ================================================================
+    section("TEST 9: Level transition (LevelStBalance freeze + avgSt recompute)");
+    // ================================================================
+    let secondLevelId = "";
+    await step("Transition Student A to a brand new Level -> fresh LevelStBalance(50), old one frozen", async () => {
+        const beforeOldLevelSt = await getLevelStBalance(ctx.studentAId, ctx.levelId);
+        const beforeAvgSt = await getAvgSt(ctx.studentAId);
+
+        const secondLevel = await prisma.level.create({
+            data: {
+                groupId: ctx.groupId,
+                name: "TEST-LEVEL-2",
+                levelNumber: 2,
+                isActive: true,
+            },
+        });
+        secondLevelId = secondLevel.id;
+
+        await prisma.$transaction(async (tx) => {
+            await createLevelStBalanceForTransition(tx, {
+                studentId: ctx.studentAId,
+                newLevelId: secondLevel.id,
+            });
+        });
+
+        const oldLevelStAfter = await getLevelStBalance(ctx.studentAId, ctx.levelId);
+        const newLevelSt = await getLevelStBalance(ctx.studentAId, secondLevel.id);
+        const avgStAfter = await getAvgSt(ctx.studentAId);
+
+        assert(oldLevelStAfter === beforeOldLevelSt, `old Level's LevelStBalance is untouched/frozen (was ${beforeOldLevelSt}, still ${oldLevelStAfter})`);
+        assert(newLevelSt === 50, `new Level's LevelStBalance starts at exactly 50 (got ${newLevelSt})`);
+
+        const expectedAvg = Math.round((beforeOldLevelSt! + 50) / 2);
+        assert(avgStAfter === expectedAvg, `avgSt is Math.round(average(${beforeOldLevelSt}, 50)) = ${expectedAvg} (got ${avgStAfter}, was ${beforeAvgSt} before transition)`);
+    });
+
+    await step("A reward in the NEW Level only moves the new Level's balance, and avgSt reflects both Levels", async () => {
+        const beforeOldLevelSt = await getLevelStBalance(ctx.studentAId, ctx.levelId);
+        const beforeNewLevelSt = await getLevelStBalance(ctx.studentAId, secondLevelId);
+
+        await applySTChange({
+            studentId: ctx.studentAId,
+            levelId: secondLevelId,
+            type: "REWARD",
+            reason: "MANUAL_ADJUSTMENT",
+            amount: 20,
+        });
+
+        const afterOldLevelSt = await getLevelStBalance(ctx.studentAId, ctx.levelId);
+        const afterNewLevelSt = await getLevelStBalance(ctx.studentAId, secondLevelId);
+        const avgStAfter = await getAvgSt(ctx.studentAId);
+
+        assert(afterOldLevelSt === beforeOldLevelSt, "old (frozen) Level's balance did not move");
+        assert(afterNewLevelSt === beforeNewLevelSt! + 20, `new Level's balance increased by exactly 20 (${beforeNewLevelSt} -> ${afterNewLevelSt})`);
+
+        const expectedAvg = Math.round((afterOldLevelSt! + afterNewLevelSt!) / 2);
+        assert(avgStAfter === expectedAvg, `avgSt recomputed correctly as Math.round(average(${afterOldLevelSt}, ${afterNewLevelSt})) = ${expectedAvg} (got ${avgStAfter})`);
     });
 
     // ================================================================
@@ -613,31 +716,64 @@ async function main() {
     // ================================================================
     section("AUDIT CONSISTENCY CHECK");
     // ================================================================
-    await step("Every STTransaction's levelStBalance snapshot matches a real running total", async () => {
+    await step("Every STTransaction's levelStBalance snapshot matches the live LevelStBalance for that Level", async () => {
         for (const studentId of [ctx.studentAId, ctx.studentBId]) {
             const history = await prisma.sTTransaction.findMany({
                 where: { studentId },
                 orderBy: { createdAt: "asc" },
             });
-            let runningLevel = 50;
-            let runningTotal = 0;
+
+            // Replay running balances PER LEVEL (not a single running
+            // total anymore - each Level has its own independent history).
+            const runningByLevel = new Map<string, number>();
             let ok = true;
+
             for (const tx of history) {
                 const delta = tx.type === "REWARD" ? tx.amount : -tx.amount;
-                runningLevel += delta;
-                runningTotal += delta;
-                if (runningLevel !== tx.levelStBalance || runningTotal !== tx.totalStBalance) {
+                const startingBalance = runningByLevel.has(tx.levelId)
+                    ? runningByLevel.get(tx.levelId)!
+                    : tx.reason === "LEVEL_RESET"
+                        ? 0 // LEVEL_RESET's own row IS the first row for that Level - starts from 0 + delta(50)
+                        : 50; // first transaction we see for this Level, but not a LEVEL_RESET row (shouldn't normally happen in this script, guarded defensively)
+                const running = startingBalance + delta;
+                runningByLevel.set(tx.levelId, running);
+
+                if (running !== tx.levelStBalance) {
                     ok = false;
                     console.log(
-                        `     mismatch at tx ${tx.id}: expected level=${runningLevel} total=${runningTotal}, got level=${tx.levelStBalance} total=${tx.totalStBalance}`
+                        `     mismatch at tx ${tx.id} (level ${tx.levelId}): expected levelStBalance=${running}, got ${tx.levelStBalance}`
                     );
                 }
             }
-            const finalStudent = await prisma.student.findUniqueOrThrow({ where: { id: studentId } });
-            assert(ok, `${studentId}: running snapshot total matches every recorded transaction`);
+
+            assert(ok, `${studentId}: every transaction's levelStBalance snapshot matches its Level's replayed running total`);
+
+            // Cross-check against the live LevelStBalance rows directly -
+            // the real source of truth, independent of the replay above.
+            let liveMatchesReplay = true;
+            for (const [levelId, replayed] of runningByLevel) {
+                const live = await getLevelStBalance(studentId, levelId);
+                if (live !== replayed) {
+                    liveMatchesReplay = false;
+                    console.log(
+                        `     live LevelStBalance mismatch for level ${levelId}: replayed=${replayed}, live=${live}`
+                    );
+                }
+            }
+            assert(liveMatchesReplay, `${studentId}: live LevelStBalance rows match the replayed transaction history`);
+
+            // avgSt should equal Math.round(average of all live LevelStBalance rows).
+            const allBalances = await prisma.levelStBalance.findMany({
+                where: { studentId },
+                select: { balance: true },
+            });
+            const expectedAvg = Math.round(
+                allBalances.reduce((sum, b) => sum + b.balance, 0) / allBalances.length
+            );
+            const liveAvg = await getAvgSt(studentId);
             assert(
-                finalStudent.levelSt === runningLevel && finalStudent.totalSt === runningTotal,
-                `${studentId}: final Student row (levelSt=${finalStudent.levelSt}, totalSt=${finalStudent.totalSt}) matches replayed history (level=${runningLevel}, total=${runningTotal})`
+                liveAvg === expectedAvg,
+                `${studentId}: Student.avgSt (${liveAvg}) matches Math.round(average) of its ${allBalances.length} LevelStBalance row(s) (expected ${expectedAvg})`
             );
         }
     });

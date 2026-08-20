@@ -1,21 +1,32 @@
 // src/app/student/ranking/ranking-view.tsx
-// Client Component - renders the top-3 podium + the rest-of-group list,
-// highlights the logged-in Student wherever they appear, and fires
-// confetti on mount if that Student is ranked in the top 3 (dense rank,
-// so ties at rank 1/2/3 all count - see get-student-ranking.ts).
+// Client Component - renders the "Ranking" page as tabs: one "Total ST"
+// tab (top-3 podium only, ranked by avgSt - see get-student-ranking.ts for
+// why it's capped at top 3) plus one tab per Level the Group has ever had
+// (oldest first, full group roster, ranked by that Level's LevelStBalance).
 //
-// No data fetching here - the full ranked list comes in as a prop from
+// Highlights the logged-in Student wherever they appear, and fires
+// confetti once on mount if that Student is in the top 3 of the
+// *currently active Level's* tab specifically (not Total ST, not a frozen
+// Level - the confetti is meant to celebrate "how you're doing right now",
+// and firing it for every tab on load would be more annoying than festive).
+//
+// No data fetching here - the full ranking payload comes in as a prop from
 // the Server Component (page.tsx), same pattern as STBalanceCard/
-// StudentSTHistoryView. The list is small (one Group's roster) so there's
-// no pagination, unlike ST History.
+// StudentSTHistoryView. Each tab's list is small (one Group's roster) so
+// there's no pagination.
 
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Crown, Trophy } from "lucide-react";
 import confetti from "canvas-confetti";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import type { RankedStudent, StudentRankingView as StudentRankingData } from "@/lib/data/get-student-ranking";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import type {
+    RankedStudentByLevel,
+    RankedStudentByAvg,
+    StudentRankingView as StudentRankingData,
+} from "@/lib/data/get-student-ranking";
 
 function getInitials(name: string): string {
     return name
@@ -30,6 +41,12 @@ function getInitials(name: string): string {
 // 2nd on the left, 1st in the center (tallest), 3rd on the right.
 const PODIUM_DISPLAY_ORDER = [2, 1, 3] as const;
 
+type RankedStudent = RankedStudentByLevel | RankedStudentByAvg;
+
+function stValueOf(student: RankedStudent): number {
+    return "levelSt" in student ? student.levelSt : student.avgSt;
+}
+
 export function StudentRankingView({
     ranking,
     currentStudentId,
@@ -37,34 +54,39 @@ export function StudentRankingView({
     ranking: StudentRankingData;
     currentStudentId: string;
 }) {
+    const activeLevel = ranking.levels.find((l) => l.isActive);
+    const defaultTab = activeLevel?.levelId ?? "total";
+
+    const [activeTab, setActiveTab] = useState(defaultTab);
+
     const firedRef = useRef(false);
 
-    const podiumStudents = ranking.students.filter((s) => s.rank <= 3);
-    const restStudents = ranking.students.filter((s) => s.rank > 3);
-
-    const currentStudentIsTop3 = ranking.currentStudentRank <= 3 && ranking.currentStudentRank > 0;
-    const currentStudentIsFirst = ranking.currentStudentRank === 1;
+    const activeLevelIsTop3 =
+        !!activeLevel &&
+        activeLevel.currentStudentRank <= 3 &&
+        activeLevel.currentStudentRank > 0;
+    const activeLevelIsFirst = activeLevel?.currentStudentRank === 1;
 
     useEffect(() => {
-        if (firedRef.current || !currentStudentIsTop3) return;
+        if (firedRef.current || !activeLevelIsTop3) return;
         firedRef.current = true;
 
-        const duration = currentStudentIsFirst ? 2200 : 1400;
+        const duration = activeLevelIsFirst ? 2200 : 1400;
         const end = Date.now() + duration;
-        const colors = currentStudentIsFirst
+        const colors = activeLevelIsFirst
             ? ["#bdae1f", "#e09d32", "#ffffff"]
             : ["#bdae1f", "#e09d32"];
 
         (function frame() {
             confetti({
-                particleCount: currentStudentIsFirst ? 5 : 3,
+                particleCount: activeLevelIsFirst ? 5 : 3,
                 angle: 60,
                 spread: 55,
                 origin: { x: 0, y: 0.6 },
                 colors,
             });
             confetti({
-                particleCount: currentStudentIsFirst ? 5 : 3,
+                particleCount: activeLevelIsFirst ? 5 : 3,
                 angle: 120,
                 spread: 55,
                 origin: { x: 1, y: 0.6 },
@@ -76,7 +98,7 @@ export function StudentRankingView({
             }
         })();
 
-        if (currentStudentIsFirst) {
+        if (activeLevelIsFirst) {
             // Extra celebratory center burst just for the #1 spot.
             confetti({
                 particleCount: 120,
@@ -90,8 +112,8 @@ export function StudentRankingView({
     }, []);
 
     return (
-        <div className="space-y-8 backdrop-blur-md">
-            {currentStudentIsFirst && (
+        <div className="space-y-6 backdrop-blur-md">
+            {activeLevelIsFirst && (
                 <div className="flex items-center gap-2 rounded-lg border border-coin bg-coin-bg px-4 py-3 text-coin">
                     <Crown className="h-5 w-5 shrink-0" />
                     <p className="text-sm font-semibold">
@@ -100,7 +122,87 @@ export function StudentRankingView({
                 </div>
             )}
 
-            <Podium students={podiumStudents} currentStudentId={currentStudentId} />
+            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as string)}>
+                <TabsList className="flex w-full flex-wrap gap-1">
+                    <TabsTrigger value="total">Total ST</TabsTrigger>
+                    {ranking.levels.map((level) => (
+                        <TabsTrigger key={level.levelId} value={level.levelId}>
+                            {level.levelName}
+                        </TabsTrigger>
+                    ))}
+                </TabsList>
+
+                <TabsContent value="total">
+                    <TotalStTab
+                        overall={ranking.overall}
+                        groupName={ranking.groupName}
+                        currentStudentId={currentStudentId}
+                    />
+                </TabsContent>
+
+                {ranking.levels.map((level) => (
+                    <TabsContent key={level.levelId} value={level.levelId}>
+                        <LevelTab level={level} currentStudentId={currentStudentId} />
+                    </TabsContent>
+                ))}
+            </Tabs>
+        </div>
+    );
+}
+
+// --- "Total ST" tab: premium, top-3-only podium, ranked by avgSt ---
+
+function TotalStTab({
+    overall,
+    groupName,
+    currentStudentId,
+}: {
+    overall: StudentRankingData["overall"];
+    groupName: string;
+    currentStudentId: string;
+}) {
+    return (
+        <div className="space-y-4">
+            <div className="rounded-lg border border-coin/40 bg-gradient-to-b from-coin/10 to-transparent p-4">
+                <p className="text-center text-xs text-muted-foreground">
+                    Top performers in {groupName}, ranked by average ST across every Level.
+                </p>
+            </div>
+            <Podium students={overall.students} currentStudentId={currentStudentId} emptyMessage="No one has earned ST yet." />
+            {overall.currentStudentRank > 3 && (
+                <p className="text-center text-xs text-muted-foreground">
+                    You&apos;re currently rank #{overall.currentStudentRank} overall - keep going to reach the podium!
+                </p>
+            )}
+        </div>
+    );
+}
+
+// --- Per-Level tab: full roster, ranked by that Level's LevelStBalance ---
+
+function LevelTab({
+    level,
+    currentStudentId,
+}: {
+    level: StudentRankingData["levels"][number];
+    currentStudentId: string;
+}) {
+    const podiumStudents = level.students.filter((s) => s.rank <= 3);
+    const restStudents = level.students.filter((s) => s.rank > 3);
+
+    return (
+        <div className="space-y-8">
+            {!level.isActive && (
+                <p className="text-center text-xs text-muted-foreground">
+                    This Level has ended - these results are final.
+                </p>
+            )}
+
+            <Podium
+                students={podiumStudents}
+                currentStudentId={currentStudentId}
+                emptyMessage="No one has earned ST yet this Level. Be the first!"
+            />
 
             {restStudents.length > 0 && (
                 <div className="rounded-lg border border-border">
@@ -117,12 +219,16 @@ export function StudentRankingView({
     );
 }
 
+// --- Shared podium + row components (used by both tab kinds) ---
+
 function Podium({
     students,
     currentStudentId,
+    emptyMessage,
 }: {
     students: RankedStudent[];
     currentStudentId: string;
+    emptyMessage: string;
 }) {
     const byRank = (rank: number) => students.filter((s) => s.rank === rank);
 
@@ -130,9 +236,7 @@ function Podium({
         return (
             <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border py-10 text-center">
                 <Trophy className="h-8 w-8 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">
-                    No one has earned ST yet this Level. Be the first!
-                </p>
+                <p className="text-sm text-muted-foreground">{emptyMessage}</p>
             </div>
         );
     }
@@ -212,7 +316,7 @@ function PodiumSpot({
             <div className="text-center">
                 <p className="max-w-24 truncate text-xs font-medium">{student.name}</p>
                 <p className="text-xs font-semibold tabular-nums text-coin">
-                    {student.levelSt} ST
+                    {stValueOf(student)} ST
                 </p>
             </div>
 
@@ -257,7 +361,7 @@ function RankingRow({
                 </p>
             </div>
             <span className="shrink-0 text-sm font-semibold tabular-nums text-coin">
-                {student.levelSt} ST
+                {stValueOf(student)} ST
             </span>
         </div>
     );
