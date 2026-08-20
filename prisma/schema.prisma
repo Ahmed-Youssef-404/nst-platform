@@ -51,8 +51,8 @@ model Student {
   email     String   @unique
   name      String
   groupId   String
-  levelSt   Int      @default(50) // بترجع 50 مع كل Level جديد، مفيش حد أدنى (ممكن تطلع سالبة)
-  totalSt   Int      @default(0)  // تراكمي طول الـ Batch، مفيش حد أدنى (ممكن تطلع سالبة)
+  levelSt   Int      @default(50) // [DEPRECATED - هيتشال في المرحلة 2] بترجع 50 مع كل Level جديد
+  totalSt   Int      @default(0)  // [DEPRECATED - هيتشال في المرحلة 2] تراكمي طول الـ Batch
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -63,6 +63,7 @@ model Student {
   attendance        Attendance[]
   stTransactions    STTransaction[]
   storeInventory    StudentInventory[]
+  levelStBalances   LevelStBalance[]
 
   @@map("students")
 }
@@ -131,9 +132,11 @@ model InstructorGroup {
 // كل Group ليه الـ Levels الخاصة بيه (مش جدول عام مشترك).
 // في أي لحظة، Level واحد بس isActive = true لكل Group.
 // لما الـ Instructor "ينقل" الـ Group لـ Level جديد:
-//   1) الـ Level الحالي isActive -> false
+//   1) الـ Level الحالي isActive -> false (رصيده في LevelStBalance يفضل
+//      كما هو - "متجمد"، مش بيتصفّر أو يتلمس تاني)
 //   2) Level جديد بيتعمل/يتفعّل بـ isActive = true و startDate = now()
-//   3) level_st بتاع كل طلاب الـ Group يتصفّر (منطق ده هيبقى في Phase 4)
+//   3) كل طالب في الـ Group ياخد صف جديد في LevelStBalance لهذا الـ
+//      Level بـ balance = 50، و Student.avgSt بتاعه بيتحسب من جديد
 
 model Level {
   id          String    @id @default(uuid())
@@ -147,11 +150,41 @@ model Level {
   updatedAt   DateTime  @updatedAt
 
   // Relations
-  group          Group           @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  sessions       Session[]
-  stTransactions STTransaction[]
+  group            Group            @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  sessions         Session[]
+  stTransactions   STTransaction[]
+  levelStBalances  LevelStBalance[]
 
   @@map("levels")
+}
+
+// ============================================
+// LEVEL ST BALANCE
+// ============================================
+// رصيد ST مستقل لكل (Student × Level). صف بيتعمل مرة واحدة لما الطالب
+// يدخل Level (balance = 50 دايمًا في البداية)، وبعد كده applySTChange
+// بيعمل عليه increment/decrement زي levelSt القديم بالظبط - لكن هنا
+// بيفضل الرصيد ده "متجمد" ومحفوظ لما الطالب ينتقل لـ Level تانية،
+// بدل ما يتصفّر ويضيع.
+//
+// Student.avgSt = Math.round(average(كل صفوف LevelStBalance بتاعة
+// الطالب دي)) - محسوب ومخزّن على الطالب كـ cache، بيتحدث في نفس
+// الـ $transaction بتاع applySTChange.
+
+model LevelStBalance {
+  id        String   @id @default(uuid())
+  studentId String
+  levelId   String
+  balance   Int      @default(50) // مفيش حد أدنى (ممكن تطلع سالبة)، زي levelSt القديم بالظبط
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  level   Level   @relation(fields: [levelId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, levelId])
+  @@map("level_st_balances")
 }
 
 // ============================================
@@ -406,11 +439,12 @@ enum STReason {
   MANUAL_ADJUSTMENT
 
   // Level transition (SuperAdmin moves a Group to a new Level -> every
-  // student's levelSt resets to 50; logged here for audit purposes)
+  // student gets a new LevelStBalance row for that Level, starting at
+  // 50; logged here for audit purposes)
   LEVEL_RESET
 }
 
-// ============================================
+/// ============================================
 // ST TRANSACTION
 // ============================================
 // سجل تدقيق (audit log) كامل لكل حركة ST تحصل لأي طالب، سواء كانت
@@ -427,6 +461,7 @@ enum STReason {
 // levelStBalance / totalStBalance: snapshot لرصيد الطالب مباشرة بعد
 // تنفيذ هذه الحركة بالذات - عشان نقدر نعرض تاريخ الرصيد بالظبط في أي
 // لحظة من غير ما نضطر نجمع كل الحركات من الأول كل مرة.
+// [DEPRECATED - هيتحول لـ avgStBalance في المرحلة 2]
 
 model STTransaction {
   id              String            @id @default(uuid())
@@ -437,7 +472,7 @@ model STTransaction {
   amount          Int // دايمًا موجب
   relatedEntityId String? // generic - بدون foreign key فعلي
   levelStBalance  Int // snapshot بعد الحركة
-  totalStBalance  Int // snapshot بعد الحركة
+  totalStBalance  Int // snapshot بعد الحركة [DEPRECATED]
   createdAt       DateTime          @default(now())
 
   // Relations
