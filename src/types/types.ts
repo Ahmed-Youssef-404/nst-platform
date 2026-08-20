@@ -120,7 +120,7 @@ export interface STTransactionResult {
     amount: number;
     relatedEntityId: string | null;
     levelStBalance: number;
-    totalStBalance: number;
+    avgStBalance: number;
     createdAt: Date;
 }
 
@@ -128,7 +128,7 @@ export type BalanceZone = "normal" | "warning" | "danger";
 
 export interface BalanceStatus {
     levelSt: number;
-    totalSt: number;
+    avgSt: number;
     zone: BalanceZone;
     warningThreshold: number;
 }

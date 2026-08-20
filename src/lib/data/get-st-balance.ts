@@ -16,12 +16,37 @@ const prisma = new PrismaClient({ adapter });
 export async function getStudentBalance(studentId: string) {
     const student = await prisma.student.findUniqueOrThrow({
         where: { id: studentId },
-        select: { name: true, levelSt: true, totalSt: true },
+        select: {
+            name: true,
+            avgSt: true,
+            group: {
+                select: {
+                    levels: {
+                        where: { isActive: true },
+                        select: {
+                            levelStBalances: {
+                                where: { studentId },
+                                select: { balance: true },
+                            },
+                        },
+                    },
+                },
+            },
+        },
     });
+
+    // A Student's Group should always have exactly one active Level, and
+    // that Level should always have a LevelStBalance row for this student
+    // (created at Level-transition time) - see manage-level.ts. Falling
+    // back to 50 rather than throwing keeps this read-only fetcher
+    // resilient for the rare edge case (e.g. a brand-new Group with no
+    // Level created yet) instead of breaking the whole dashboard.
+    const levelSt =
+        student.group.levels[0]?.levelStBalances[0]?.balance ?? 50;
 
     return {
         name: student.name,
-        ...getBalanceStatus(student.levelSt, student.totalSt),
+        ...getBalanceStatus(levelSt, student.avgSt),
     };
 }
 
