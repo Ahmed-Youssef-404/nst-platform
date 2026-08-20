@@ -51,8 +51,7 @@ model Student {
   email     String   @unique
   name      String
   groupId   String
-  levelSt   Int      @default(50) // [DEPRECATED - هيتشال في المرحلة 2] بترجع 50 مع كل Level جديد
-  totalSt   Int      @default(0)  // [DEPRECATED - هيتشال في المرحلة 2] تراكمي طول الـ Batch
+  avgSt     Int      @default(50) // متوسط (Math.round) كل LevelStBalance.balance بتاعة الطالب عبر كل الـ Levels (المجمدة + الحالية) - عمود cache محسوب، بيتحدث atomically جوه applySTChange
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -444,7 +443,7 @@ enum STReason {
   LEVEL_RESET
 }
 
-/// ============================================
+// ============================================
 // ST TRANSACTION
 // ============================================
 // سجل تدقيق (audit log) كامل لكل حركة ST تحصل لأي طالب، سواء كانت
@@ -458,10 +457,14 @@ enum STReason {
 // سبّب الحركة - مثلاً taskId لو SUBMIT_BEFORE_DEADLINE، hintId لو
 // HINT_UNLOCK، sessionId لو ATTENDANCE، storeItemId لو STORE_PURCHASE.
 //
-// levelStBalance / totalStBalance: snapshot لرصيد الطالب مباشرة بعد
+// levelStBalance / avgStBalance: snapshot لرصيد الطالب مباشرة بعد
 // تنفيذ هذه الحركة بالذات - عشان نقدر نعرض تاريخ الرصيد بالظبط في أي
 // لحظة من غير ما نضطر نجمع كل الحركات من الأول كل مرة.
-// [DEPRECATED - هيتحول لـ avgStBalance في المرحلة 2]
+// levelStBalance: رصيد LevelStBalance بتاع الـ levelId ده بعد الحركة.
+// avgStBalance: قيمة Student.avgSt (المتوسط عبر كل الـ Levels) بعد الحركة.
+// (للحركات القديمة قبل المرحلة 2 من الـ avgSt redesign: القيمة دي
+// اتترحّلت من totalStBalance القديمة كما هي - سجل تاريخي، مش بيتحسب
+// منها حاجة تانية).
 
 model STTransaction {
   id              String            @id @default(uuid())
@@ -471,8 +474,8 @@ model STTransaction {
   reason          STReason
   amount          Int // دايمًا موجب
   relatedEntityId String? // generic - بدون foreign key فعلي
-  levelStBalance  Int // snapshot بعد الحركة
-  totalStBalance  Int // snapshot بعد الحركة [DEPRECATED]
+  levelStBalance  Int // snapshot بعد الحركة (رصيد الـ Level ده تحديدًا)
+  avgStBalance    Int // snapshot بعد الحركة (المتوسط العام Student.avgSt)
   createdAt       DateTime          @default(now())
 
   // Relations
