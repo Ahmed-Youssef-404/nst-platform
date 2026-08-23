@@ -136,9 +136,9 @@ function HintsList({
                 // so there is nothing to gate here - just show it, no button.
                 const showLocked = !isHistorical && !hint.isUnlocked;
                 return (
-                    <div key={hint.id} className="space-y-1.5 text-sm">
+                    <div key={hint.id} className={`space-y-1.5 text-sm ${showLocked ? "" : "border-t-2 pt-3"}`}>
                         <div className="flex items-center justify-between gap-3">
-                            <span className={showLocked ? "text-muted-foreground" : "font-medium"}>
+                            <span className={showLocked ? "text-muted-foreground" : "font-medium text-[18px]"}>
                                 Hint {hint.order}
                                 {showLocked && " — Locked"}
                             </span>
