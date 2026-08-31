@@ -28,12 +28,10 @@ export default function SessionDetailLoading() {
 
             {/* TaskPager skeleton */}
             <Card>
-                <CardHeader className="flex-row items-center justify-between space-y-0">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                    <Skeleton className="h-8 w-8 rounded-md" />
                     <Skeleton className="h-5 w-24" />
-                    <div className="flex gap-2">
-                        <Skeleton className="h-8 w-8 rounded-md" />
-                        <Skeleton className="h-8 w-8 rounded-md" />
-                    </div>
+                    <Skeleton className="h-8 w-8 rounded-md" />
                 </CardHeader>
                 <CardContent className="space-y-3">
                     <Skeleton className="h-4 w-full" />
