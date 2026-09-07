@@ -1,0 +1,346 @@
+@import "tailwindcss";
+
+/* ============================================================
+   01. RAW DESIGN TOKENS
+   ============================================================ */
+
+:root {
+  /* ==========================================================
+     Space — Deep Space Backgrounds
+     ========================================================== */
+
+  --space-950: #050507;
+  --space-900: #08090D;
+  --space-850: #0C0D13;
+  --space-800: #11121A;
+  --space-750: #161722;
+
+  /* ==========================================================
+     Starlight — Text & Light
+     ========================================================== */
+
+  --starlight-100: #F7F4ED;
+  --starlight-200: #DEDAD0;
+  --starlight-300: #AAA69D;
+  --starlight-400: #716E68;
+
+  /* ==========================================================
+     Gold — Starlight Gold / Brand
+     ========================================================== */
+
+  --gold-300: #F6D77A;
+  --gold-400: #F2C866;
+  --gold-500: #E8B84A;
+  --gold-600: #D5A238;
+  --gold-700: #B98227;
+  --gold-800: #8C611C;
+  --gold-900: #594014;
+
+  /* ==========================================================
+     Cosmic Violet — Atmosphere
+     ========================================================== */
+
+  --violet-400: #A98BFF;
+  --violet-500: #8066D9;
+  --violet-600: #5945A6;
+
+  /* ==========================================================
+     Stellar Blue — Atmosphere / Info
+     ========================================================== */
+
+  --blue-400: #79BFFF;
+  --blue-500: #4D91D9;
+  --blue-600: #3266A3;
+
+  /* ==========================================================
+     Solar Amber — Atmospheric / Warning
+     ========================================================== */
+
+  --amber-400: #FFD27A;
+  --amber-500: #E9AD45;
+  --amber-600: #B97820;
+
+  /* ==========================================================
+     Semantic Colors
+     ========================================================== */
+
+  --success-400: #69D6A3;
+  --success-500: #2BE292;
+  --success-600: #2F8F65;
+
+  --info-400: #79BFFF;
+  --info-500: #1A6ABE;
+  --info-600: #3266A3;
+
+  --warning-400: #FFD27A;
+  --warning-500: #E9AD45;
+  --warning-600: #B97820;
+
+  --error-400: #FF8585;
+  --error-500: #CA2C2C;
+  --error-600: #AD3E3E;
+
+  /* ==========================================================
+     Typography — Raw Heading Sizes
+     Used as the min/max values for fluid typography.
+     ========================================================== */
+
+  --text-display-size: 4.5rem;
+  --text-display-size-mobile: 2.5rem;
+
+  --text-h1-size: 3.75rem;
+  --text-h1-size-mobile: 2rem;
+
+  --text-h2-size: 3rem;
+  --text-h2-size-mobile: 1.75rem;
+
+  --text-h3-size: 2.25rem;
+  --text-h3-size-mobile: 1.5rem;
+
+  --text-h4-size: 1.875rem;
+  --text-h4-size-mobile: 1.25rem;
+}
+
+
+/* ============================================================
+   02. TAILWIND THEME
+   ============================================================ */
+
+@theme {
+
+  /* ==========================================================
+     Colors
+     ========================================================== */
+
+  --color-space-950: var(--space-950);
+  --color-space-900: var(--space-900);
+  --color-space-850: var(--space-850);
+  --color-space-800: var(--space-800);
+  --color-space-750: var(--space-750);
+
+  --color-starlight-100: var(--starlight-100);
+  --color-starlight-200: var(--starlight-200);
+  --color-starlight-300: var(--starlight-300);
+  --color-starlight-400: var(--starlight-400);
+
+  --color-gold-300: var(--gold-300);
+  --color-gold-400: var(--gold-400);
+  --color-gold-500: var(--gold-500);
+  --color-gold-600: var(--gold-600);
+  --color-gold-700: var(--gold-700);
+  --color-gold-800: var(--gold-800);
+  --color-gold-900: var(--gold-900);
+
+  --color-violet-400: var(--violet-400);
+  --color-violet-500: var(--violet-500);
+  --color-violet-600: var(--violet-600);
+
+  --color-blue-400: var(--blue-400);
+  --color-blue-500: var(--blue-500);
+  --color-blue-600: var(--blue-600);
+
+  --color-amber-400: var(--amber-400);
+  --color-amber-500: var(--amber-500);
+  --color-amber-600: var(--amber-600);
+
+  --color-success-400: var(--success-400);
+  --color-success-500: var(--success-500);
+  --color-success-600: var(--success-600);
+
+  --color-info-400: var(--info-400);
+  --color-info-500: var(--info-500);
+  --color-info-600: var(--info-600);
+
+  --color-warning-400: var(--warning-400);
+  --color-warning-500: var(--warning-500);
+  --color-warning-600: var(--warning-600);
+
+  --color-error-400: var(--error-400);
+  --color-error-500: var(--error-500);
+  --color-error-600: var(--error-600);
+
+
+  /* ==========================================================
+     Typography — Fonts
+     ========================================================== */
+
+  --font-sans: "Manrope", sans-serif;
+  --font-arabic: "Noto Sans Arabic", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+
+  /* ==========================================================
+     Typography — Font Weights
+     ========================================================== */
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+
+
+  /* ==========================================================
+     Typography — Font Sizes
+     ========================================================== */
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-4xl: 2.25rem;
+  --text-5xl: 3rem;
+  --text-6xl: 3.75rem;
+  --text-7xl: 4.5rem;
+
+
+  /* ==========================================================
+     Typography — Line Heights
+     ========================================================== */
+
+  --leading-tight: 1.1;
+  --leading-snug: 1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.6;
+
+  --leading-arabic-heading: 1.25;
+  --leading-arabic-body: 1.65;
+
+
+  /* ==========================================================
+     Typography — Letter Spacing
+     ========================================================== */
+
+  --tracking-tighter: -0.02em;
+  --tracking-tight: -0.01em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.02em;
+
+
+  /* ==========================================================
+     Spacing — Component
+     ========================================================== */
+
+  --spacing-comp-xs: 0.5rem;
+  --spacing-comp-sm: 0.75rem;
+  --spacing-comp-md: 1rem;
+  --spacing-comp-lg: 1.5rem;
+  --spacing-comp-xl: 2rem;
+
+
+  /* ==========================================================
+     Spacing — Section
+     ========================================================== */
+
+  --spacing-sec-sm: 2rem;
+  --spacing-sec-md: 3rem;
+  --spacing-sec-lg: 4rem;
+  --spacing-sec-xl: 6rem;
+
+
+  /* ==========================================================
+     Sizing — Icons
+     ========================================================== */
+
+  --spacing-icon-xs: 0.75rem;
+  --spacing-icon-sm: 0.875rem;
+  --spacing-icon-md: 1rem;
+  --spacing-icon-lg: 1.25rem;
+  --spacing-icon-xl: 1.5rem;
+  --spacing-icon-2xl: 2rem;
+  --spacing-icon-3xl: 2.5rem;
+  --spacing-icon-4xl: 3rem;
+
+
+  /* ==========================================================
+     Border Radius
+     
+     Philosophy:
+     Balanced / Soft
+     
+     Base radius: 8px
+     ========================================================== */
+
+  --radius-none: 0px;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-3xl: 24px;
+  --radius-full: 9999px;
+
+
+  /* ==========================================================
+     Typography — Fluid / Responsive Scales
+     ========================================================== */
+
+  --text-display: clamp(
+    var(--text-display-size-mobile),
+    5vw + 1rem,
+    var(--text-display-size)
+  );
+
+  --text-h1: clamp(
+    var(--text-h1-size-mobile),
+    4vw + 1rem,
+    var(--text-h1-size)
+  );
+
+  --text-h2: clamp(
+    var(--text-h2-size-mobile),
+    3vw + 0.875rem,
+    var(--text-h2-size)
+  );
+
+  --text-h3: clamp(
+    var(--text-h3-size-mobile),
+    2.5vw + 0.75rem,
+    var(--text-h3-size)
+  );
+
+  --text-h4: clamp(
+    var(--text-h4-size-mobile),
+    2vw + 0.625rem,
+    var(--text-h4-size)
+  );
+}
+
+
+/* ============================================================
+   03. GLOBAL BASE STYLES
+   ============================================================ */
+
+body {
+  font-family: var(س);
+  font-size: var(--text-md);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--leading-normal);
+  letter-spacing: var(--tracking-normal);
+}
+
+
+/* ============================================================
+   04. ARABIC TYPOGRAPHY
+   ============================================================ */
+
+:lang(ar) {
+  font-family: var(--font-arabic);
+}
+
+
+/* ============================================================
+   05. CODE / TECHNICAL CONTENT
+   ============================================================ */
+
+code,
+pre,
+kbd,
+samp {
+  font-family: var(--font-mono);
+  direction: ltr;
+}
