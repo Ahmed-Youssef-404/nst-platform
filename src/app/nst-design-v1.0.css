@@ -99,6 +99,93 @@
 
   --text-h4-size: 1.875rem;
   --text-h4-size-mobile: 1.25rem;
+
+  /* ==========================================================
+     Shadows / Elevation
+     ========================================================== */
+
+  --shadow-none: none;
+
+  --shadow-1:
+    0 1px 2px rgb(0 0 0 / 0.18),
+    0 2px 6px rgb(0 0 0 / 0.12);
+
+  --shadow-2:
+    0 2px 4px rgb(0 0 0 / 0.20),
+    0 6px 16px rgb(0 0 0 / 0.16);
+
+  --shadow-3:
+    0 4px 8px rgb(0 0 0 / 0.22),
+    0 12px 28px rgb(0 0 0 / 0.20);
+
+  --shadow-4:
+    0 8px 16px rgb(0 0 0 / 0.24),
+    0 20px 48px rgb(0 0 0 / 0.24);
+
+  --shadow-5:
+    0 12px 24px rgb(0 0 0 / 0.28),
+    0 32px 64px rgb(0 0 0 / 0.28);
+
+  /* ==========================================================
+     Gold / Starlight Glows
+     ========================================================== */
+
+  --shadow-gold:
+    0 0 12px rgb(232 184 74 / 0.20),
+    0 0 28px rgb(232 184 74 / 0.10);
+
+  --shadow-gold-strong:
+    0 0 16px rgb(232 184 74 / 0.28),
+    0 0 36px rgb(232 184 74 / 0.16);
+
+  --shadow-starlight:
+    0 0 12px rgb(247 244 237 / 0.12),
+    0 0 28px rgb(247 244 237 / 0.06);
+
+
+  /* ==========================================================
+     Border Widths
+     ========================================================== */
+
+  --border-width-0: 0px;
+  --border-width-1: 1px;
+  --border-width-2: 2px;
+  --border-width-4: 4px;
+
+
+  /* ==========================================================
+     Border Colors
+     ========================================================== */
+
+  --border-subtle: rgb(247 244 237 / 0.08);
+  --border-default: rgb(247 244 237 / 0.14);
+  --border-strong: rgb(247 244 237 / 0.22);
+
+  --border-gold: var(--gold-500);
+  --border-gold-subtle: rgb(232 184 74 / 0.24);
+
+  --border-error: var(--error-500);
+  --border-success: var(--success-500);
+  --border-info: var(--info-500);
+
+
+  /* ==========================================================
+     Opacity
+     ========================================================== */
+
+  --opacity-0: 0;
+  --opacity-5: 0.05;
+  --opacity-10: 0.10;
+  --opacity-20: 0.20;
+  --opacity-30: 0.30;
+  --opacity-40: 0.40;
+  --opacity-50: 0.50;
+  --opacity-60: 0.60;
+  --opacity-70: 0.70;
+  --opacity-80: 0.80;
+  --opacity-90: 0.90;
+  --opacity-100: 1;
+
 }
 
 
@@ -275,6 +362,90 @@
   --radius-full: 9999px;
 
 
+
+  /* ==========================================================
+     Shadows / Elevation
+     ========================================================== */
+
+  --shadow-none: none;
+
+  --shadow-1:
+    0 1px 2px rgb(0 0 0 / 0.18),
+    0 2px 6px rgb(0 0 0 / 0.12);
+
+  --shadow-2:
+    0 2px 4px rgb(0 0 0 / 0.20),
+    0 6px 16px rgb(0 0 0 / 0.16);
+
+  --shadow-3:
+    0 4px 8px rgb(0 0 0 / 0.22),
+    0 12px 28px rgb(0 0 0 / 0.20);
+
+  --shadow-4:
+    0 8px 16px rgb(0 0 0 / 0.24),
+    0 20px 48px rgb(0 0 0 / 0.24);
+
+  --shadow-5:
+    0 12px 24px rgb(0 0 0 / 0.28),
+    0 32px 64px rgb(0 0 0 / 0.28);
+
+  --shadow-gold:
+    0 0 12px rgb(232 184 74 / 0.20),
+    0 0 28px rgb(232 184 74 / 0.10);
+
+  --shadow-gold-strong:
+    0 0 16px rgb(232 184 74 / 0.28),
+    0 0 36px rgb(232 184 74 / 0.16);
+
+  --shadow-starlight:
+    0 0 12px rgb(247 244 237 / 0.12),
+    0 0 28px rgb(247 244 237 / 0.06);
+
+
+  /* ==========================================================
+     Border Widths
+     ========================================================== */
+
+  --border-width-0: 0px;
+  --border-width-1: 1px;
+  --border-width-2: 2px;
+  --border-width-4: 4px;
+
+
+  /* ==========================================================
+     Border Colors
+     ========================================================== */
+
+  --color-border-subtle: rgb(247 244 237 / 0.08);
+  --color-border-default: rgb(247 244 237 / 0.14);
+  --color-border-strong: rgb(247 244 237 / 0.22);
+
+  --color-border-gold: var(--gold-500);
+  --color-border-gold-subtle: rgb(232 184 74 / 0.24);
+
+  --color-border-error: var(--error-500);
+  --color-border-success: var(--success-500);
+  --color-border-info: var(--info-500);
+
+
+  /* ==========================================================
+     Opacity
+     ========================================================== */
+
+  --opacity-0: 0;
+  --opacity-5: 0.05;
+  --opacity-10: 0.10;
+  --opacity-20: 0.20;
+  --opacity-30: 0.30;
+  --opacity-40: 0.40;
+  --opacity-50: 0.50;
+  --opacity-60: 0.60;
+  --opacity-70: 0.70;
+  --opacity-80: 0.80;
+  --opacity-90: 0.90;
+  --opacity-100: 1;
+
+
   /* ==========================================================
      Typography — Fluid / Responsive Scales
      ========================================================== */
@@ -316,7 +487,7 @@
    ============================================================ */
 
 body {
-  font-family: var(س);
+  font-family: var(--font-sans);
   font-size: var(--text-md);
   font-weight: var(--font-weight-regular);
   line-height: var(--leading-normal);
