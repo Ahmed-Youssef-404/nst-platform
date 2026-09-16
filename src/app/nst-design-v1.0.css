@@ -1,13 +1,14 @@
 @import "tailwindcss";
 
 /* ============================================================
-   01. RAW DESIGN TOKENS
-   ============================================================ */
+ * 01. RAW DESIGN TOKENS
+ * ============================================================ */
 
 :root {
+
   /* ==========================================================
-     Space — Deep Space Backgrounds
-     ========================================================== */
+   * Space — Deep Space Backgrounds
+   * ========================================================== */
 
   --space-950: #050507;
   --space-900: #08090D;
@@ -15,18 +16,20 @@
   --space-800: #11121A;
   --space-750: #161722;
 
+
   /* ==========================================================
-     Starlight — Text & Light
-     ========================================================== */
+   * Starlight — Text & Light
+   * ========================================================== */
 
   --starlight-100: #F7F4ED;
   --starlight-200: #DEDAD0;
   --starlight-300: #AAA69D;
   --starlight-400: #716E68;
 
+
   /* ==========================================================
-     Gold — Starlight Gold / Brand
-     ========================================================== */
+   * Gold — Starlight Gold / Brand
+   * ========================================================== */
 
   --gold-300: #F6D77A;
   --gold-400: #F2C866;
@@ -36,33 +39,37 @@
   --gold-800: #8C611C;
   --gold-900: #594014;
 
+
   /* ==========================================================
-     Cosmic Violet — Atmosphere
-     ========================================================== */
+   * Cosmic Violet — Atmosphere
+   * ========================================================== */
 
   --violet-400: #A98BFF;
   --violet-500: #8066D9;
   --violet-600: #5945A6;
 
+
   /* ==========================================================
-     Stellar Blue — Atmosphere / Info
-     ========================================================== */
+   * Stellar Blue — Atmosphere / Info
+   * ========================================================== */
 
   --blue-400: #79BFFF;
   --blue-500: #4D91D9;
   --blue-600: #3266A3;
 
+
   /* ==========================================================
-     Solar Amber — Atmospheric / Warning
-     ========================================================== */
+   * Solar Amber — Atmospheric / Warning
+   * ========================================================== */
 
   --amber-400: #FFD27A;
   --amber-500: #E9AD45;
   --amber-600: #B97820;
 
+
   /* ==========================================================
-     Semantic Colors
-     ========================================================== */
+   * Semantic Colors
+   * ========================================================== */
 
   --success-400: #69D6A3;
   --success-500: #2BE292;
@@ -80,10 +87,11 @@
   --error-500: #CA2C2C;
   --error-600: #AD3E3E;
 
+
   /* ==========================================================
-     Typography — Raw Heading Sizes
-     Used as the min/max values for fluid typography.
-     ========================================================== */
+   * Typography — Raw Heading Sizes
+   * Used as the min/max values for fluid typography.
+   * ========================================================== */
 
   --text-display-size: 4.5rem;
   --text-display-size-mobile: 2.5rem;
@@ -102,8 +110,8 @@
 
 
   /* ==========================================================
-     Shadows / Elevation
-     ========================================================== */
+   * Shadows / Elevation
+   * ========================================================== */
 
   --shadow-none: none;
 
@@ -129,8 +137,8 @@
 
 
   /* ==========================================================
-     Gold / Starlight Glows
-     ========================================================== */
+   * Gold / Starlight Glows
+   * ========================================================== */
 
   --shadow-gold:
     0 0 12px rgb(232 184 74 / 0.20),
@@ -146,8 +154,8 @@
 
 
   /* ==========================================================
-     Border Widths
-     ========================================================== */
+   * Border Widths
+   * ========================================================== */
 
   --border-width-0: 0px;
   --border-width-1: 1px;
@@ -156,8 +164,8 @@
 
 
   /* ==========================================================
-     Border Colors
-     ========================================================== */
+   * Border Colors
+   * ========================================================== */
 
   --border-subtle: rgb(247 244 237 / 0.08);
   --border-default: rgb(247 244 237 / 0.14);
@@ -175,8 +183,8 @@
 
 
   /* ==========================================================
-     Dividers
-     ========================================================== */
+   * Dividers
+   * ========================================================== */
 
   --divider-subtle: rgb(247 244 237 / 0.06);
   --divider-default: rgb(247 244 237 / 0.10);
@@ -184,16 +192,16 @@
 
 
   /* ==========================================================
-     Focus
-     ========================================================== */
+   * Focus
+   * ========================================================== */
 
   --shadow-focus:
     0 0 0 3px rgb(232 184 74 / 0.20);
 
 
   /* ==========================================================
-     Brand Border Glow
-     ========================================================== */
+   * Brand Border Glow
+   * ========================================================== */
 
   --border-glow-gold:
     0 0 0 1px rgb(232 184 74 / 0.20),
@@ -201,8 +209,8 @@
 
 
   /* ==========================================================
-     Opacity
-     ========================================================== */
+   * Opacity
+   * ========================================================== */
 
   --opacity-0: 0;
   --opacity-5: 0.05;
@@ -216,18 +224,284 @@
   --opacity-80: 0.80;
   --opacity-90: 0.90;
   --opacity-100: 1;
+
+
+  /* ==========================================================
+   * Motion & Animation — Duration
+   * ========================================================== */
+
+  --duration-instant: 0ms;
+  --duration-fast: 100ms;
+  --duration-normal: 200ms;
+  --duration-moderate: 300ms;
+  --duration-slow: 500ms;
+  --duration-slower: 700ms;
+  --duration-slowest: 1000ms;
+
+
+  /* ==========================================================
+   * Motion & Animation — Easing
+   * ========================================================== */
+
+  --ease-linear: linear;
+
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+
+  --ease-enter: cubic-bezier(0, 0, 0.2, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-soft: cubic-bezier(0.25, 0.1, 0.25, 1);
+
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --ease-decelerate: cubic-bezier(0, 0, 0.2, 1);
+  --ease-accelerate: cubic-bezier(0.4, 0, 1, 1);
+
+
+  /* ==========================================================
+   * Motion & Animation — Transitions
+   * ========================================================== */
+
+  --transition-fast:
+    100ms var(--ease-standard);
+
+  --transition-normal:
+    200ms var(--ease-standard);
+
+  --transition-moderate:
+    300ms var(--ease-standard);
+
+  --transition-slow:
+    500ms var(--ease-standard);
+
+  --transition-color:
+    color 200ms var(--ease-standard),
+    background-color 200ms var(--ease-standard),
+    border-color 200ms var(--ease-standard);
+
+  --transition-opacity:
+    opacity 200ms var(--ease-standard);
+
+  --transition-transform:
+    transform 300ms var(--ease-standard);
+
+  --transition-shadow:
+    box-shadow 300ms var(--ease-standard);
+
+  --transition-surface:
+    background-color 300ms var(--ease-standard),
+    border-color 300ms var(--ease-standard),
+    box-shadow 300ms var(--ease-standard);
+
+  --transition-interactive:
+    transform 200ms var(--ease-standard),
+    background-color 200ms var(--ease-standard),
+    border-color 200ms var(--ease-standard),
+    box-shadow 200ms var(--ease-standard),
+    color 200ms var(--ease-standard);
+
+
+  /* ==========================================================
+   * Motion & Animation — Animation Tokens
+   * ========================================================== */
+
+  --animation-fade-in:
+    fade-in 300ms var(--ease-enter) both;
+
+  --animation-fade-out:
+    fade-out 200ms var(--ease-exit) both;
+
+  --animation-slide-up:
+    slide-up 400ms var(--ease-enter) both;
+
+  --animation-slide-down:
+    slide-down 400ms var(--ease-enter) both;
+
+  --animation-scale-in:
+    scale-in 300ms var(--ease-enter) both;
+
+  --animation-scale-out:
+    scale-out 200ms var(--ease-exit) both;
+
+  --animation-pop:
+    pop 400ms var(--ease-spring) both;
+
+  --animation-pulse:
+    pulse 2000ms ease-in-out infinite;
+
+  --animation-float:
+    float 4000ms ease-in-out infinite;
+
+  --animation-glow:
+    glow 3000ms ease-in-out infinite;
+
+  --animation-spin:
+    spin 1000ms linear infinite;
+
+
+  /* ==========================================================
+   * Iconography — Sizes
+   * ========================================================== */
+
+  --icon-xs: 12px;
+  --icon-sm: 16px;
+  --icon-md: 20px;
+  --icon-lg: 24px;
+  --icon-xl: 32px;
+  --icon-2xl: 40px;
+  --icon-3xl: 48px;
+  --icon-4xl: 64px;
+
+
+  /* ==========================================================
+   * Iconography — Stroke
+   * ========================================================== */
+
+  --icon-stroke-thin: 1.5px;
+  --icon-stroke-default: 2px;
+  --icon-stroke-medium: 2.25px;
+  --icon-stroke-bold: 2.5px;
+
+
+  /* ==========================================================
+   * Iconography — Colors
+   * ========================================================== */
+
+  --icon-primary: var(--starlight-100);
+  --icon-secondary: var(--starlight-300);
+  --icon-muted: var(--starlight-400);
+
+  --icon-brand: var(--gold-500);
+  --icon-brand-hover: var(--gold-400);
+
+  --icon-success: var(--success-500);
+  --icon-info: var(--info-500);
+  --icon-error: var(--error-500);
+
+
+  /* ==========================================================
+   * Iconography — Containers
+   * ========================================================== */
+
+  --icon-container-sm: 32px;
+  --icon-container-md: 40px;
+  --icon-container-lg: 48px;
+  --icon-container-xl: 64px;
+  --icon-container-2xl: 80px;
+
+
+  /* ==========================================================
+   * Layout & Grid — Container Widths
+   * ========================================================== */
+
+  --container-xs: 480px;
+  --container-sm: 640px;
+  --container-md: 768px;
+  --container-lg: 1024px;
+  --container-xl: 1280px;
+  --container-2xl: 1440px;
+  --container-full: 100%;
+
+
+  /* ==========================================================
+   * Layout & Grid — Page Padding
+   * ========================================================== */
+
+  --page-padding-mobile: 16px;
+  --page-padding-sm: 24px;
+  --page-padding-md: 32px;
+  --page-padding-lg: 48px;
+  --page-padding-xl: 64px;
+
+
+  /* ==========================================================
+   * Layout & Grid — Columns
+   * ========================================================== */
+
+  --grid-columns-1: 1;
+  --grid-columns-2: 2;
+  --grid-columns-3: 3;
+  --grid-columns-4: 4;
+  --grid-columns-6: 6;
+  --grid-columns-8: 8;
+  --grid-columns-12: 12;
+
+
+  /* ==========================================================
+   * Layout & Grid — Gaps
+   * ========================================================== */
+
+  --grid-gap-sm: 16px;
+  --grid-gap-md: 24px;
+  --grid-gap-lg: 32px;
+  --grid-gap-xl: 48px;
+
+
+  /* ==========================================================
+   * Layout & Grid — Section Spacing
+   * ========================================================== */
+
+  --section-spacing-xs: 32px;
+  --section-spacing-sm: 48px;
+  --section-spacing-md: 64px;
+  --section-spacing-lg: 96px;
+  --section-spacing-xl: 128px;
+  --section-spacing-2xl: 160px;
+
+
+  /* ==========================================================
+   * Layout & Grid — Breakpoints
+   * ========================================================== */
+
+  --breakpoint-xs: 480px;
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+
+
+  /* ==========================================================
+   * Layout & Grid — Content Widths
+   * ========================================================== */
+
+  --content-width-xs: 480px;
+  --content-width-sm: 640px;
+  --content-width-md: 768px;
+  --content-width-lg: 960px;
+
+
+  /* ==========================================================
+   * Layout & Grid — Sidebar
+   * ========================================================== */
+
+  --sidebar-width-sm: 64px;
+  --sidebar-width-md: 240px;
+  --sidebar-width-lg: 280px;
+  --sidebar-collapsed-width: 72px;
+
+
+  /* ==========================================================
+   * Layout & Grid — Header
+   * ========================================================== */
+
+  --header-height-sm: 56px;
+  --header-height-md: 64px;
+  --header-height-lg: 72px;
 }
 
 
 /* ============================================================
-   02. TAILWIND THEME
-   ============================================================ */
+ * 02. TAILWIND THEME
+ * ============================================================ */
 
 @theme {
 
   /* ==========================================================
-     Colors
-     ========================================================== */
+   * Colors
+   * ========================================================== */
 
   --color-space-950: var(--space-950);
   --color-space-900: var(--space-900);
@@ -278,8 +552,8 @@
 
 
   /* ==========================================================
-     Typography — Fonts
-     ========================================================== */
+   * Typography — Fonts
+   * ========================================================== */
 
   --font-sans: "Manrope", sans-serif;
   --font-arabic: "Noto Sans Arabic", sans-serif;
@@ -287,8 +561,8 @@
 
 
   /* ==========================================================
-     Typography — Font Weights
-     ========================================================== */
+   * Typography — Font Weights
+   * ========================================================== */
 
   --font-weight-regular: 400;
   --font-weight-medium: 500;
@@ -298,8 +572,8 @@
 
 
   /* ==========================================================
-     Typography — Font Sizes
-     ========================================================== */
+   * Typography — Font Sizes
+   * ========================================================== */
 
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
@@ -315,8 +589,8 @@
 
 
   /* ==========================================================
-     Typography — Line Heights
-     ========================================================== */
+   * Typography — Line Heights
+   * ========================================================== */
 
   --leading-tight: 1.1;
   --leading-snug: 1.25;
@@ -328,8 +602,8 @@
 
 
   /* ==========================================================
-     Typography — Letter Spacing
-     ========================================================== */
+   * Typography — Letter Spacing
+   * ========================================================== */
 
   --tracking-tighter: -0.02em;
   --tracking-tight: -0.01em;
@@ -338,8 +612,43 @@
 
 
   /* ==========================================================
-     Spacing — Component
-     ========================================================== */
+   * Typography — Fluid / Responsive Scales
+   * ========================================================== */
+
+  --text-display: clamp(
+    var(--text-display-size-mobile),
+    calc(5vw + 1rem),
+    var(--text-display-size)
+  );
+
+  --text-h1: clamp(
+    var(--text-h1-size-mobile),
+    calc(4vw + 1rem),
+    var(--text-h1-size)
+  );
+
+  --text-h2: clamp(
+    var(--text-h2-size-mobile),
+    calc(3vw + 0.875rem),
+    var(--text-h2-size)
+  );
+
+  --text-h3: clamp(
+    var(--text-h3-size-mobile),
+    calc(2.5vw + 0.75rem),
+    var(--text-h3-size)
+  );
+
+  --text-h4: clamp(
+    var(--text-h4-size-mobile),
+    calc(2vw + 0.625rem),
+    var(--text-h4-size)
+  );
+
+
+  /* ==========================================================
+   * Spacing — Component
+   * ========================================================== */
 
   --spacing-comp-xs: 0.5rem;
   --spacing-comp-sm: 0.75rem;
@@ -349,8 +658,8 @@
 
 
   /* ==========================================================
-     Spacing — Section
-     ========================================================== */
+   * Spacing — Section
+   * ========================================================== */
 
   --spacing-sec-sm: 2rem;
   --spacing-sec-md: 3rem;
@@ -359,8 +668,8 @@
 
 
   /* ==========================================================
-     Sizing — Icons
-     ========================================================== */
+   * Sizing — Icons
+   * ========================================================== */
 
   --spacing-icon-xs: 0.75rem;
   --spacing-icon-sm: 0.875rem;
@@ -373,13 +682,31 @@
 
 
   /* ==========================================================
-     Border Radius
+   * Iconography — Size Tokens
+   * ========================================================== */
 
-     Philosophy:
-     Balanced / Soft
+  --size-icon-xs: 12px;
+  --size-icon-sm: 16px;
+  --size-icon-md: 20px;
+  --size-icon-lg: 24px;
+  --size-icon-xl: 32px;
+  --size-icon-2xl: 40px;
+  --size-icon-3xl: 48px;
+  --size-icon-4xl: 64px;
 
-     Base radius: 8px
-     ========================================================== */
+  --size-icon-container-sm: 32px;
+  --size-icon-container-md: 40px;
+  --size-icon-container-lg: 48px;
+  --size-icon-container-xl: 64px;
+  --size-icon-container-2xl: 80px;
+
+
+  /* ==========================================================
+   * Border Radius
+   * Philosophy:
+   * Balanced / Soft
+   * Base radius: 8px
+   * ========================================================== */
 
   --radius-none: 0px;
   --radius-xs: 2px;
@@ -393,8 +720,8 @@
 
 
   /* ==========================================================
-     Shadows / Elevation
-     ========================================================== */
+   * Shadows / Elevation
+   * ========================================================== */
 
   --shadow-none: none;
 
@@ -435,27 +762,24 @@
 
 
   /* ==========================================================
-     Border Colors
-     ========================================================== */
+   * Border Colors
+   * ========================================================== */
 
   --color-border-subtle: var(--border-subtle);
   --color-border-default: var(--border-default);
   --color-border-strong: var(--border-strong);
-
   --color-border-gold: var(--border-gold);
   --color-border-gold-subtle: var(--border-gold-subtle);
-
   --color-border-focus: var(--border-focus);
   --color-border-brand: var(--border-brand);
-
   --color-border-error: var(--border-error);
   --color-border-success: var(--border-success);
   --color-border-info: var(--border-info);
 
 
   /* ==========================================================
-     Dividers
-     ========================================================== */
+   * Dividers
+   * ========================================================== */
 
   --color-divider-subtle: var(--divider-subtle);
   --color-divider-default: var(--divider-default);
@@ -463,8 +787,8 @@
 
 
   /* ==========================================================
-     Opacity
-     ========================================================== */
+   * Opacity
+   * ========================================================== */
 
   --opacity-0: 0;
   --opacity-5: 0.05;
@@ -481,44 +805,96 @@
 
 
   /* ==========================================================
-     Typography — Fluid / Responsive Scales
-     ========================================================== */
+   * Motion — Duration
+   * ========================================================== */
 
-  --text-display: clamp(
-    var(--text-display-size-mobile),
-    5vw + 1rem,
-    var(--text-display-size)
-  );
+  --duration-instant: 0ms;
+  --duration-fast: 100ms;
+  --duration-normal: 200ms;
+  --duration-moderate: 300ms;
+  --duration-slow: 500ms;
+  --duration-slower: 700ms;
+  --duration-slowest: 1000ms;
 
-  --text-h1: clamp(
-    var(--text-h1-size-mobile),
-    4vw + 1rem,
-    var(--text-h1-size)
-  );
 
-  --text-h2: clamp(
-    var(--text-h2-size-mobile),
-    3vw + 0.875rem,
-    var(--text-h2-size)
-  );
+  /* ==========================================================
+   * Motion — Easing
+   * ========================================================== */
 
-  --text-h3: clamp(
-    var(--text-h3-size-mobile),
-    2.5vw + 0.75rem,
-    var(--text-h3-size)
-  );
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --ease-enter: cubic-bezier(0, 0, 0.2, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-soft: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-decelerate: cubic-bezier(0, 0, 0.2, 1);
+  --ease-accelerate: cubic-bezier(0.4, 0, 1, 1);
 
-  --text-h4: clamp(
-    var(--text-h4-size-mobile),
-    2vw + 0.625rem,
-    var(--text-h4-size)
-  );
+
+  /* ==========================================================
+   * Motion — Animations
+   * ========================================================== */
+
+  --animate-fade-in: fade-in 300ms var(--ease-enter) both;
+  --animate-fade-out: fade-out 200ms var(--ease-exit) both;
+  --animate-slide-up: slide-up 400ms var(--ease-enter) both;
+  --animate-slide-down: slide-down 400ms var(--ease-enter) both;
+  --animate-scale-in: scale-in 300ms var(--ease-enter) both;
+  --animate-scale-out: scale-out 200ms var(--ease-exit) both;
+  --animate-pop: pop 400ms var(--ease-spring) both;
+  --animate-pulse: pulse 2000ms ease-in-out infinite;
+  --animate-float: float 4000ms ease-in-out infinite;
+  --animate-glow: glow 3000ms ease-in-out infinite;
+  --animate-spin: spin 1000ms linear infinite;
+
+
+  /* ==========================================================
+   * Layout — Container Widths
+   * ========================================================== */
+
+  --container-xs: 480px;
+  --container-sm: 640px;
+  --container-md: 768px;
+  --container-lg: 1024px;
+  --container-xl: 1280px;
+  --container-2xl: 1440px;
+
+
+  /* ==========================================================
+   * Layout — Breakpoints
+   * ========================================================== */
+
+  --breakpoint-xs: 480px;
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+
+
+  /* ==========================================================
+   * Layout — Sidebar
+   * ========================================================== */
+
+  --size-sidebar-collapsed: 72px;
+  --size-sidebar: 240px;
+  --size-sidebar-lg: 280px;
+
+
+  /* ==========================================================
+   * Layout — Header
+   * ========================================================== */
+
+  --size-header-sm: 56px;
+  --size-header: 64px;
+  --size-header-lg: 72px;
 }
 
 
 /* ============================================================
-   03. GLOBAL BASE STYLES
-   ============================================================ */
+ * 03. GLOBAL BASE STYLES
+ * ============================================================ */
 
 body {
   font-family: var(--font-sans);
@@ -530,8 +906,8 @@ body {
 
 
 /* ============================================================
-   04. ARABIC TYPOGRAPHY
-   ============================================================ */
+ * 04. ARABIC TYPOGRAPHY
+ * ============================================================ */
 
 :lang(ar) {
   font-family: var(--font-arabic);
@@ -539,8 +915,8 @@ body {
 
 
 /* ============================================================
-   05. CODE / TECHNICAL CONTENT
-   ============================================================ */
+ * 05. CODE / TECHNICAL CONTENT
+ * ============================================================ */
 
 code,
 pre,
@@ -548,4 +924,193 @@ kbd,
 samp {
   font-family: var(--font-mono);
   direction: ltr;
+}
+
+
+/* ============================================================
+ * 06. MOTION & ANIMATION — KEYFRAMES
+ * ============================================================ */
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes scale-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+@keyframes pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+
+  70% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.65;
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes glow {
+  0%,
+  100% {
+    opacity: 0.7;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+
+/* ============================================================
+ * 07. LAYOUT — STANDARD PAGE CONTAINER
+ * ============================================================ */
+
+.page-container {
+  width: min(
+    100% - (var(--page-padding-mobile) * 2),
+    var(--container-xl)
+  );
+
+  margin-inline: auto;
+}
+
+@media (min-width: 640px) {
+  .page-container {
+    width: min(
+      100% - (var(--page-padding-sm) * 2),
+      var(--container-xl)
+    );
+  }
+}
+
+@media (min-width: 1024px) {
+  .page-container {
+    width: min(
+      100% - (var(--page-padding-lg) * 2),
+      var(--container-xl)
+    );
+  }
+}
+
+@media (min-width: 1280px) {
+  .page-container {
+    width: min(
+      100% - (var(--page-padding-xl) * 2),
+      var(--container-xl)
+    );
+  }
+}
+
+
+/* ============================================================
+ * 08. ACCESSIBILITY — REDUCED MOTION
+ * ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
