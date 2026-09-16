@@ -100,6 +100,7 @@
   --text-h4-size: 1.875rem;
   --text-h4-size-mobile: 1.25rem;
 
+
   /* ==========================================================
      Shadows / Elevation
      ========================================================== */
@@ -125,6 +126,7 @@
   --shadow-5:
     0 12px 24px rgb(0 0 0 / 0.28),
     0 32px 64px rgb(0 0 0 / 0.28);
+
 
   /* ==========================================================
      Gold / Starlight Glows
@@ -164,9 +166,38 @@
   --border-gold: var(--gold-500);
   --border-gold-subtle: rgb(232 184 74 / 0.24);
 
+  --border-focus: var(--gold-500);
+  --border-brand: var(--gold-500);
+
   --border-error: var(--error-500);
   --border-success: var(--success-500);
   --border-info: var(--info-500);
+
+
+  /* ==========================================================
+     Dividers
+     ========================================================== */
+
+  --divider-subtle: rgb(247 244 237 / 0.06);
+  --divider-default: rgb(247 244 237 / 0.10);
+  --divider-strong: rgb(247 244 237 / 0.16);
+
+
+  /* ==========================================================
+     Focus
+     ========================================================== */
+
+  --shadow-focus:
+    0 0 0 3px rgb(232 184 74 / 0.20);
+
+
+  /* ==========================================================
+     Brand Border Glow
+     ========================================================== */
+
+  --border-glow-gold:
+    0 0 0 1px rgb(232 184 74 / 0.20),
+    0 0 16px rgb(232 184 74 / 0.12);
 
 
   /* ==========================================================
@@ -185,7 +216,6 @@
   --opacity-80: 0.80;
   --opacity-90: 0.90;
   --opacity-100: 1;
-
 }
 
 
@@ -344,10 +374,10 @@
 
   /* ==========================================================
      Border Radius
-     
+
      Philosophy:
      Balanced / Soft
-     
+
      Base radius: 8px
      ========================================================== */
 
@@ -360,7 +390,6 @@
   --radius-2xl: 16px;
   --radius-3xl: 24px;
   --radius-full: 9999px;
-
 
 
   /* ==========================================================
@@ -401,31 +430,36 @@
     0 0 12px rgb(247 244 237 / 0.12),
     0 0 28px rgb(247 244 237 / 0.06);
 
-
-  /* ==========================================================
-     Border Widths
-     ========================================================== */
-
-  --border-width-0: 0px;
-  --border-width-1: 1px;
-  --border-width-2: 2px;
-  --border-width-4: 4px;
+  --shadow-focus:
+    0 0 0 3px rgb(232 184 74 / 0.20);
 
 
   /* ==========================================================
      Border Colors
      ========================================================== */
 
-  --color-border-subtle: rgb(247 244 237 / 0.08);
-  --color-border-default: rgb(247 244 237 / 0.14);
-  --color-border-strong: rgb(247 244 237 / 0.22);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-default: var(--border-default);
+  --color-border-strong: var(--border-strong);
 
-  --color-border-gold: var(--gold-500);
-  --color-border-gold-subtle: rgb(232 184 74 / 0.24);
+  --color-border-gold: var(--border-gold);
+  --color-border-gold-subtle: var(--border-gold-subtle);
 
-  --color-border-error: var(--error-500);
-  --color-border-success: var(--success-500);
-  --color-border-info: var(--info-500);
+  --color-border-focus: var(--border-focus);
+  --color-border-brand: var(--border-brand);
+
+  --color-border-error: var(--border-error);
+  --color-border-success: var(--border-success);
+  --color-border-info: var(--border-info);
+
+
+  /* ==========================================================
+     Dividers
+     ========================================================== */
+
+  --color-divider-subtle: var(--divider-subtle);
+  --color-divider-default: var(--divider-default);
+  --color-divider-strong: var(--divider-strong);
 
 
   /* ==========================================================
