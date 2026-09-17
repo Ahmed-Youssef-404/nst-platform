@@ -37,6 +37,16 @@ export async function unlockHint(input: UnlockHintInput) {
         include: { task: { select: { session: { select: { levelId: true } } } } },
     });
 
+    // unlockHint currently only handles INTERMEDIATE's levelId-based
+    // applySTChange. BEGINNER hint-cost deduction (against Student.beginnerSt)
+    // is not yet implemented - guard explicitly rather than silently
+    // mis-charging the wrong balance if a BEGINNER task's hint reaches here.
+    if (!hint.task.session) {
+        throw new Error(
+            "unlockHint does not yet support BEGINNER-track tasks (no Session/levelId). BEGINNER hint unlocking against beginnerSt is not yet implemented."
+        );
+    }
+
     const levelId = hint.task.session.levelId;
 
     // Deduct ST first (applySTChange is atomic on its own), then record the

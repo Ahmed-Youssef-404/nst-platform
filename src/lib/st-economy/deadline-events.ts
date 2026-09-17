@@ -38,11 +38,15 @@ export async function reconcileTaskDeadlines(studentId: string) {
     const now = new Date();
 
     // Only tasks belonging to Levels of the student's current Group, with
-    // a passed deadline, non-bonus.
+    // a passed deadline, non-bonus. sessionId: { not: null } makes explicit
+    // that this only ever matches INTERMEDIATE tasks (BEGINNER tasks have
+    // session: null and weekId set instead, and are reconciled separately
+    // via the Week grading flow, not this deadline-based path).
     const candidateTasks = await prisma.task.findMany({
         where: {
             isBonus: false,
             deadline: { lt: now },
+            sessionId: { not: null },
             session: { level: { groupId: student.groupId } },
         },
         select: {
@@ -73,6 +77,7 @@ export async function reconcileTaskDeadlines(studentId: string) {
 
     for (const task of candidateTasks) {
         if (scoredTaskIds.has(task.id)) continue;
+        if (!task.session) continue; // guarded by sessionId: { not: null } above, but narrow explicitly for TS
 
         const hasOnTimeSubmission = task.submissions.length > 0; // Submission
         // rows can't exist past-deadline unless created before it, since

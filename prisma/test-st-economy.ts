@@ -729,6 +729,12 @@ async function main() {
             let ok = true;
 
             for (const tx of history) {
+                // This audit script only ever deals with INTERMEDIATE students,
+                // so levelId should always be set here - but the column is now
+                // optional at the schema level (to support BEGINNER's weekId
+                // instead), so we guard defensively and skip anything without
+                // a levelId rather than assume it's non-null.
+                if (!tx.levelId) continue;
                 const delta = tx.type === "REWARD" ? tx.amount : -tx.amount;
                 const startingBalance = runningByLevel.has(tx.levelId)
                     ? runningByLevel.get(tx.levelId)!

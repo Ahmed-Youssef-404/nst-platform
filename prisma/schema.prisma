@@ -1,4 +1,4 @@
-    generator client {
+generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
 }
@@ -7,9 +7,7 @@ datasource db {
   provider = "postgresql"
 }
 
-
 //--------------------------------------------------------------------------------
-
 
 // ============================================
 // SUPER ADMIN
@@ -47,22 +45,24 @@ model Instructor {
 // ============================================
 
 model Student {
-  id        String   @id // كود الطالب اللي بيستخدمه كـ"باسورد" - مش auto-generated
-  email     String   @unique
-  name      String
-  groupId   String
-  avgSt     Int      @default(50) // متوسط (Math.round) كل LevelStBalance.balance بتاعة الطالب عبر كل الـ Levels (المجمدة + الحالية) - عمود cache محسوب، بيتحدث atomically جوه applySTChange
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id // كود الطالب اللي بيستخدمه كـ"باسورد" - مش auto-generated
+  email      String   @unique
+  name       String
+  groupId    String
+  avgSt      Int      @default(50) // متوسط (Math.round) كل LevelStBalance.balance بتاعة الطالب عبر كل الـ Levels (المجمدة + الحالية) - عمود cache محسوب، بيتحدث atomically جوه applySTChange - INTERMEDIATE فقط، يفضل 50 لطالب BEGINNER (بيتجاهل)
+  beginnerSt Int? // BEGINNER فقط - رقم واحد بيتراكم طول الـ course كله، مفيش تجميد ولا متوسط زي levelSt. null لطالب INTERMEDIATE
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   // Relations
-  group             Group              @relation(fields: [groupId], references: [id])
-  submissions       Submission[]
-  hintUnlocks       HintUnlock[]
-  attendance        Attendance[]
-  stTransactions    STTransaction[]
-  storeInventory    StudentInventory[]
-  levelStBalances   LevelStBalance[]
+  group                   Group                    @relation(fields: [groupId], references: [id])
+  submissions             Submission[]
+  hintUnlocks             HintUnlock[]
+  attendance              Attendance[]
+  stTransactions          STTransaction[]
+  storeInventory          StudentInventory[]
+  levelStBalances         LevelStBalance[] // INTERMEDIATE فقط
+  weekResourceSubmissions WeekResourceSubmission[] // BEGINNER فقط
 
   @@map("students")
 }
@@ -84,21 +84,34 @@ model Batch {
 }
 
 // ============================================
+// GROUP TYPE ENUM
+// ============================================
+// INTERMEDIATE: النظام الحالي بالظبط - Level -> Session -> Task -> Hint
+// BEGINNER: نظام جديد - Week -> Task -> Hint (مفيش Level ولا Session خالص)
+
+enum GroupType {
+  BEGINNER
+  INTERMEDIATE
+}
+
+// ============================================
 // GROUP
 // ============================================
 
 model Group {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   name      String
   batchId   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  type      GroupType @default(INTERMEDIATE)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   // Relations
-  batch            Batch              @relation(fields: [batchId], references: [id])
+  batch            Batch             @relation(fields: [batchId], references: [id])
   students         Student[]
   instructorGroups InstructorGroup[]
-  levels           Level[]
+  levels           Level[] // INTERMEDIATE فقط
+  weeks            Week[] // BEGINNER فقط
 
   @@map("groups")
 }
@@ -121,9 +134,7 @@ model InstructorGroup {
   @@map("instructor_groups")
 }
 
-
 //--------------------------------------------------------------------------------
-
 
 // ============================================
 // LEVEL
@@ -138,21 +149,21 @@ model InstructorGroup {
 //      Level بـ balance = 50، و Student.avgSt بتاعه بيتحسب من جديد
 
 model Level {
-  id          String    @id @default(uuid())
+  id          String   @id @default(uuid())
   groupId     String
   name        String
   description String?
   levelNumber Int
-  startDate   DateTime  @default(now())
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  startDate   DateTime @default(now())
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   // Relations
-  group            Group            @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  sessions         Session[]
-  stTransactions   STTransaction[]
-  levelStBalances  LevelStBalance[]
+  group           Group            @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  sessions        Session[]
+  stTransactions  STTransaction[]
+  levelStBalances LevelStBalance[]
 
   @@map("levels")
 }
@@ -187,6 +198,79 @@ model LevelStBalance {
 }
 
 // ============================================
+// WEEK (BEGINNER track only)
+// ============================================
+// المكافئ لـ Level في نظام الـ BEGINNER - بس مفيش levelNumber ولا
+// isActive ولا تجميد رصيد. اسمها "Week" بناءً على طلب صريح من
+// الـ owner، لكنها مش أسبوع تقويمي حقيقي - الـ Instructor بيحدد
+// startDate/endDate بحرية (أي مدة).
+//
+// كل Week ليها playlist واحد (لينك يوتيوب) وملف مطلوب واحد لازم كل
+// طالب يرفعه قبل endDate (منفصل تمامًا عن أي Task submission - انظر
+// WeekResourceSubmission تحت).
+//
+// مفيش Session في نظام الـ BEGINNER خالص - Task تتبع لـ Week مباشرة.
+// مفيش attendance/engagement كمان - الطالب مسؤول عن نفسه في متابعة
+// الـ playlist وحل الـ Tasks، والـ Instructor بيراجع كل حاجة holistically
+// وقت الـ grading (مش بحضور live).
+
+model Week {
+  id                String   @id @default(uuid())
+  groupId           String
+  name              String
+  startDate         DateTime
+  endDate           DateTime
+  playlistUrl       String
+  requiredFileLabel String // وصف الملف المطلوب (مثلاً "تقرير نهاية الفترة")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  group               Group                    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  tasks               Task[]
+  resourceSubmissions WeekResourceSubmission[]
+  stTransactions      STTransaction[]
+
+  @@map("weeks")
+}
+
+// ============================================
+// WEEK RESOURCE SUBMISSION (BEGINNER track only)
+// ============================================
+// الملف المطلوب بتاع الـ Week - منفصل تمامًا عن أي Submission بتاعة
+// Task. صف واحد بس لكل (studentId, weekId) - الطالب يقدر يرفع/يستبدل
+// الملف براحته لحد ما الـ Instructor يحسم status بتاعه وقت الـ grading
+// (انظر شاشة الـ grading الموحدة في instructor-events / grade-week.ts).
+//
+// status بيتحدد بمعرفة الـ Instructor كجزء من نفس شاشة تقييم الـ Week
+// (مش شاشة منفصلة) - PENDING لحد ما يقيّم، وبعدين ACCEPTED أو REJECTED
+// بشكل نهائي (زي باقي الـ grading، مفيش تعديل بعد الحسم).
+
+enum WeekResourceStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+model WeekResourceSubmission {
+  id          String             @id @default(uuid())
+  studentId   String
+  weekId      String
+  fileUrl     String?
+  status      WeekResourceStatus @default(PENDING)
+  submittedAt DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  // Relations
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  week    Week    @relation(fields: [weekId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, weekId])
+  @@map("week_resource_submissions")
+}
+
+// ============================================
 // SESSION
 // ============================================
 // موعد فعلي (تاريخ + وقت + مدة) تابع لـ Level معيّن.
@@ -194,14 +278,14 @@ model LevelStBalance {
 // startTime و durationMinutes، مش عمود مخزّن.
 
 model Session {
-  id               String   @id @default(uuid())
-  levelId          String
-  title            String
-  startTime        DateTime
-  durationMinutes  Int
-  recordingLink    String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id              String   @id @default(uuid())
+  levelId         String
+  title           String
+  startTime       DateTime
+  durationMinutes Int
+  recordingLink   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   // Relations
   level      Level        @relation(fields: [levelId], references: [id], onDelete: Cascade)
@@ -229,9 +313,15 @@ enum TaskType {
 // deadline لازم يكون قبل بداية الـ Session اللي بعدها.
 // isBonus بتفرّق الـ Task العادية عن الـ Bonus (بيأثر على الـ ST reward في Phase 4).
 
+// ملحوظة معمارية (BEGINNER track): sessionId بقى optional، وweekId
+// اتضاف optional كمان. "exactly one من الاتنين لازم يتحدد" مش DB
+// constraint - بيتفرض جوه الـ Server Action وقت إنشاء الـ Task حسب
+// نوع الـ Group (INTERMEDIATE -> sessionId، BEGINNER -> weekId).
+
 model Task {
   id                    String          @id @default(uuid())
-  sessionId             String
+  sessionId             String? // مطلوب لـ INTERMEDIATE فقط
+  weekId                String? // مطلوب لـ BEGINNER فقط
   title                 String
   description           String
   type                  TaskType
@@ -242,11 +332,42 @@ model Task {
   updatedAt             DateTime        @updatedAt
 
   // Relations
-  session     Session      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  hints       Hint[]
-  submissions Submission[]
+  session      Session?          @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  week         Week?             @relation(fields: [weekId], references: [id], onDelete: Cascade)
+  hints        Hint[]
+  submissions  Submission[]
+  rubricFields TaskRubricField[] // BEGINNER فقط - انظر التعريف تحت
 
   @@map("tasks")
+}
+
+// ============================================
+// TASK RUBRIC FIELD (BEGINNER track only)
+// ============================================
+// الـ rubric بتاعة الـ Task في نظام الـ BEGINNER مش ثابتة زي INTERMEDIATE
+// (understanding/approach/correctness/implementation بأوزان محددة سلفًا) -
+// هنا الـ Instructor نفسه بيعرّف الحقول وقت أول تقييم لأي طالب في التاسك
+// دي (مثلاً "implementation": 2, "understanding": 3, "solving": 4).
+//
+// أول ما الـ Instructor يعرّف الحقول دي لأول طالب، هي بتتطبق على كل
+// الطلاب التانيين في نفس التاسك (rubric واحدة لكل Task، مش لكل طالب) -
+// وهو يقدر يعدلها لاحقًا (قبل ما يخلص submit التقييم النهائي - انظر
+// TaskGrade تحت). مجموع maxPoints لكل حقول التاسك الواحدة لازم يكون <= 10.
+
+model TaskRubricField {
+  id        String   @id @default(uuid())
+  taskId    String
+  fieldName String
+  maxPoints Int
+  order     Int // للعرض بس، بيحدد ترتيب الحقول في شاشة الـ grading
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  task       Task             @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskGrades TaskGradeField[]
+
+  @@map("task_rubric_fields")
 }
 
 // ============================================
@@ -273,9 +394,7 @@ model Hint {
   @@map("hints")
 }
 
-
 //--------------------------------------------------------------------------------
-
 
 // ============================================
 // SUBMISSION MODE ENUM
@@ -288,6 +407,20 @@ enum SubmissionMode {
   FILE
   LINK
   TEXT
+}
+
+// ============================================
+// SUBMISSION STATUS ENUM (BEGINNER track only)
+// ============================================
+// INTERMEDIATE: كل Submission بتتعمل SUBMITTED فورًا زي ما هي دلوقتي -
+// مفيش استخدام لـ DRAFT في مسارها.
+// BEGINNER: الطالب يعمل "save" (DRAFT) براحته عدد مرات غير محدود طول
+// الـ Week، وبعدين يتحول SUBMITTED إما يدوي (الطالب يقفل بنفسه، مفيش
+// تعديل بعد كده) أو تلقائي (auto-submit) وقت Week.endDate لو لسه DRAFT.
+
+enum SubmissionStatus {
+  DRAFT
+  SUBMITTED
 }
 
 // ============================================
@@ -308,20 +441,27 @@ enum SubmissionMode {
 // في أي وقت بعد التسليم بفعل الـ Instructor - مش مرتبط بالـ deadline.
 
 model Submission {
-  id            String         @id @default(uuid())
-  studentId     String
-  taskId        String
-  mode          SubmissionMode
+  id        String         @id @default(uuid())
+  studentId String
+  taskId    String
+  mode      SubmissionMode
 
   // محتوى التسليم - عمود واحد بس هيتملي حسب الـ mode
-  fileUrl       String? // لو mode = FILE (مسار الملف في Supabase Storage)
-  externalLink  String? // لو mode = LINK
-  textContent   String? // لو mode = TEXT
+  fileUrl      String? // لو mode = FILE (مسار الملف في Supabase Storage)
+  externalLink String? // لو mode = LINK
+  textContent  String? // لو mode = TEXT
 
-  submittedAt   DateTime       @default(now()) @updatedAt
-  isLocked      Boolean        @default(false) // بيتفعّل وقت التقييم، بيمنع أي resubmit بعد كده
+  // status: BEGINNER فقط (DRAFT قابل للتعديل ثم SUBMITTED نهائي - يدوي
+  // أو auto عند Week.endDate). INTERMEDIATE: يفضل SUBMITTED دايمًا،
+  // العمود موجود بس مش بيتغير من قيمته الافتراضية في مساره الحالي.
+  status SubmissionStatus @default(SUBMITTED)
 
-  // Evaluation (merged في نفس الـ row - مش جدول منفصل)
+  submittedAt DateTime @default(now()) @updatedAt
+  isLocked    Boolean  @default(false) // بيتفعّل وقت التقييم، بيمنع أي resubmit بعد كده
+
+  // Evaluation (merged في نفس الـ row - مش جدول منفصل) - INTERMEDIATE فقط.
+  // BEGINNER بيستخدم TaskGrade/TaskGradeField بدل الأعمدة دي (rubric
+  // متغيرة الحقول، مش 4 أعمدة ثابتة).
   understandingScore  Int? // 0-2
   approachScore       Int? // 0-3
   correctnessScore    Int? // 0-3
@@ -330,14 +470,66 @@ model Submission {
   gradedAt            DateTime?
   gradedBy            String? // instructorId اللي قيّم
 
-  createdAt     DateTime       @default(now())
+  createdAt DateTime @default(now())
 
   // Relations
-  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  task    Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  student   Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  task      Task       @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskGrade TaskGrade? // BEGINNER فقط
 
   @@unique([studentId, taskId])
   @@map("submissions")
+}
+
+// ============================================
+// TASK GRADE (BEGINNER track only)
+// ============================================
+// تقييم submission واحدة في نظام الـ BEGINNER. صف واحد بس لكل
+// Submission (unique)، بيتربط بمجموعة TaskGradeField (درجة فعلية لكل
+// TaskRubricField بتاعة نفس الـ Task).
+//
+// finalizedAt: null لحد ما الـ Instructor يعمل "submit" نهائي لتقييم
+// كل الـ Week بتاعة الطالب ده (انظر grade-week.ts) - في اللحظة دي:
+//   1) finalizedAt بيتحدد لكل TaskGrade في الدفعة
+//   2) totalPoints بيتحسب (sum كل TaskGradeField.awardedPoints)
+//   3) STTransaction بتتعمل بـ amount = totalPoints (أو totalPoints/2
+//      لو الملف المطلوب مش ACCEPTED وقتها - wasHalvedDueToLateResource)
+// قبل finalizedAt، الصف ده "مسودة تقييم" مالهوش أي STTransaction خالص -
+// مفيش PENDING state في STTransaction نفسها، الـ TaskGrade نفسه هو
+// الـ staging area.
+// زي INTERMEDIATE بالظبط: مفيش تعديل بعد finalizedAt - أي تصحيح محتاج
+// تدخل يدوي في الـ DB.
+
+model TaskGrade {
+  id           String    @id @default(uuid())
+  submissionId String    @unique
+  gradedBy     String // instructorId
+  totalPoints  Int? // sum كل TaskGradeField.awardedPoints - بيتحسب ويتسجل وقت finalizedAt
+  finalizedAt  DateTime? // null = لسه مسودة، مش submitted نهائي
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Relations
+  submission  Submission       @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  fieldScores TaskGradeField[]
+
+  @@map("task_grades")
+}
+
+model TaskGradeField {
+  id            String   @id @default(uuid())
+  taskGradeId   String
+  rubricFieldId String
+  awardedPoints Int // لازم يكون <= TaskRubricField.maxPoints بتاع نفس الحقل - متفروضة في الـ code
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  taskGrade   TaskGrade       @relation(fields: [taskGradeId], references: [id], onDelete: Cascade)
+  rubricField TaskRubricField @relation(fields: [rubricFieldId], references: [id], onDelete: Cascade)
+
+  @@unique([taskGradeId, rubricFieldId])
+  @@map("task_grade_fields")
 }
 
 // ============================================
@@ -395,9 +587,7 @@ model Attendance {
   @@map("attendance")
 }
 
-
 //--------------------------------------------------------------------------------
-
 
 // ============================================
 // ST TRANSACTION TYPE ENUM
@@ -466,21 +656,33 @@ enum STReason {
 // اتترحّلت من totalStBalance القديمة كما هي - سجل تاريخي، مش بيتحسب
 // منها حاجة تانية).
 
+// ملحوظة معمارية (BEGINNER track): levelId و weekId بقوا optional الاتنين.
+// طالب INTERMEDIATE: levelId مطلوب، weekId لازم يكون null.
+// طالب BEGINNER: weekId مطلوب، levelId لازم يكون null.
+// الـ "exactly one" ده مش DB constraint - بيتفرض جوه applySTChange() في
+// create-transaction.ts حسب نوع الطالب (Student.group.type).
+// نفس المنطق بالظبط على snapshot columns: levelStBalance/avgStBalance
+// بتتملى لطالب INTERMEDIATE بس، beginnerStBalance بيتملى لطالب BEGINNER بس.
+
 model STTransaction {
-  id              String            @id @default(uuid())
-  studentId       String
-  levelId         String
-  type            STTransactionType
-  reason          STReason
-  amount          Int // دايمًا موجب
-  relatedEntityId String? // generic - بدون foreign key فعلي
-  levelStBalance  Int // snapshot بعد الحركة (رصيد الـ Level ده تحديدًا)
-  avgStBalance    Int // snapshot بعد الحركة (المتوسط العام Student.avgSt)
-  createdAt       DateTime          @default(now())
+  id                         String            @id @default(uuid())
+  studentId                  String
+  levelId                    String? // مطلوب لطالب INTERMEDIATE فقط، null لطالب BEGINNER
+  weekId                     String? // مطلوب لطالب BEGINNER فقط، null لطالب INTERMEDIATE
+  type                       STTransactionType
+  reason                     STReason
+  amount                     Int // دايمًا موجب - دي القيمة بعد الـ ×0.5 لو اتطبق (BEGINNER)، مش القيمة الخام
+  relatedEntityId            String? // generic - بدون foreign key فعلي
+  levelStBalance             Int? // snapshot بعد الحركة (رصيد الـ Level ده تحديدًا) - INTERMEDIATE فقط
+  avgStBalance               Int? // snapshot بعد الحركة (Student.avgSt) - INTERMEDIATE فقط
+  beginnerStBalance          Int? // snapshot بعد الحركة (Student.beginnerSt) - BEGINNER فقط
+  wasHalvedDueToLateResource Boolean           @default(false) // BEGINNER فقط: true لو الملف المطلوب بتاع الـ Week كان مش accepted وقت الـ grading submit، وبالتالي amount اتضرب ×0.5
+  createdAt                  DateTime          @default(now())
 
   // Relations
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  level   Level   @relation(fields: [levelId], references: [id])
+  level   Level?  @relation(fields: [levelId], references: [id])
+  week    Week?   @relation(fields: [weekId], references: [id])
 
   @@map("st_transactions")
 }
@@ -530,29 +732,28 @@ model StudentInventory {
   @@map("student_inventory")
 }
 
-
 // ============================================
 // إضافات مطلوبة على schema.prisma
 // ============================================
 
 // 1) Enum جديد: الـ slot بتاع كل قطعة أفاتار (16 قيمة)
 enum AvatarSlot {
-  SKIN_TONE       // مشترك - لازم يبقى فيه واحد مختار دايمًا
-  GLASSES         // مشترك (بما فيها المستقبلية)
-  FACE_ACCESSORY  // مشترك (Eye Patch, Bandage, Mask)
-  AURA            // مشترك (Glow, Stars, Fire, Lightning, Snow, Electric)
-  FRAME           // مشترك (عادي، ذهبي، نيون، دايموند)
-  HAIR            // ولاد + بنات (items مختلفة)
-  FACIAL_HAIR     // ولاد (ذقن وشنب)
-  HAT             // مشترك (بما فيها قبعة الساحر)
-  HEADPHONES      // ولاد
-  BOW             // بنات
-  HAIR_FLOWER     // بنات
-  NECKLACE        // بنات
-  EYELASHES       // بنات
-  HEADBAND        // بنات
-  CAT_EARS        // مستقل
-  CYBER_VISOR     // مستقل
+  SKIN_TONE // مشترك - لازم يبقى فيه واحد مختار دايمًا
+  GLASSES // مشترك (بما فيها المستقبلية)
+  FACE_ACCESSORY // مشترك (Eye Patch, Bandage, Mask)
+  AURA // مشترك (Glow, Stars, Fire, Lightning, Snow, Electric)
+  FRAME // مشترك (عادي، ذهبي، نيون، دايموند)
+  HAIR // ولاد + بنات (items مختلفة)
+  FACIAL_HAIR // ولاد (ذقن وشنب)
+  HAT // مشترك (بما فيها قبعة الساحر)
+  HEADPHONES // ولاد
+  BOW // بنات
+  HAIR_FLOWER // بنات
+  NECKLACE // بنات
+  EYELASHES // بنات
+  HEADBAND // بنات
+  CAT_EARS // مستقل
+  CYBER_VISOR // مستقل
 }
 
 // 2) Enum جديد: تصنيف العرض في المتجر (UI tab بس - مفيش تأثير على الـ logic)

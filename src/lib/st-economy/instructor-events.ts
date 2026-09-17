@@ -161,6 +161,17 @@ export async function gradeSubmission(input: GradeSubmissionInput) {
         );
     }
 
+    // This is the INTERMEDIATE-only fixed 4-field rubric grading path.
+    // BEGINNER tasks (session: null, weekId set instead) go through the
+    // separate free-form TaskGrade/finalizeWeekGrading flow and should
+    // never reach this function - but guard explicitly since Task.session
+    // is now optional at the schema level.
+    if (!submission.task.session) {
+        throw new Error(
+            "gradeSubmission is for INTERMEDIATE tasks only. This task has no Session (likely a BEGINNER-track task) - use the Week grading flow instead."
+        );
+    }
+
     const levelId = submission.task.session.levelId;
 
     const updatedSubmission = await prisma.submission.update({
