@@ -316,6 +316,84 @@ export interface CreateLevelResult {
 }
 
 // ============================================
+// WEEK MANAGEMENT (BEGINNER track)
+// ============================================
+// A Week is an Instructor-defined date range (not a literal calendar week)
+// that belongs to a Group of type BEGINNER. Tasks belong to the Week
+// directly (no Session). Task.deadline is never entered by the Instructor:
+// it is always Week.endDate (set automatically by the server).
+// Editing rules (agreed with owner): everything about Tasks/Hints is open
+// until Week.startDate, and fully locked after it. After startDate only
+// name, requiredFileLabel and playlistUrl can still change.
+
+export interface CreateWeekInput {
+    groupId: string;
+    name: string;
+    startDate: Date;
+    endDate: Date;
+    playlistUrl: string;
+    requiredFileLabel: string;
+    createdBy: string; // instructorId (from requireRole)
+}
+
+// Before startDate: all fields. After startDate: only name,
+// requiredFileLabel, playlistUrl (startDate/endDate are rejected).
+export interface UpdateWeekInput {
+    weekId: string;
+    instructorId: string; // must be assigned to the Week's Group
+    name?: string;
+    startDate?: Date;
+    endDate?: Date;
+    playlistUrl?: string;
+    requiredFileLabel?: string;
+}
+
+// 0-3 hints per BEGINNER Task (Instructor sets each cost).
+export interface WeekTaskInput {
+    title: string;
+    description: string;
+    type: TaskTypeCode;
+    isBonus: boolean;
+    allowedSubmissionMode?: SubmissionModeCode | null;
+    hints: CreateHintInput[]; // 0-3
+}
+
+export interface AddTaskToWeekInput extends WeekTaskInput {
+    weekId: string;
+    instructorId: string;
+}
+
+export interface UpdateWeekTaskInput extends WeekTaskInput {
+    taskId: string;
+    instructorId: string;
+}
+
+export interface DeleteWeekTaskInput {
+    taskId: string;
+    instructorId: string;
+}
+
+export interface WeekWithTasks {
+    id: string;
+    groupId: string;
+    name: string;
+    startDate: Date;
+    endDate: Date;
+    playlistUrl: string;
+    requiredFileLabel: string;
+    tasks: {
+        id: string;
+        title: string;
+        description: string;
+        type: TaskTypeCode;
+        deadline: Date;
+        isBonus: boolean;
+        allowedSubmissionMode: SubmissionModeCode | null;
+        hints: { id: string; content: string; cost: number; order: number }[];
+    }[];
+}
+
+// ============================================
 // FEEDBACK
 // ============================================
 // Student -> Telegram only. No DB table by design (client decision) -
