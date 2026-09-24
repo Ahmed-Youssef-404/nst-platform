@@ -259,6 +259,14 @@ model WeekResourceSubmission {
   fileUrl     String?
   status      WeekResourceStatus @default(PENDING)
   submittedAt DateTime?
+
+  // القفل اليدوي للـ Week كلها من جهة الطالب (مش per-task). null = لسه
+  // مفتوحة للتعديل. بيتحدد لما الطالب يقفل الـ Week بنفسه (شرطه وجود
+  // الملف أصلًا - وجود الـ row = وجود ملف). بعد القفل: مفيش save-draft
+  // ولا استبدال للملف. القفل التلقائي وقت endDate مبيكتبش هنا - ده بيتحول
+  // lazy لـ Submission.status = SUBMITTED وقت شاشة الـ grading.
+  lockedAt DateTime?
+
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
 
