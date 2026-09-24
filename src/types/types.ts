@@ -407,3 +407,66 @@ export interface SubmitFeedbackInput {
     type: FeedbackTypeCode;
     message: string;
 }
+// ============================================
+// WEEK SUBMISSIONS (BEGINNER track - Student side)
+// ============================================
+// A Student works inside a Week (startDate <= now < endDate):
+//   - saves a DRAFT per Task any number of times (Submission.status = DRAFT)
+//   - uploads the Week's ONE required file (WeekResourceSubmission)
+//   - can lock the WHOLE Week manually, but only after the file exists.
+//     Locking sends every Task that has a DRAFT (-> SUBMITTED); Tasks with
+//     no DRAFT count as not submitted (no grade). No edits afterwards.
+// If the Student never locks, DRAFTs are converted to SUBMITTED lazily by
+// the Instructor's grading flow once Week.endDate has passed (no cron).
+
+export type SubmissionStatusCode = "DRAFT" | "SUBMITTED";
+export type WeekResourceStatusCode = "PENDING" | "ACCEPTED" | "REJECTED";
+
+export interface SaveDraftSubmissionInput {
+    studentId: string;
+    taskId: string;
+    mode: SubmissionModeCode;
+    fileUrl?: string | null; // Supabase Storage path, set after upload
+    externalLink?: string | null;
+    textContent?: string | null;
+}
+
+export interface DraftSubmissionResult {
+    id: string;
+    studentId: string;
+    taskId: string;
+    mode: SubmissionModeCode;
+    fileUrl: string | null;
+    externalLink: string | null;
+    textContent: string | null;
+    status: SubmissionStatusCode;
+    submittedAt: Date;
+}
+
+export interface UploadWeekResourceInput {
+    studentId: string;
+    weekId: string;
+    fileUrl: string; // Supabase Storage path, set after upload
+}
+
+export interface WeekResourceResult {
+    id: string;
+    studentId: string;
+    weekId: string;
+    fileUrl: string | null;
+    status: WeekResourceStatusCode;
+    submittedAt: Date | null;
+    lockedAt: Date | null;
+}
+
+export interface LockWeekInput {
+    studentId: string;
+    weekId: string;
+}
+
+export interface LockWeekResult {
+    weekId: string;
+    lockedAt: Date;
+    submittedTaskIds: string[]; // Tasks whose DRAFT was sent (-> SUBMITTED)
+    skippedTaskIds: string[]; // INTERNAL Tasks with no DRAFT (won't be graded)
+}
