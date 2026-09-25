@@ -12,7 +12,7 @@
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { applySTChange } from "./create-transaction";
-import { UnlockHintInput } from "@/types/types";
+import { ApplySTChangeInput, UnlockHintInput } from "@/types/types";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -34,34 +34,46 @@ export async function unlockHint(input: UnlockHintInput) {
 
     const hint = await prisma.hint.findUniqueOrThrow({
         where: { id: input.hintId },
-        include: { task: { select: { session: { select: { levelId: true } } } } },
+        include: {
+            task: {
+                select: {
+                    session: { select: { levelId: true } },
+                    weekId: true,
+                },
+            },
+        },
     });
 
-    // unlockHint currently only handles INTERMEDIATE's levelId-based
-    // applySTChange. BEGINNER hint-cost deduction (against Student.beginnerSt)
-    // is not yet implemented - guard explicitly rather than silently
-    // mis-charging the wrong balance if a BEGINNER task's hint reaches here.
-    if (!hint.task.session) {
-        throw new Error(
-            "unlockHint does not yet support BEGINNER-track tasks (no Session/levelId). BEGINNER hint unlocking against beginnerSt is not yet implemented."
-        );
-    }
-
-    const levelId = hint.task.session.levelId;
+    // Task.session set -> INTERMEDIATE (levelId path). Task.session null ->
+    // BEGINNER (weekId path, since Task always has exactly one of
+    // sessionId/weekId set). Build the applySTChange input for whichever
+    // track this hint's Task belongs to.
+    const chargeInput: ApplySTChangeInput = hint.task.session
+        ? {
+              track: "INTERMEDIATE",
+              studentId: input.studentId,
+              levelId: hint.task.session.levelId,
+              type: "PENALTY",
+              reason: "HINT_UNLOCK",
+              amount: hint.cost,
+              relatedEntityId: hint.id,
+          }
+        : {
+              track: "BEGINNER",
+              studentId: input.studentId,
+              weekId: hint.task.weekId!, // guaranteed by the sessionId-xor-weekId invariant
+              type: "PENALTY",
+              reason: "HINT_UNLOCK",
+              amount: hint.cost,
+              relatedEntityId: hint.id,
+          };
 
     // Deduct ST first (applySTChange is atomic on its own), then record the
     // unlock. If the unlock insert fails after a successful deduction
     // (e.g. a genuine concurrent double-click racing past the check above),
     // the unique constraint on HintUnlock will throw and the student keeps
     // their ST deducted without an unlock row - see note below.
-    await applySTChange({
-        studentId: input.studentId,
-        levelId,
-        type: "PENALTY",
-        reason: "HINT_UNLOCK",
-        amount: hint.cost,
-        relatedEntityId: hint.id,
-    });
+    await applySTChange(chargeInput);
 
     try {
         const hintUnlock = await prisma.hintUnlock.create({
@@ -88,13 +100,12 @@ export async function unlockHint(input: UnlockHintInput) {
         });
 
         if (winner) {
+            // Refund: same track/target as the original charge, just REWARD
+            // instead of PENALTY and a MANUAL_ADJUSTMENT reason.
             await applySTChange({
-                studentId: input.studentId,
-                levelId,
+                ...chargeInput,
                 type: "REWARD",
                 reason: "MANUAL_ADJUSTMENT",
-                amount: hint.cost,
-                relatedEntityId: hint.id,
             });
             return winner;
         }

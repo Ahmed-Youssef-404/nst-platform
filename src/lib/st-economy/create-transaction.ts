@@ -77,6 +77,10 @@ export async function applySTChange(
 
     const signedDelta = input.type === "REWARD" ? input.amount : -input.amount;
 
+    if (input.track === "BEGINNER") {
+        return applySTChangeBeginner(input, signedDelta);
+    }
+
     // A single interactive transaction: upsert the per-Level balance
     // atomically via increment, recompute the cached average, then create
     // the audit row using the balances the update itself produced (so the
@@ -120,10 +124,80 @@ export async function applySTChange(
             },
         });
 
-        return transaction;
+        return {
+            track: "INTERMEDIATE" as const,
+            id: transaction.id,
+            studentId: transaction.studentId,
+            levelId: input.levelId,
+            type: transaction.type,
+            reason: transaction.reason,
+            amount: transaction.amount,
+            relatedEntityId: transaction.relatedEntityId,
+            levelStBalance: updatedBalance.balance,
+            avgStBalance: avgSt,
+            createdAt: transaction.createdAt,
+        };
     });
 
-    return result as STTransactionResult;
+    return result;
+}
+
+// ------------------------------------------------------------------
+// BEGINNER track: Student.beginnerSt is one continuously-accumulating
+// number for the whole course (never frozen/reset like LevelStBalance,
+// no per-Level rows, no averaging). Same atomicity/audit guarantees as
+// the INTERMEDIATE path above - one $transaction, atomic increment,
+// snapshot taken from the write itself.
+async function applySTChangeBeginner(
+    input: Extract<ApplySTChangeInput, { track: "BEGINNER" }>,
+    signedDelta: number
+): Promise<STTransactionResult> {
+    const result = await prisma.$transaction(async (tx) => {
+        const updatedStudent = await tx.student.update({
+            where: { id: input.studentId },
+            data: { beginnerSt: { increment: signedDelta } },
+            select: { beginnerSt: true },
+        });
+
+        // beginnerSt is nullable in the schema (null for INTERMEDIATE
+        // students) - a BEGINNER student should always have it initialized
+        // to 0 when created, but guard rather than write a corrupt snapshot
+        // if that invariant was ever violated upstream.
+        if (updatedStudent.beginnerSt === null) {
+            throw new Error(
+                `Student ${input.studentId} has no beginnerSt value set - cannot apply a BEGINNER-track ST change. Ensure beginnerSt is initialized to 0 when a BEGINNER student is created.`
+            );
+        }
+
+        const transaction = await tx.sTTransaction.create({
+            data: {
+                studentId: input.studentId,
+                weekId: input.weekId,
+                type: input.type,
+                reason: input.reason,
+                amount: input.amount,
+                relatedEntityId: input.relatedEntityId ?? null,
+                beginnerStBalance: updatedStudent.beginnerSt,
+                wasHalvedDueToLateResource: input.wasHalvedDueToLateResource ?? false,
+            },
+        });
+
+        return {
+            track: "BEGINNER" as const,
+            id: transaction.id,
+            studentId: transaction.studentId,
+            weekId: input.weekId,
+            type: transaction.type,
+            reason: transaction.reason,
+            amount: transaction.amount,
+            relatedEntityId: transaction.relatedEntityId,
+            beginnerStBalance: updatedStudent.beginnerSt,
+            wasHalvedDueToLateResource: transaction.wasHalvedDueToLateResource,
+            createdAt: transaction.createdAt,
+        };
+    });
+
+    return result;
 }
 
 // Convenience wrapper: some callers (deadline reconciliation, level reset)
@@ -211,5 +285,17 @@ export async function createLevelStBalanceForTransition(
         },
     });
 
-    return transaction as STTransactionResult;
+    return {
+        track: "INTERMEDIATE",
+        id: transaction.id,
+        studentId: transaction.studentId,
+        levelId: input.newLevelId,
+        type: transaction.type,
+        reason: transaction.reason,
+        amount: transaction.amount,
+        relatedEntityId: transaction.relatedEntityId,
+        levelStBalance: newBalance.balance,
+        avgStBalance: avgSt,
+        createdAt: transaction.createdAt,
+    };
 }

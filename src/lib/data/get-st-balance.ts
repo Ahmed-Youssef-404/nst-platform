@@ -71,7 +71,52 @@ export async function getStudentSTHistory(
     });
 
     const hasMore = rows.length > limit;
-    const transactions = (hasMore ? rows.slice(0, limit) : rows) as STTransactionResult[];
+    const page = hasMore ? rows.slice(0, limit) : rows;
+
+    // Each row is either an INTERMEDIATE transaction (levelId set,
+    // levelStBalance/avgStBalance populated) or a BEGINNER one (weekId set,
+    // beginnerStBalance populated) - never both, per the schema's own
+    // "exactly one of levelId/weekId" invariant (see the architectural note
+    // above the STTransaction model in schema.prisma). Map explicitly
+    // instead of casting, since a student's history can contain rows from
+    // whichever track they actually belong to.
+    const transactions: STTransactionResult[] = page.map((row) => {
+        if (row.levelId !== null) {
+            return {
+                track: "INTERMEDIATE",
+                id: row.id,
+                studentId: row.studentId,
+                levelId: row.levelId,
+                type: row.type,
+                reason: row.reason,
+                amount: row.amount,
+                relatedEntityId: row.relatedEntityId,
+                levelStBalance: row.levelStBalance ?? 0,
+                avgStBalance: row.avgStBalance ?? 0,
+                createdAt: row.createdAt,
+            };
+        }
+
+        if (row.weekId === null) {
+            throw new Error(
+                `STTransaction ${row.id} has neither levelId nor weekId set - violates the schema's exactly-one invariant.`
+            );
+        }
+
+        return {
+            track: "BEGINNER",
+            id: row.id,
+            studentId: row.studentId,
+            weekId: row.weekId,
+            type: row.type,
+            reason: row.reason,
+            amount: row.amount,
+            relatedEntityId: row.relatedEntityId,
+            beginnerStBalance: row.beginnerStBalance ?? 0,
+            wasHalvedDueToLateResource: row.wasHalvedDueToLateResource,
+            createdAt: row.createdAt,
+        };
+    });
 
     return {
         transactions,

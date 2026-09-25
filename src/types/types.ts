@@ -102,27 +102,63 @@ export type STReasonCode =
 
 // Input to the one central function allowed to move ST balances.
 // amount must always be a positive integer - sign comes from `type`.
-export interface ApplySTChangeInput {
-    studentId: string;
-    levelId: string; // the Level the student was in when this happened
-    type: STTransactionKind;
-    reason: STReasonCode;
-    amount: number; // always positive
-    relatedEntityId?: string | null; // taskId / hintId / sessionId / storeItemId / etc.
-}
+//
+// Discriminated on `track` so every call site is forced to be explicit
+// about which student type it's writing for - INTERMEDIATE (levelId,
+// writes LevelStBalance + recomputes Student.avgSt) or BEGINNER (weekId,
+// writes Student.beginnerSt directly - one running number, no per-Level
+// balance table equivalent). This mirrors the schema's own "levelId xor
+// weekId" rule on STTransaction (see schema.prisma comment above
+// STTransaction), just enforced at the TypeScript level too so a caller
+// can never forget to pick a track.
+export type ApplySTChangeInput =
+    | {
+          track: "INTERMEDIATE";
+          studentId: string;
+          levelId: string; // the Level the student was in when this happened
+          type: STTransactionKind;
+          reason: STReasonCode;
+          amount: number; // always positive
+          relatedEntityId?: string | null; // taskId / hintId / sessionId / storeItemId / etc.
+      }
+    | {
+          track: "BEGINNER";
+          studentId: string;
+          weekId: string; // the Week the student was in when this happened
+          type: STTransactionKind;
+          reason: STReasonCode;
+          amount: number; // always positive
+          relatedEntityId?: string | null;
+          wasHalvedDueToLateResource?: boolean; // BEGINNER-only halving flag
+      };
 
-export interface STTransactionResult {
-    id: string;
-    studentId: string;
-    levelId: string;
-    type: STTransactionKind;
-    reason: STReasonCode;
-    amount: number;
-    relatedEntityId: string | null;
-    levelStBalance: number;
-    avgStBalance: number;
-    createdAt: Date;
-}
+export type STTransactionResult =
+    | {
+          track: "INTERMEDIATE";
+          id: string;
+          studentId: string;
+          levelId: string;
+          type: STTransactionKind;
+          reason: STReasonCode;
+          amount: number;
+          relatedEntityId: string | null;
+          levelStBalance: number;
+          avgStBalance: number;
+          createdAt: Date;
+      }
+    | {
+          track: "BEGINNER";
+          id: string;
+          studentId: string;
+          weekId: string;
+          type: STTransactionKind;
+          reason: STReasonCode;
+          amount: number;
+          relatedEntityId: string | null;
+          beginnerStBalance: number;
+          wasHalvedDueToLateResource: boolean;
+          createdAt: Date;
+      };
 
 export type BalanceZone = "normal" | "warning" | "danger";
 

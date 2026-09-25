@@ -312,6 +312,7 @@ async function main() {
     await step("Apply a manual +5 reward", async () => {
         await applySTChange({
             studentId: ctx.studentAId,
+            track: "INTERMEDIATE",
             levelId: ctx.levelId,
             type: "REWARD",
             reason: "MANUAL_ADJUSTMENT",
@@ -325,6 +326,7 @@ async function main() {
     await step("Apply a manual -30 penalty (should allow going negative on levelSt later)", async () => {
         await applySTChange({
             studentId: ctx.studentAId,
+            track: "INTERMEDIATE",
             levelId: ctx.levelId,
             type: "PENALTY",
             reason: "MANUAL_ADJUSTMENT",
@@ -346,6 +348,7 @@ async function main() {
         try {
             await applySTChange({
                 studentId: ctx.studentAId,
+                track: "INTERMEDIATE",
                 levelId: ctx.levelId,
                 type: "REWARD",
                 reason: "MANUAL_ADJUSTMENT",
@@ -363,6 +366,7 @@ async function main() {
     await step("First call applies the change", async () => {
         const result = await applySTChangeOnce({
             studentId: ctx.studentAId,
+            track: "INTERMEDIATE",
             levelId: ctx.levelId,
             type: "REWARD",
             reason: "FIRST_SOLVER",
@@ -376,6 +380,7 @@ async function main() {
         const before = await getLevelStBalance(ctx.studentAId, ctx.levelId);
         const result = await applySTChangeOnce({
             studentId: ctx.studentAId,
+            track: "INTERMEDIATE",
             levelId: ctx.levelId,
             type: "REWARD",
             reason: "FIRST_SOLVER",
@@ -688,6 +693,7 @@ async function main() {
 
         await applySTChange({
             studentId: ctx.studentAId,
+            track: "INTERMEDIATE",
             levelId: secondLevelId,
             type: "REWARD",
             reason: "MANUAL_ADJUSTMENT",
