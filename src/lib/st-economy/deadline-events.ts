@@ -86,6 +86,7 @@ export async function reconcileTaskDeadlines(studentId: string) {
 
         const result = await applySTChangeOnce({
             studentId,
+            track: "INTERMEDIATE",
             levelId: task.session.levelId,
             type: hasOnTimeSubmission ? "REWARD" : "PENALTY",
             reason: hasOnTimeSubmission
@@ -142,6 +143,7 @@ export async function reconcileFinishAllTasks(studentId: string) {
 
         const result = await applySTChangeOnce({
             studentId,
+            track: "INTERMEDIATE",
             levelId: session.levelId,
             type: "REWARD",
             reason: "FINISH_ALL_TASKS",

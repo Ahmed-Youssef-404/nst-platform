@@ -93,6 +93,7 @@ export async function reconcileWeeklyMission(studentId: string) {
 
             const result = await applySTChangeOnce({
                 studentId,
+                track: "INTERMEDIATE",
                 levelId: level.id,
                 type: "REWARD",
                 reason: "WEEKLY_MISSION",

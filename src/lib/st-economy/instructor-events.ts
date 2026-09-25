@@ -80,6 +80,7 @@ export async function recordAttendance(input: RecordAttendanceInput) {
     if (existing) {
         await applySTChange({
             studentId: input.studentId,
+            track: "INTERMEDIATE",
             levelId: session.levelId,
             type: existing.status === "PRESENT" ? "PENALTY" : "REWARD",
             reason: existing.status === "PRESENT" ? "ATTENDANCE" : "MISSED_SESSION",
@@ -90,6 +91,7 @@ export async function recordAttendance(input: RecordAttendanceInput) {
 
     await applySTChange({
         studentId: input.studentId,
+        track: "INTERMEDIATE",
         levelId: session.levelId,
         type: input.status === "PRESENT" ? "REWARD" : "PENALTY",
         reason: input.status === "PRESENT" ? "ATTENDANCE" : "MISSED_SESSION",
@@ -114,6 +116,7 @@ export async function recordSessionEngagement(
 
     const result = await applySTChangeOnce({
         studentId: input.studentId,
+        track: "INTERMEDIATE",
         levelId: session.levelId,
         type: "REWARD",
         reason: "SESSION_ENGAGEMENT",
@@ -193,6 +196,7 @@ export async function gradeSubmission(input: GradeSubmissionInput) {
     if (scoreSum > 0) {
         await applySTChangeOnce({
             studentId: submission.studentId,
+            track: "INTERMEDIATE",
             levelId,
             type: "REWARD",
             reason: "RUBRIC_GRADING",
@@ -207,6 +211,7 @@ export async function gradeSubmission(input: GradeSubmissionInput) {
     if (submission.task.isBonus && input.correctnessScore > 0) {
         await applySTChangeOnce({
             studentId: submission.studentId,
+            track: "INTERMEDIATE",
             levelId,
             type: "REWARD",
             reason: "BONUS_TASK_SOLVED",
@@ -220,6 +225,7 @@ export async function gradeSubmission(input: GradeSubmissionInput) {
     if (input.isFirstSolver) {
         await applySTChangeOnce({
             studentId: submission.studentId,
+            track: "INTERMEDIATE",
             levelId,
             type: "REWARD",
             reason: "FIRST_SOLVER",
