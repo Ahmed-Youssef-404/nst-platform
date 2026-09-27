@@ -514,6 +514,14 @@ model TaskGrade {
   gradedBy     String // instructorId
   totalPoints  Int? // sum كل TaskGradeField.awardedPoints - بيتحسب ويتسجل وقت finalizedAt
   finalizedAt  DateTime? // null = لسه مسودة، مش submitted نهائي
+
+  // true = الـ Instructor علّم الحل ده صراحة كـ invalid/unsubmitted (سواء
+  // EXTERNAL "مقدمش على المنصة الخارجية" أو INTERNAL "موجود بس مرفوض").
+  // في الحالة دي: مفيش TaskGradeField rows (fieldScores فاضية)، ومفيش
+  // rubric points خالص - التاسك ده بيتحسب في finalizeWeekGrading كـ
+  // "not submitted" (عقوبة -10)، حتى لو أصلاً فيه Submission حقيقي.
+  markedInvalid Boolean @default(false)
+
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
