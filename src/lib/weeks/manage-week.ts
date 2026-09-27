@@ -42,6 +42,7 @@ const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
 const MAX_HINTS_PER_TASK = 3;
+const RUBRIC_POINTS_TOTAL = 15;
 
 // ---------------------------------------------------------------------
 // Shared helpers
@@ -113,11 +114,37 @@ function validateTaskInput(task: WeekTaskInput): void {
             );
         }
     }
+
+    if (task.rubricFields.length === 0) {
+        throw new Error("A Task must have at least one rubric field.");
+    }
+
+    let rubricSum = 0;
+    for (const [i, field] of task.rubricFields.entries()) {
+        if (!field.fieldName.trim()) {
+            throw new Error(`Rubric field #${i + 1} name cannot be empty.`);
+        }
+        if (!Number.isInteger(field.maxPoints) || field.maxPoints <= 0) {
+            throw new Error(
+                `Rubric field #${i + 1} maxPoints must be a positive whole number.`
+            );
+        }
+        rubricSum += field.maxPoints;
+    }
+
+    if (rubricSum !== RUBRIC_POINTS_TOTAL) {
+        throw new Error(
+            `Rubric field maxPoints must sum to exactly ${RUBRIC_POINTS_TOTAL} (currently ${rubricSum}).`
+        );
+    }
 }
 
 const WEEK_WITH_TASKS_INCLUDE = {
     tasks: {
-        include: { hints: { orderBy: { order: "asc" as const } } },
+        include: {
+            hints: { orderBy: { order: "asc" as const } },
+            rubricFields: { orderBy: { order: "asc" as const } },
+        },
         orderBy: { createdAt: "asc" as const },
     },
 };
@@ -311,6 +338,13 @@ export async function addTaskToWeek(
                     cost: hint.cost,
                 })),
             },
+            rubricFields: {
+                create: input.rubricFields.map((field, i) => ({
+                    order: i + 1,
+                    fieldName: field.fieldName.trim(),
+                    maxPoints: field.maxPoints,
+                })),
+            },
         },
     });
 
@@ -338,10 +372,13 @@ export async function updateWeekTask(
     assertWeekNotStarted(task.week.startDate);
     validateTaskInput(input);
 
-    // Hints are replaced as a whole (0-3 rows, ordered 1..n). Safe because
-    // nobody can have unlocked a Hint yet - the Week hasn't started.
+    // Hints and rubric fields are each replaced as a whole. Safe because
+    // nobody can have unlocked a Hint or been graded yet - the Week hasn't
+    // started, so no TaskGradeField can reference the old rubric field
+    // rows we're about to delete.
     await prisma.$transaction(async (tx) => {
         await tx.hint.deleteMany({ where: { taskId: task.id } });
+        await tx.taskRubricField.deleteMany({ where: { taskId: task.id } });
 
         await tx.task.update({
             where: { id: task.id },
@@ -356,6 +393,13 @@ export async function updateWeekTask(
                         order: i + 1,
                         content: hint.content.trim(),
                         cost: hint.cost,
+                    })),
+                },
+                rubricFields: {
+                    create: input.rubricFields.map((field, i) => ({
+                        order: i + 1,
+                        fieldName: field.fieldName.trim(),
+                        maxPoints: field.maxPoints,
                     })),
                 },
             },

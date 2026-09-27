@@ -384,6 +384,18 @@ export interface UpdateWeekInput {
     requiredFileLabel?: string;
 }
 
+// A BEGINNER Task's rubric fields are free-form (unlike INTERMEDIATE's
+// fixed 4 columns) and are defined by the Instructor at Task-creation
+// time, not at grading time. Unlimited field count; maxPoints across all
+// fields of one Task MUST sum to exactly 15 (validated in code, not a DB
+// constraint). Same fields apply to every student graded on that Task.
+// Editable any number of times before Week.startDate, exactly like every
+// other Task field; fully locked afterwards, same as the rest of the Task.
+export interface TaskRubricFieldInput {
+    fieldName: string;
+    maxPoints: number;
+}
+
 // 0-3 hints per BEGINNER Task (Instructor sets each cost).
 export interface WeekTaskInput {
     title: string;
@@ -392,6 +404,7 @@ export interface WeekTaskInput {
     isBonus: boolean;
     allowedSubmissionMode?: SubmissionModeCode | null;
     hints: CreateHintInput[]; // 0-3
+    rubricFields: TaskRubricFieldInput[]; // maxPoints must sum to exactly 15
 }
 
 export interface AddTaskToWeekInput extends WeekTaskInput {
@@ -426,6 +439,12 @@ export interface WeekWithTasks {
         isBonus: boolean;
         allowedSubmissionMode: SubmissionModeCode | null;
         hints: { id: string; content: string; cost: number; order: number }[];
+        rubricFields: {
+            id: string;
+            fieldName: string;
+            maxPoints: number;
+            order: number;
+        }[];
     }[];
 }
 
@@ -505,4 +524,91 @@ export interface LockWeekResult {
     lockedAt: Date;
     submittedTaskIds: string[]; // Tasks whose DRAFT was sent (-> SUBMITTED)
     skippedTaskIds: string[]; // INTERNAL Tasks with no DRAFT (won't be graded)
+}
+
+// ============================================
+// WEEK GRADING (BEGINNER track - Instructor side)
+// ============================================
+// Draft/finalize model: TaskGrade rows are written/edited freely
+// (finalizedAt stays null) via saveDraftGrade. Nothing is scored or paid
+// out until the Instructor's single finalizeWeekGrading call for a given
+// student+Week, which atomically finalizes every TaskGrade in the batch
+// AND writes every resulting STTransaction component. Before that, draft
+// grading has zero ST effect.
+//
+// Per-Task scoring (identical formula for BEGINNER and INTERMEDIATE):
+//   rubric total (sum of awarded TaskGradeField points, max 15)
+//   + 5 if Task.isBonus
+//   + 5 if this student was the first manual-lock solver for the Task
+//   + 10 per Week if every Task in the Week has a submission
+//   - 10 if a Task has no submission at all, or the Instructor explicitly
+//     marks the student's solution invalid/unsubmitted (no rubric points
+//     in that case)
+// The whole positive sum (rubric+bonus+first-solver+finish-all) is halved
+// if the Week's required file was not ACCEPTED at finalize time; the -10
+// penalty is never halved.
+
+export interface SaveDraftGradeInput {
+    submissionId: string;
+    gradedBy: string; // instructorId
+    fieldScores: { rubricFieldId: string; awardedPoints: number }[]; // each awardedPoints <= that field's maxPoints
+    // Explicit toggle: true = instructor is marking this student's
+    // solution invalid/unsubmitted (EXTERNAL "didn't submit on the
+    // external platform" or INTERNAL "present but rejected"). When true,
+    // fieldScores is ignored (no rubric points) and this Task counts
+    // toward the -10 penalty at finalize time.
+    markedInvalid: boolean;
+}
+
+export interface DraftGradeResult {
+    id: string; // TaskGrade id
+    submissionId: string;
+    gradedBy: string;
+    finalizedAt: null;
+    fieldScores: { rubricFieldId: string; awardedPoints: number }[];
+    markedInvalid: boolean;
+}
+
+// Read-only suggestion, never auto-applied - the Instructor must
+// explicitly confirm via finalizeWeekGrading's `firstSolverTaskIds`.
+export interface FirstSolverSuggestionInput {
+    weekId: string;
+}
+
+export interface FirstSolverSuggestion {
+    taskId: string;
+    taskTitle: string;
+    // studentId of the earliest manual-lock submitter for this Task, or
+    // null if no student has manually locked with a submission for it yet
+    // (auto-submitted-at-endDate submissions are never eligible).
+    suggestedStudentId: string | null;
+    suggestedStudentName: string | null;
+    submittedAt: Date | null;
+}
+
+export interface FinalizeWeekGradingInput {
+    studentId: string;
+    weekId: string;
+    gradedBy: string; // instructorId
+    // Instructor's explicit confirmation of which Tasks this student
+    // should receive the +5 first-solver bonus for (from
+    // FirstSolverSuggestion, after review - never auto-applied).
+    firstSolverTaskIds: string[];
+}
+
+export interface FinalizeWeekGradingResult {
+    studentId: string;
+    weekId: string;
+    finalizedAt: Date;
+    wasHalvedDueToLateResource: boolean;
+    taskResults: {
+        taskId: string;
+        rubricPoints: number | null; // null if markedInvalid/not submitted
+        bonusPoints: number;
+        firstSolverPoints: number;
+        penaltyPoints: number; // 0 or 10, sign applied separately
+    }[];
+    finishAllBonusApplied: boolean;
+    totalStDelta: number; // net ST change actually applied (post-halving)
+    beginnerStBalance: number; // Student.beginnerSt after this finalize
 }

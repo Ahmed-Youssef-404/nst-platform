@@ -67,7 +67,8 @@ async function recomputeAvgSt(
 }
 
 export async function applySTChange(
-    input: ApplySTChangeInput
+    input: ApplySTChangeInput,
+    tx?: Prisma.TransactionClient
 ): Promise<STTransactionResult> {
     if (!Number.isInteger(input.amount) || input.amount <= 0) {
         throw new Error(
@@ -78,20 +79,26 @@ export async function applySTChange(
     const signedDelta = input.type === "REWARD" ? input.amount : -input.amount;
 
     if (input.track === "BEGINNER") {
-        return applySTChangeBeginner(input, signedDelta);
+        return applySTChangeBeginner(input, signedDelta, tx);
     }
 
     // A single interactive transaction: upsert the per-Level balance
     // atomically via increment, recompute the cached average, then create
     // the audit row using the balances the update itself produced (so the
     // snapshot can never drift from reality).
-    const result = await prisma.$transaction(async (tx) => {
+    //
+    // If a `tx` is passed in (a caller running its own larger transaction,
+    // e.g. finalizeWeekGrading), we run against IT instead of opening a
+    // new one - so this call becomes part of the caller's atomic unit
+    // rather than committing independently. Every existing caller that
+    // omits `tx` gets exactly the old behavior: its own fresh transaction.
+    const run = async (client: Prisma.TransactionClient) => {
         // Upsert, not just update: the student's LevelStBalance row for
         // this Level should already exist (created at Level-transition
         // time), but upserting keeps this resilient rather than throwing
         // if it's somehow missing - it lands on 50 + this delta, same
         // starting point a fresh row would have had.
-        const updatedBalance = await tx.levelStBalance.upsert({
+        const updatedBalance = await client.levelStBalance.upsert({
             where: {
                 studentId_levelId: {
                     studentId: input.studentId,
@@ -109,9 +116,9 @@ export async function applySTChange(
             select: { balance: true },
         });
 
-        const avgSt = await recomputeAvgSt(tx, input.studentId);
+        const avgSt = await recomputeAvgSt(client, input.studentId);
 
-        const transaction = await tx.sTTransaction.create({
+        const transaction = await client.sTTransaction.create({
             data: {
                 studentId: input.studentId,
                 levelId: input.levelId,
@@ -137,23 +144,25 @@ export async function applySTChange(
             avgStBalance: avgSt,
             createdAt: transaction.createdAt,
         };
-    });
+    };
 
-    return result;
+    return tx ? run(tx) : prisma.$transaction(run);
 }
 
 // ------------------------------------------------------------------
 // BEGINNER track: Student.beginnerSt is one continuously-accumulating
 // number for the whole course (never frozen/reset like LevelStBalance,
 // no per-Level rows, no averaging). Same atomicity/audit guarantees as
-// the INTERMEDIATE path above - one $transaction, atomic increment,
+// the INTERMEDIATE path above - one $transaction (or the caller's own,
+// if `tx` is passed through from applySTChange), atomic increment,
 // snapshot taken from the write itself.
 async function applySTChangeBeginner(
     input: Extract<ApplySTChangeInput, { track: "BEGINNER" }>,
-    signedDelta: number
+    signedDelta: number,
+    tx?: Prisma.TransactionClient
 ): Promise<STTransactionResult> {
-    const result = await prisma.$transaction(async (tx) => {
-        const updatedStudent = await tx.student.update({
+    const run = async (client: Prisma.TransactionClient) => {
+        const updatedStudent = await client.student.update({
             where: { id: input.studentId },
             data: { beginnerSt: { increment: signedDelta } },
             select: { beginnerSt: true },
@@ -169,7 +178,7 @@ async function applySTChangeBeginner(
             );
         }
 
-        const transaction = await tx.sTTransaction.create({
+        const transaction = await client.sTTransaction.create({
             data: {
                 studentId: input.studentId,
                 weekId: input.weekId,
@@ -195,9 +204,9 @@ async function applySTChangeBeginner(
             wasHalvedDueToLateResource: transaction.wasHalvedDueToLateResource,
             createdAt: transaction.createdAt,
         };
-    });
+    };
 
-    return result;
+    return tx ? run(tx) : prisma.$transaction(run);
 }
 
 // Convenience wrapper: some callers (deadline reconciliation, level reset)
