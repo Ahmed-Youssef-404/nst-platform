@@ -415,6 +415,12 @@ enum SubmissionMode {
   FILE
   LINK
   TEXT
+   // لا يُستخدم للتسليم الحقيقي أبدًا. مخصص فقط لصف Submission "وهمي"
+   // بيتعمل تلقائيًا أول ما الـ Instructor يبدأ يقيّم Task من نوع
+  // EXTERNAL لطالب معين (مفيش تسليم فعلي على المنصة أصلًا) - الغرض
+   // الوحيد منه إنه يدّي TaskGrade مكان يتعلّق عليه (submissionId).
+  // fileUrl/externalLink/textContent كلهم null على الصف ده.
+  EXTERNAL
 }
 
 // ============================================
