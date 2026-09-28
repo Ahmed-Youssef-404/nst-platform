@@ -1,21 +1,12 @@
 // src/app/student/levels/[id]/page.tsx
 // Server Component - Detail half of the Level History List+Detail pattern
-// (see ../page.tsx for the List half). Reuses the exact same
-// SessionListView already used on "My Sessions" - it's driven purely by
-// the StudentLevelView shape, so it renders a past Level's Sessions the
-// same way it renders the active one.
-//
-// getStudentLevelById is scoped to the student's own Group (a Level from
-// another Group simply won't resolve - see get-student-level.ts), so this
-// doubles as the authorization check; no separate ownership query needed.
 
 import { redirect } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft, Archive, Sparkles } from "lucide-react";
 import { getCurrentStudentId } from "@/lib/auth/get-current-user";
 import { getStudentLevelById } from "@/lib/data/get-student-level";
 import { SessionListView } from "@/app/student/session-list-view";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 
 export default async function LevelHistoryDetailPage({
     params,
@@ -31,27 +22,33 @@ export default async function LevelHistoryDetailPage({
     const { id } = await params;
     const level = await getStudentLevelById(studentId, id);
 
-    // Either the Level doesn't exist, or it belongs to a different Group -
-    // same redirect either way so we don't leak which case it was.
     if (!level) {
         redirect("/student/levels");
     }
 
     return (
         <div className="space-y-6">
-            <Link
-                href="/student/levels"
-                className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-            >
-                <ArrowLeft className="size-4" />
-                Back to Level History
-            </Link>
+            <div className="flex items-center justify-between">
+                <Link
+                    href="/student/levels"
+                    className="inline-flex items-center gap-2 rounded-xl bg-space-900/80 px-3.5 py-1.5 text-xs font-medium text-starlight-300 border border-border/60 hover:text-gold-300 hover:border-gold-500/30 hover:bg-space-850 transition-all"
+                >
+                    <ArrowLeft className="size-3.5" />
+                    <span>Back to Level History</span>
+                </Link>
 
-            {!level.isActive && (
-                <Badge variant="outline" className="w-fit">
-                    Past Level
-                </Badge>
-            )}
+                {!level.isActive ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-space-850 px-3 py-1 text-xs font-semibold text-starlight-400 border border-border/70">
+                        <Archive className="size-3 text-starlight-400" />
+                        Archived Study Curriculum
+                    </span>
+                ) : (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-300 border border-emerald-500/30">
+                        <span className="size-1.5 rounded-full bg-emerald-400 animate-ping" />
+                        Current Active Level
+                    </span>
+                )}
+            </div>
 
             <SessionListView level={level} />
         </div>

@@ -1,20 +1,5 @@
 // src/app/student/page.tsx
-// Server Component - the "My Sessions" List page (List half of the
-// List+Detail pattern; see sessions/[id]/page.tsx for the Detail half).
-// On every load:
-//   1. Reconcile any deadline-triggered ST events (lazy - see reconcile.ts)
-//   2. Read the Student's current Level (Sessions only, at list-summary
-//      detail - full Task/Hint/Submission data is fetched separately by
-//      the Session Details page when needed).
-// The balance itself is no longer read/rendered here - it now lives in the
-// sticky top bar in the layout (see student-top-bar.tsx), which is shared
-// across every /student page. Reconciliation still runs here too (cheap,
-// idempotent) since this page's data can itself be affected by it.
-//
-// Also reads `?message=...` in the URL - the Session Details page redirects
-// here with this param when a student tries to open a Session they can't
-// access yet (still upcoming) or that doesn't exist for them, so we can
-// explain why they landed back on the list instead of silently dropping them.
+// Server Component - the "My Sessions" List page
 
 import { redirect } from "next/navigation";
 import { Info } from "lucide-react";
@@ -25,8 +10,8 @@ import { getStudentLevel } from "@/lib/data/get-student-level";
 import { SessionListView } from "./session-list-view";
 
 const REDIRECT_MESSAGES: Record<string, string> = {
-    "session-not-started": "That session hasn't started yet.",
-    "session-not-found": "That session isn't available.",
+    "session-not-started": "That session hasn't started yet. Please check back when it's live.",
+    "session-not-found": "That session isn't available or does not belong to your group.",
 };
 
 export default async function StudentDashboardPage({
@@ -34,10 +19,6 @@ export default async function StudentDashboardPage({
 }: {
     searchParams: Promise<{ message?: string }>;
 }) {
-    // Middleware already guards /student for the "student" role, but a
-    // server component should never trust that alone - verify directly.
-    // getCurrentStudentId also bridges Supabase Auth's UUID to the real
-    // students-table id (they are NOT the same value - see get-current-user.ts).
     const studentId = await getCurrentStudentId();
 
     if (!studentId) {
@@ -53,10 +34,10 @@ export default async function StudentDashboardPage({
     return (
         <div className="space-y-6">
             {bannerText && (
-                <Alert>
-                    <Info />
-                    <AlertDescription>{bannerText}</AlertDescription>
-                </Alert>
+                <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-950/30 p-4 text-amber-200">
+                    <Info className="size-5 shrink-0 text-amber-400" />
+                    <p className="text-sm font-medium">{bannerText}</p>
+                </div>
             )}
             <SessionListView level={level} />
         </div>

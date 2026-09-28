@@ -1,24 +1,12 @@
 // src/app/student/ranking/ranking-view.tsx
 // Client Component - renders the "Ranking" page as tabs: one "Total ST"
-// tab (top-3 podium only, ranked by avgSt - see get-student-ranking.ts for
-// why it's capped at top 3) plus one tab per Level the Group has ever had
-// (oldest first, full group roster, ranked by that Level's LevelStBalance).
-//
-// Highlights the logged-in Student wherever they appear, and fires
-// confetti once on mount if that Student is in the top 3 of the
-// *currently active Level's* tab specifically (not Total ST, not a frozen
-// Level - the confetti is meant to celebrate "how you're doing right now",
-// and firing it for every tab on load would be more annoying than festive).
-//
-// No data fetching here - the full ranking payload comes in as a prop from
-// the Server Component (page.tsx), same pattern as STBalanceCard/
-// StudentSTHistoryView. Each tab's list is small (one Group's roster) so
-// there's no pagination.
+// tab plus one tab per Level. Highlights the logged-in Student and fires
+// celebration confetti if in the top 3 of the active level.
 
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Crown, Trophy } from "lucide-react";
+import { Crown, Trophy, Sparkles, Medal, Award, Flame, User } from "lucide-react";
 import confetti from "canvas-confetti";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -29,16 +17,17 @@ import type {
 } from "@/lib/data/get-student-ranking";
 
 function getInitials(name: string): string {
-    return name
-        .trim()
-        .split(/\s+/)
-        .slice(0, 2)
-        .map((part) => part[0]?.toUpperCase())
-        .join("") || "S";
+    return (
+        name
+            .trim()
+            .split(/\s+/)
+            .slice(0, 2)
+            .map((part) => part[0]?.toUpperCase())
+            .join("") || "S"
+    );
 }
 
-// Visual left-to-right order on the podium (classic sports layout):
-// 2nd on the left, 1st in the center (tallest), 3rd on the right.
+// Visual left-to-right order on the podium: 2nd (left), 1st (center), 3rd (right)
 const PODIUM_DISPLAY_ORDER = [2, 1, 3] as const;
 
 type RankedStudent = RankedStudentByLevel | RankedStudentByAvg;
@@ -58,7 +47,6 @@ export function StudentRankingView({
     const defaultTab = activeLevel?.levelId ?? "total";
 
     const [activeTab, setActiveTab] = useState(defaultTab);
-
     const firedRef = useRef(false);
 
     const activeLevelIsTop3 =
@@ -74,19 +62,19 @@ export function StudentRankingView({
         const duration = activeLevelIsFirst ? 2200 : 1400;
         const end = Date.now() + duration;
         const colors = activeLevelIsFirst
-            ? ["#bdae1f", "#e09d32", "#ffffff"]
-            : ["#bdae1f", "#e09d32"];
+            ? ["#E8B84A", "#F6D77A", "#FFFFFF", "#F2C866"]
+            : ["#E8B84A", "#F6D77A", "#AAA69D"];
 
         (function frame() {
             confetti({
-                particleCount: activeLevelIsFirst ? 5 : 3,
+                particleCount: activeLevelIsFirst ? 6 : 3,
                 angle: 60,
                 spread: 55,
                 origin: { x: 0, y: 0.6 },
                 colors,
             });
             confetti({
-                particleCount: activeLevelIsFirst ? 5 : 3,
+                particleCount: activeLevelIsFirst ? 6 : 3,
                 angle: 120,
                 spread: 55,
                 origin: { x: 1, y: 0.6 },
@@ -99,40 +87,70 @@ export function StudentRankingView({
         })();
 
         if (activeLevelIsFirst) {
-            // Extra celebratory center burst just for the #1 spot.
             confetti({
-                particleCount: 120,
+                particleCount: 130,
                 spread: 100,
                 startVelocity: 45,
                 origin: { x: 0.5, y: 0.4 },
                 colors,
             });
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [activeLevelIsFirst, activeLevelIsTop3]);
 
     return (
-        <div className="space-y-6 backdrop-blur-md">
+        <div className="space-y-8 animate-fade-in">
+            {/* Top Celebration Banner if #1 */}
             {activeLevelIsFirst && (
-                <div className="flex items-center gap-2 rounded-lg border border-coin bg-coin-bg px-4 py-3 text-coin">
-                    <Crown className="h-5 w-5 shrink-0" />
-                    <p className="text-sm font-semibold">
-                        You&apos;re #1 in {ranking.groupName} this Level. Keep it up!
-                    </p>
+                <div className="relative overflow-hidden rounded-2xl border border-gold-500/50 bg-gradient-to-r from-gold-500/25 via-space-900 to-space-950 p-5 shadow-gold">
+                    <div className="flex items-center gap-4">
+                        <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-gold-500/20 text-gold-300 border border-gold-500/40 shadow-gold">
+                            <Crown className="size-6 text-gold-300 animate-bounce" />
+                        </div>
+                        <div>
+                            <p className="text-base font-extrabold text-gold-200">
+                                Stellar Champion! You&apos;re #1 in {ranking.groupName}
+                            </p>
+                            <p className="text-xs text-starlight-300">
+                                You are leading the current level tournament. Keep completing missions to maintain your rank.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             )}
 
-            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as string)}>
-                <TabsList className="flex w-full flex-wrap gap-1">
-                    <TabsTrigger value="total">Total ST</TabsTrigger>
-                    {ranking.levels.map((level) => (
-                        <TabsTrigger key={level.levelId} value={level.levelId}>
-                            {level.levelName}
+            {/* Navigation Tabs */}
+            <Tabs
+                value={activeTab}
+                onValueChange={(value) => setActiveTab(value as string)}
+                className="space-y-6"
+            >
+                <div className="flex items-center justify-between overflow-x-auto pb-1">
+                    <TabsList className="h-11 bg-space-900/90 border border-border/80 p-1 rounded-xl">
+                        <TabsTrigger
+                            value="total"
+                            className="rounded-lg px-4 text-xs font-semibold data-[state=active]:bg-gold-500/20 data-[state=active]:text-gold-300 data-[state=active]:border data-[state=active]:border-gold-500/40 data-[state=active]:shadow-gold transition-all"
+                        >
+                            <Trophy className="size-3.5 mr-1.5 text-gold-400" />
+                            Total ST Podium
                         </TabsTrigger>
-                    ))}
-                </TabsList>
 
-                <TabsContent value="total">
+                        {ranking.levels.map((level) => (
+                            <TabsTrigger
+                                key={level.levelId}
+                                value={level.levelId}
+                                className="rounded-lg px-4 text-xs font-semibold data-[state=active]:bg-gold-500/20 data-[state=active]:text-gold-300 data-[state=active]:border data-[state=active]:border-gold-500/40 data-[state=active]:shadow-gold transition-all"
+                            >
+                                Level {level.levelNumber}
+                                {level.isActive && (
+                                    <span className="ml-1.5 size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                )}
+                            </TabsTrigger>
+                        ))}
+                    </TabsList>
+                </div>
+
+                {/* Total ST Tab Content */}
+                <TabsContent value="total" className="space-y-6 mt-0">
                     <TotalStTab
                         overall={ranking.overall}
                         groupName={ranking.groupName}
@@ -140,8 +158,9 @@ export function StudentRankingView({
                     />
                 </TabsContent>
 
+                {/* Level Tabs */}
                 {ranking.levels.map((level) => (
-                    <TabsContent key={level.levelId} value={level.levelId}>
+                    <TabsContent key={level.levelId} value={level.levelId} className="space-y-6 mt-0">
                         <LevelTab level={level} currentStudentId={currentStudentId} />
                     </TabsContent>
                 ))}
@@ -150,7 +169,9 @@ export function StudentRankingView({
     );
 }
 
-// --- "Total ST" tab: premium, top-3-only podium, ranked by avgSt ---
+// ============================================
+// TOTAL ST TAB
+// ============================================
 
 function TotalStTab({
     overall,
@@ -162,23 +183,37 @@ function TotalStTab({
     currentStudentId: string;
 }) {
     return (
-        <div className="space-y-4">
-            <div className="rounded-lg border border-coin/40 bg-gradient-to-b from-coin/10 to-transparent p-4">
-                <p className="text-center text-xs text-muted-foreground">
-                    Top performers in {groupName}, ranked by average ST across every Level.
+        <div className="space-y-8">
+            <div className="rounded-2xl border border-gold-500/25 bg-gradient-to-br from-space-900 via-space-900 to-space-950 p-6 text-center space-y-1">
+                <h3 className="font-display text-base font-bold text-starlight-100 flex items-center justify-center gap-2">
+                    <Award className="size-4 text-gold-400" />
+                    All-Time Hall of Fame — {groupName}
+                </h3>
+                <p className="text-xs text-starlight-400 max-w-lg mx-auto">
+                    Ranked by average Star Tokens maintained across all active and archived levels. The top 3 performers earn a spot on the grand podium.
                 </p>
             </div>
-            <Podium students={overall.students} currentStudentId={currentStudentId} emptyMessage="No one has earned ST yet." />
+
+            <Podium
+                students={overall.students}
+                currentStudentId={currentStudentId}
+                emptyMessage="No cadets have earned ST yet. Start completing tasks to ascend the leaderboard!"
+            />
+
             {overall.currentStudentRank > 3 && (
-                <p className="text-center text-xs text-muted-foreground">
-                    You&apos;re currently rank #{overall.currentStudentRank} overall - keep going to reach the podium!
-                </p>
+                <div className="rounded-xl border border-border/70 bg-space-900/60 p-4 text-center">
+                    <p className="text-xs text-starlight-300">
+                        You are currently positioned at <span className="font-bold text-gold-400">Rank #{overall.currentStudentRank}</span> overall. Keep completing missions to reach the podium!
+                    </p>
+                </div>
             )}
         </div>
     );
 }
 
-// --- Per-Level tab: full roster, ranked by that Level's LevelStBalance ---
+// ============================================
+// LEVEL TAB
+// ============================================
 
 function LevelTab({
     level,
@@ -192,34 +227,66 @@ function LevelTab({
 
     return (
         <div className="space-y-8">
-            {!level.isActive && (
-                <p className="text-center text-xs text-muted-foreground">
-                    This Level has ended - these results are final.
-                </p>
-            )}
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-space-900/60 p-4 px-6">
+                <div>
+                    <h3 className="text-sm font-bold text-starlight-100 flex items-center gap-2">
+                        <span>Level {level.levelNumber} Leaderboard</span>
+                        {level.isActive ? (
+                            <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-300 border border-emerald-500/30">
+                                Live Cohort
+                            </span>
+                        ) : (
+                            <span className="rounded-full bg-space-800 px-2 py-0.5 text-[10px] font-medium text-starlight-400 border border-border/60">
+                                Archived
+                            </span>
+                        )}
+                    </h3>
+                    <p className="text-xs text-starlight-400 mt-0.5">
+                        {level.isActive
+                            ? "Rankings update in real-time as tasks are submitted and evaluated."
+                            : "This level has officially ended — these rankings are permanently preserved."}
+                    </p>
+                </div>
+
+                <div className="rounded-xl border border-border/60 bg-space-950 px-3.5 py-1.5 text-center">
+                    <span className="text-[10px] font-medium text-starlight-400 uppercase tracking-wider block">
+                        Your Rank
+                    </span>
+                    <span className="font-mono text-sm font-bold text-gold-400">
+                        #{level.currentStudentRank > 0 ? level.currentStudentRank : "—"}
+                    </span>
+                </div>
+            </div>
 
             <Podium
                 students={podiumStudents}
                 currentStudentId={currentStudentId}
-                emptyMessage="No one has earned ST yet this Level. Be the first!"
+                emptyMessage="No cadets have earned ST in this level yet. Be the first to break the ice!"
             />
 
             {restStudents.length > 0 && (
-                <div className="rounded-lg border border-border">
-                    {restStudents.map((student) => (
-                        <RankingRow
-                            key={student.id}
-                            student={student}
-                            isCurrentStudent={student.id === currentStudentId}
-                        />
-                    ))}
+                <div className="space-y-3">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-starlight-400 px-1">
+                        Group Roster & Standings
+                    </h4>
+                    <div className="rounded-2xl border border-border/70 bg-space-900/60 overflow-hidden divide-y divide-border/60">
+                        {restStudents.map((student) => (
+                            <RankingRow
+                                key={student.id}
+                                student={student}
+                                isCurrentStudent={student.id === currentStudentId}
+                            />
+                        ))}
+                    </div>
                 </div>
             )}
         </div>
     );
 }
 
-// --- Shared podium + row components (used by both tab kinds) ---
+// ============================================
+// PODIUM COMPONENT
+// ============================================
 
 function Podium({
     students,
@@ -234,15 +301,15 @@ function Podium({
 
     if (students.length === 0) {
         return (
-            <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border py-10 text-center">
-                <Trophy className="h-8 w-8 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">{emptyMessage}</p>
+            <div className="rounded-2xl border border-dashed border-border/70 bg-space-950/40 py-12 text-center">
+                <Trophy className="size-10 mx-auto text-starlight-400/60 mb-2" />
+                <p className="text-sm text-starlight-400">{emptyMessage}</p>
             </div>
         );
     }
 
     return (
-        <div className="flex flex-wrap items-end justify-center gap-x-3 gap-y-6 px-2 pt-6">
+        <div className="flex flex-wrap items-end justify-center gap-4 sm:gap-6 px-4 pt-10 pb-4">
             {PODIUM_DISPLAY_ORDER.flatMap((rank) =>
                 byRank(rank).map((student) => (
                     <PodiumSpot
@@ -256,27 +323,43 @@ function Podium({
     );
 }
 
-const PODIUM_STYLES: Record<
+const PODIUM_CONFIG: Record<
     number,
-    { height: string; avatarSize: "default" | "lg"; base: string; label: string }
+    {
+        height: string;
+        avatarSize: "default" | "lg";
+        baseClassName: string;
+        medalBadge: string;
+        medalColor: string;
+        ringClassName: string;
+    }
 > = {
     1: {
-        height: "h-28",
+        height: "h-36 sm:h-44",
         avatarSize: "lg",
-        base: "bg-gradient-to-t from-coin/40 to-coin/10 border-coin",
-        label: "1st",
+        baseClassName:
+            "bg-gradient-to-t from-gold-500/30 via-gold-500/10 to-transparent border-t-2 border-gold-400 shadow-gold",
+        medalBadge: "1st Place",
+        medalColor: "text-gold-300",
+        ringClassName: "ring-2 ring-gold-400 ring-offset-2 ring-offset-space-950",
     },
     2: {
-        height: "h-20",
+        height: "h-28 sm:h-32",
         avatarSize: "default",
-        base: "bg-muted/60 border-border",
-        label: "2nd",
+        baseClassName:
+            "bg-gradient-to-t from-slate-400/20 via-slate-400/5 to-transparent border-t-2 border-slate-300",
+        medalBadge: "2nd Place",
+        medalColor: "text-slate-300",
+        ringClassName: "ring-2 ring-slate-300 ring-offset-2 ring-offset-space-950",
     },
     3: {
-        height: "h-14",
+        height: "h-20 sm:h-24",
         avatarSize: "default",
-        base: "bg-muted/40 border-border",
-        label: "3rd",
+        baseClassName:
+            "bg-gradient-to-t from-amber-700/20 via-amber-700/5 to-transparent border-t-2 border-amber-500/60",
+        medalBadge: "3rd Place",
+        medalColor: "text-amber-400",
+        ringClassName: "ring-2 ring-amber-500 ring-offset-2 ring-offset-space-950",
     },
 };
 
@@ -287,49 +370,59 @@ function PodiumSpot({
     student: RankedStudent;
     isCurrentStudent: boolean;
 }) {
-    const style = PODIUM_STYLES[student.rank] ?? PODIUM_STYLES[3];
+    const config = PODIUM_CONFIG[student.rank] ?? PODIUM_CONFIG[3];
 
     return (
-        <div className="flex w-24 flex-col items-center gap-2">
+        <div className="flex w-28 sm:w-36 flex-col items-center gap-2.5">
+            {/* "That's You!" Indicator */}
             {isCurrentStudent && (
-                <span className={`rounded-full bg-primary px-2 py-0.5 relative text-[10px] font-semibold text-primary-foreground ${student.rank === 1 && "bottom-4"}`}>
+                <span className="rounded-full bg-gold-500 px-2.5 py-0.5 text-[10px] font-extrabold text-space-950 shadow-gold animate-bounce">
                     That&apos;s you!
                 </span>
             )}
 
+            {/* Avatar & Crown */}
             <div className="relative">
                 {student.rank === 1 && (
-                    <Crown className="absolute left-[8px] rotate-[336deg] -top-4 h-5 w-5 -translate-x-1/2 text-coin"/>
+                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 flex items-center justify-center">
+                        <Crown className="size-6 text-gold-300 fill-gold-400/40 drop-shadow-[0_0_8px_rgba(232,184,74,0.6)] animate-pulse" />
+                    </div>
                 )}
                 <Avatar
-                    size={style.avatarSize}
-                    className={
-                        isCurrentStudent
-                            ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
-                            : undefined
-                    }
+                    size={config.avatarSize}
+                    className={`border border-border/80 ${config.ringClassName}`}
                 >
-                    <AvatarFallback>{getInitials(student.name)}</AvatarFallback>
+                    <AvatarFallback className="font-bold text-starlight-100 bg-space-850">
+                        {getInitials(student.name)}
+                    </AvatarFallback>
                 </Avatar>
             </div>
 
-            <div className="text-center">
-                <p className="max-w-24 truncate text-xs font-medium">{student.name}</p>
-                <p className="text-xs font-semibold tabular-nums text-coin">
+            {/* Student Info */}
+            <div className="text-center space-y-0.5 max-w-full">
+                <p className="truncate text-xs font-bold text-starlight-100 px-1">
+                    {student.name}
+                </p>
+                <p className="font-mono text-xs font-extrabold text-gold-300">
                     {stValueOf(student)} ST
                 </p>
             </div>
 
+            {/* Pedestal Block */}
             <div
-                className={`flex w-full items-start justify-center rounded-t-lg border ${style.height} ${style.base}`}
+                className={`flex w-full items-start justify-center rounded-t-2xl border border-b-0 border-border/70 ${config.height} ${config.baseClassName}`}
             >
-                <span className="mt-2 text-sm font-bold text-muted-foreground">
-                    {style.label}
+                <span className={`mt-3 text-xs font-black uppercase tracking-wider ${config.medalColor}`}>
+                    {config.medalBadge}
                 </span>
             </div>
         </div>
     );
 }
+
+// ============================================
+// RANKING ROW COMPONENT
+// ============================================
 
 function RankingRow({
     student,
@@ -340,27 +433,45 @@ function RankingRow({
 }) {
     return (
         <div
-            className={`flex items-center justify-between backdrop-blur-2xl gap-4 border-b border-border px-4 py-3.5 last:border-b-0 ${isCurrentStudent && "bg-primary/10"}`}>
-            <div className="flex min-w-0 items-center gap-3">
-                <span className="w-6 shrink-0 text-center text-sm font-semibold tabular-nums text-muted-foreground">
-                    {student.rank}
+            className={`
+                flex items-center justify-between gap-4 px-5 py-3.5 transition-colors
+                ${
+                    isCurrentStudent
+                        ? "bg-gold-500/15 text-gold-200 border-l-4 border-gold-500"
+                        : "hover:bg-space-850/60 text-starlight-200"
+                }
+            `}
+        >
+            <div className="flex min-w-0 items-center gap-3.5">
+                <span
+                    className={`
+                        w-7 shrink-0 text-center font-mono text-xs font-bold
+                        ${isCurrentStudent ? "text-gold-300" : "text-starlight-400"}
+                    `}
+                >
+                    #{student.rank}
                 </span>
+
                 <Avatar
                     size="sm"
-                    className={isCurrentStudent ? "ring-2 ring-primary" : undefined}
+                    className={`border border-border/60 ${isCurrentStudent ? "ring-2 ring-gold-500/50" : ""}`}
                 >
-                    <AvatarFallback>{getInitials(student.name)}</AvatarFallback>
+                    <AvatarFallback className="text-xs font-bold bg-space-850 text-starlight-200">
+                        {getInitials(student.name)}
+                    </AvatarFallback>
                 </Avatar>
-                <p className="truncate text-sm font-medium">
+
+                <p className="truncate text-sm font-semibold">
                     {student.name}
                     {isCurrentStudent && (
-                        <span className="ml-2 text-xs font-semibold text-primary">
-                            (You)
+                        <span className="ml-2 rounded-md bg-gold-500/20 px-1.5 py-0.5 text-[10px] font-bold text-gold-300 border border-gold-500/40">
+                            YOU
                         </span>
                     )}
                 </p>
             </div>
-            <span className="shrink-0 text-sm font-semibold tabular-nums text-coin">
+
+            <span className="shrink-0 font-mono text-sm font-extrabold text-gold-300">
                 {stValueOf(student)} ST
             </span>
         </div>
