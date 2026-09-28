@@ -19,6 +19,9 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
+    SidebarMenuSub,
+    SidebarMenuSubButton,
+    SidebarMenuSubItem,
     SidebarTrigger,
 } from "@/components/ui/sidebar";
 import {
@@ -41,16 +44,22 @@ const NAV_ITEMS = [
         label: "Batches & Groups",
         icon: Layers,
         description: "Cohorts, tracks & assignments",
-        exact: false,
+        exact: true,
     },
     {
         href: "/super-admin/levels",
         label: "Levels & Progression",
         icon: Sparkles,
         description: "Active levels per group",
-        exact: false,
+        exact: true,
     },
 ];
+
+function getSuperAdminSubLinks(itemHref: string, pathname: string) {
+    // Direct command views with no sub-routes currently.
+    // Return empty array to keep sidebar clean.
+    return [];
+}
 
 export function SuperAdminSidebar({
     adminName,
@@ -106,9 +115,10 @@ export function SuperAdminSidebar({
 
                 <SidebarMenu className="gap-1.5">
                     {NAV_ITEMS.map((item) => {
-                        const isActive = item.exact
-                            ? pathname === item.href
-                            : pathname.startsWith(item.href);
+                        const subLinks = getSuperAdminSubLinks(item.href, pathname);
+                        const isExactActive = pathname === item.href;
+                        const isParentActive = !item.exact && pathname.startsWith(item.href);
+                        const isHighlighted = isExactActive || isParentActive;
 
                         return (
                             <SidebarMenuItem key={item.href}>
@@ -121,28 +131,64 @@ export function SuperAdminSidebar({
                                         group-data-[collapsible=icon]:justify-center
                                         group-data-[collapsible=icon]:px-0
                                         ${
-                                            isActive
+                                            isExactActive
                                                 ? "bg-gold-500/15 text-gold-700 dark:text-gold-300 border border-gold-500/35 shadow-gold font-semibold"
-                                                : "text-starlight-300 hover:bg-space-850 hover:text-starlight-100 border border-transparent"
+                                                : isParentActive
+                                                  ? "bg-space-850/80 text-starlight-100 border border-gold-500/25 font-medium"
+                                                  : "text-starlight-300 hover:bg-space-850 hover:text-starlight-100 border border-transparent"
                                         }
                                     `}
                                 >
                                     <item.icon
                                         className={`
                                             size-5 shrink-0 transition-transform duration-200
-                                            ${isActive ? "text-gold-600 dark:text-gold-400 scale-110" : "text-starlight-400 group-hover:text-starlight-200"}
+                                            ${isHighlighted ? "text-gold-600 dark:text-gold-400 scale-110" : "text-starlight-400 group-hover:text-starlight-200"}
                                         `}
                                     />
 
                                     <div className="flex flex-col min-w-0 text-left group-data-[collapsible=icon]:hidden">
-                                        <span className={`truncate font-semibold text-xs tracking-tight ${isActive ? "text-gold-700 dark:text-gold-300" : "text-starlight-100"}`}>
+                                        <span className={`truncate font-semibold text-xs tracking-tight ${isHighlighted ? "text-gold-700 dark:text-gold-300" : "text-starlight-100"}`}>
                                             {item.label}
                                         </span>
-                                        <span className={`truncate text-[10px] font-normal ${isActive ? "text-gold-600/80 dark:text-gold-400/80" : "text-starlight-400"}`}>
+                                        <span className={`truncate text-[10px] font-normal ${isHighlighted ? "text-gold-600/80 dark:text-gold-400/80" : "text-starlight-400"}`}>
                                             {item.description}
                                         </span>
                                     </div>
                                 </SidebarMenuButton>
+
+                                {subLinks.length > 0 && (
+                                    <SidebarMenuSub className="my-1.5 ml-4 mr-1 flex flex-col gap-1 border-l-2 border-gold-500/30 pl-2.5 py-0.5 group-data-[collapsible=icon]:hidden animate-fade-in">
+                                        {subLinks.map((sub: any) => (
+                                            <SidebarMenuSubItem key={sub.href}>
+                                                <SidebarMenuSubButton
+                                                    render={<Link href={sub.href} />}
+                                                    isActive={sub.isActive}
+                                                    className={`
+                                                        relative h-8 px-2.5 rounded-lg text-xs font-medium
+                                                        transition-all duration-150 flex items-center gap-2
+                                                        ${
+                                                            sub.isActive
+                                                                ? "bg-gold-500/15 text-gold-700 dark:text-gold-300 border border-gold-500/35 shadow-xs font-semibold"
+                                                                : "text-starlight-300 hover:bg-space-850 hover:text-starlight-100 border border-transparent"
+                                                        }
+                                                    `}
+                                                >
+                                                    <sub.icon
+                                                        className={`size-3.5 shrink-0 transition-colors ${
+                                                            sub.isActive
+                                                                ? "text-gold-600 dark:text-gold-400"
+                                                                : "text-starlight-400"
+                                                        }`}
+                                                    />
+                                                    <span className="truncate">{sub.label}</span>
+                                                    {sub.isActive && (
+                                                        <span className="ml-auto size-1.5 rounded-full bg-gold-500 dark:bg-gold-400 shadow-[0_0_6px_rgba(234,179,8,0.7)] shrink-0" />
+                                                    )}
+                                                </SidebarMenuSubButton>
+                                            </SidebarMenuSubItem>
+                                        ))}
+                                    </SidebarMenuSub>
+                                )}
                             </SidebarMenuItem>
                         );
                     })}
