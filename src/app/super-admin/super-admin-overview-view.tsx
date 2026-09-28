@@ -92,12 +92,12 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-border/70 pb-6">
                 <div>
                     <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gold-500/10 text-gold-400 border border-gold-500/25">
-                            <Crown className="size-3.5 text-gold-400" />
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gold-500/10 text-gold-700 dark:text-gold-400 border border-gold-500/25">
+                            <Crown className="size-3.5 text-gold-600 dark:text-gold-400" />
                             <span>Executive Control</span>
                         </span>
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-success-500/10 text-success-400 border border-success-500/20">
-                            <span className="size-1.5 rounded-full bg-success-400 animate-pulse" />
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-success-500/10 text-success-700 dark:text-success-400 border border-success-500/20">
+                            <span className="size-1.5 rounded-full bg-success-500 animate-pulse" />
                             <span>System Operational</span>
                         </span>
                     </div>
@@ -116,7 +116,7 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
                         onClick={() => {
                             setActiveTab("create");
                         }}
-                        className="border-gold-500/30 text-gold-300 hover:bg-gold-500/10 hover:text-gold-200"
+                        className="border-gold-500/40 text-gold-700 dark:text-gold-300 hover:bg-gold-500/10 hover:text-gold-800 dark:hover:text-gold-200"
                     >
                         <UserPlus className="size-4 mr-2" />
                         Enroll Account
@@ -140,7 +140,7 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
                         <span className="text-xs font-semibold uppercase tracking-wider text-starlight-400">
                             Enrolled Students
                         </span>
-                        <div className="flex size-9 items-center justify-center rounded-xl bg-gold-500/10 text-gold-400 border border-gold-500/20 shadow-gold">
+                        <div className="flex size-9 items-center justify-center rounded-xl bg-gold-500/10 text-gold-600 dark:text-gold-400 border border-gold-500/20 shadow-gold">
                             <Users className="size-4" />
                         </div>
                     </div>
@@ -150,11 +150,11 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
                         </span>
                     </div>
                     <div className="mt-2 flex items-center gap-2 text-xs text-starlight-400">
-                        <span className="text-gold-400 font-medium">
+                        <span className="text-gold-700 dark:text-gold-400 font-medium">
                             {stats.intermediateStudentsCount} Intermediate
                         </span>
                         <span>•</span>
-                        <span className="text-violet-400 font-medium">
+                        <span className="text-violet-700 dark:text-violet-400 font-medium">
                             {stats.beginnerStudentsCount} Beginner
                         </span>
                     </div>
@@ -199,9 +199,9 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
                         </span>
                     </div>
                     <div className="mt-2 flex items-center gap-2 text-xs text-starlight-400">
-                        <span className="text-gold-400">{stats.intermediateGroupsCount} Levels track</span>
+                        <span className="text-gold-700 dark:text-gold-400 font-medium">{stats.intermediateGroupsCount} Levels track</span>
                         <span>•</span>
-                        <span className="text-violet-400">{stats.beginnerGroupsCount} Weeks track</span>
+                        <span className="text-violet-700 dark:text-violet-400 font-medium">{stats.beginnerGroupsCount} Weeks track</span>
                     </div>
                 </div>
 
@@ -211,7 +211,7 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
                         <span className="text-xs font-semibold uppercase tracking-wider text-starlight-400">
                             Active Levels
                         </span>
-                        <div className="flex size-9 items-center justify-center rounded-xl bg-success-500/10 text-success-400 border border-success-500/20">
+                        <div className="flex size-9 items-center justify-center rounded-xl bg-success-500/10 text-success-600 dark:text-success-400 border border-success-500/20">
                             <Sparkles className="size-4" />
                         </div>
                     </div>
@@ -225,7 +225,7 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
                     </div>
                     <Link
                         href="/super-admin/levels"
-                        className="mt-2 inline-flex items-center gap-1 text-xs text-gold-400 hover:text-gold-300 font-medium"
+                        className="mt-2 inline-flex items-center gap-1 text-xs text-gold-700 dark:text-gold-400 hover:text-gold-800 dark:hover:text-gold-300 font-medium"
                     >
                         <span>View progression</span>
                         <ArrowUpRight className="size-3" />
@@ -244,7 +244,7 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
                                 relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200
                                 ${
                                     activeTab === "students"
-                                        ? "bg-gold-500/15 text-gold-300 border border-gold-500/30 shadow-gold"
+                                        ? "bg-gold-500/15 text-gold-700 dark:text-gold-300 border border-gold-500/30 shadow-gold"
                                         : "text-starlight-300 hover:bg-space-850 hover:text-starlight-100 border border-transparent"
                                 }
                             `}
@@ -266,7 +266,7 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
                                 relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200
                                 ${
                                     activeTab === "instructors"
-                                        ? "bg-gold-500/15 text-gold-300 border border-gold-500/30 shadow-gold"
+                                        ? "bg-gold-500/15 text-gold-700 dark:text-gold-300 border border-gold-500/30 shadow-gold"
                                         : "text-starlight-300 hover:bg-space-850 hover:text-starlight-100 border border-transparent"
                                 }
                             `}
@@ -288,7 +288,7 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
                                 relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200
                                 ${
                                     activeTab === "create"
-                                        ? "bg-gold-500/15 text-gold-300 border border-gold-500/30 shadow-gold"
+                                        ? "bg-gold-500/15 text-gold-700 dark:text-gold-300 border border-gold-500/30 shadow-gold"
                                         : "text-starlight-300 hover:bg-space-850 hover:text-starlight-100 border border-transparent"
                                 }
                             `}
@@ -402,11 +402,11 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
                                                     </td>
                                                     <td className="px-5 py-3.5 whitespace-nowrap">
                                                         {s.groupType === "BEGINNER" ? (
-                                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-violet-500/15 text-violet-300 border border-violet-500/30">
+                                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-violet-500/15 text-violet-700 dark:text-violet-300 border border-violet-500/30">
                                                                 Beginner Track
                                                             </span>
                                                         ) : (
-                                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-gold-500/15 text-gold-300 border border-gold-500/30">
+                                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-gold-500/15 text-gold-700 dark:text-gold-300 border border-gold-500/30">
                                                                 Intermediate Track
                                                             </span>
                                                         )}
@@ -575,9 +575,9 @@ function StudentCodeBadge({ code }: { code: string }) {
             type="button"
             onClick={handleCopy}
             title="Click to copy student code"
-            className="group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-space-850 border border-gold-500/25 text-gold-300 hover:border-gold-500/50 hover:bg-space-800 transition-all cursor-pointer"
+            className="group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-space-850 border border-gold-500/30 text-gold-700 dark:text-gold-300 hover:border-gold-500/50 hover:bg-space-800 transition-all cursor-pointer"
         >
-            <Hash className="size-3 text-gold-400" />
+            <Hash className="size-3 text-gold-600 dark:text-gold-400" />
             <span>{code}</span>
             {copied ? (
                 <Check className="size-3 text-success-400" />

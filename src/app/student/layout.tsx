@@ -36,11 +36,11 @@ export default async function StudentLayout({
                     <StarsBackground />
 
                     {/* Mobile Header Bar */}
-                    <header className="flex md:hidden items-center justify-between border-b border-border/70 bg-space-950/90 px-4 py-3 sticky top-0 z-40 backdrop-blur-md">
+                    <header className="flex md:hidden items-center justify-between border-b border-border/70 bg-space-900/90 dark:bg-space-950/90 px-4 py-3 sticky top-0 z-40 backdrop-blur-md">
                         <div className="flex items-center gap-2.5">
-                            <SidebarTrigger className="text-starlight-300 hover:text-starlight-100 p-1.5 rounded-lg" />
+                            <SidebarTrigger className="text-starlight-400 hover:text-starlight-100 p-1.5 rounded-lg" />
                             <div className="flex items-center gap-1.5">
-                                <Sparkles className="size-4 text-gold-400" />
+                                <Sparkles className="size-4 text-gold-600 dark:text-gold-400" />
                                 <span className="font-display text-sm font-bold tracking-tight text-starlight-100">
                                     NST Platform
                                 </span>

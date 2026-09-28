@@ -1,10 +1,9 @@
-@import "tailwindcss";
-
 /* ============================================================
  * 01. RAW DESIGN TOKENS
  * ============================================================ */
 
 :root,
+html:not(.dark),
 .light {
 
   /* ==========================================================
@@ -18,45 +17,45 @@
   --space-750: #CBD5E1;
 
   --starlight-100: #0F172A;
-  --starlight-200: #334155;
-  --starlight-300: #64748B;
-  --starlight-400: #94A3B8;
+  --starlight-200: #1E293B;
+  --starlight-300: #475569;
+  --starlight-400: #64748B;
 
-  --gold-300: #F3C966;
-  --gold-400: #D8981A;
-  --gold-500: #B8780E;
+  --gold-300: #8C5802;
+  --gold-400: #B8780E;
+  --gold-500: #C98818;
   --gold-600: #9A6208;
   --gold-700: #7C4D05;
   --gold-800: #5C3802;
   --gold-900: #3E2401;
 
-  --violet-400: #8B5CF6;
-  --violet-500: #7C3AED;
-  --violet-600: #6D28D9;
+  --violet-400: #7C3AED;
+  --violet-500: #6D28D9;
+  --violet-600: #5B21B6;
 
-  --blue-400: #3B82F6;
-  --blue-500: #2563EB;
-  --blue-600: #1D4ED8;
+  --blue-400: #2563EB;
+  --blue-500: #1D4ED8;
+  --blue-600: #1E40AF;
 
-  --amber-400: #F59E0B;
-  --amber-500: #D97706;
-  --amber-600: #B45309;
+  --amber-400: #D97706;
+  --amber-500: #B45309;
+  --amber-600: #92400E;
 
-  --success-400: #34D399;
-  --success-500: #059669;
-  --success-600: #047857;
+  --success-400: #059669;
+  --success-500: #047857;
+  --success-600: #065F46;
 
-  --info-400: #60A5FA;
-  --info-500: #2563EB;
-  --info-600: #1D4ED8;
+  --info-400: #2563EB;
+  --info-500: #1D4ED8;
+  --info-600: #1E40AF;
 
-  --warning-400: #FBBF24;
-  --warning-500: #D97706;
-  --warning-600: #B45309;
+  --warning-400: #D97706;
+  --warning-500: #B45309;
+  --warning-600: #92400E;
 
-  --error-400: #F87171;
-  --error-500: #DC2626;
-  --error-600: #B91C1C;
+  --error-400: #DC2626;
+  --error-500: #B91C1C;
+  --error-600: #991B1B;
 
   --shadow-none: none;
   --shadow-1: 0 1px 2px rgb(15 23 42 / 0.05), 0 1px 3px rgb(15 23 42 / 0.05);
@@ -69,11 +68,11 @@
   --shadow-gold-strong: 0 8px 24px rgb(184 120 14 / 0.25), 0 2px 6px rgb(184 120 14 / 0.15);
   --shadow-starlight: 0 4px 14px rgb(15 23 42 / 0.08);
 
-  --border-subtle: rgb(15 23 42 / 0.06);
-  --border-default: rgb(15 23 42 / 0.11);
-  --border-strong: rgb(15 23 42 / 0.20);
-  --border-gold: var(--gold-500);
-  --border-gold-subtle: rgb(184 120 14 / 0.22);
+  --border-subtle: rgb(15 23 42 / 0.08);
+  --border-default: rgb(15 23 42 / 0.14);
+  --border-strong: rgb(15 23 42 / 0.22);
+  --border-gold: rgb(184 120 14 / 0.35);
+  --border-gold-subtle: rgb(184 120 14 / 0.20);
   --border-focus: var(--gold-500);
   --border-brand: var(--gold-500);
 
@@ -81,14 +80,15 @@
   --border-success: var(--success-500);
   --border-info: var(--info-500);
 
-  --divider-subtle: rgb(15 23 42 / 0.05);
-  --divider-default: rgb(15 23 42 / 0.09);
-  --divider-strong: rgb(15 23 42 / 0.16);
+  --divider-subtle: rgb(15 23 42 / 0.06);
+  --divider-default: rgb(15 23 42 / 0.10);
+  --divider-strong: rgb(15 23 42 / 0.18);
 
   --shadow-focus: 0 0 0 3px rgb(184 120 14 / 0.20);
   --border-glow-gold: 0 0 0 1px rgb(184 120 14 / 0.20), 0 0 16px rgb(184 120 14 / 0.12);
 }
 
+html.dark,
 .dark {
 
   /* ==========================================================
@@ -493,7 +493,7 @@
  * 02. TAILWIND THEME
  * ============================================================ */
 
-@theme {
+@theme inline {
 
   /* ==========================================================
    * Colors
@@ -1130,4 +1130,61 @@ samp {
 .card-clarity {
   background-color: var(--space-900) !important;
   backdrop-filter: blur(16px);
-}
+}
+
+/* ============================================================
+ * 10. LIGHT MODE CONTRAST & READABILITY ENHANCEMENTS
+ * ============================================================ */
+
+html:not(.dark),
+.light {
+  color-scheme: light;
+}
+
+html.dark,
+.dark {
+  color-scheme: dark;
+}
+
+/* Ensure text-starlight utilities always have high contrast */
+html:not(.dark) .text-starlight-100,
+.light .text-starlight-100 {
+  color: #0F172A;
+}
+
+html:not(.dark) .text-starlight-200,
+.light .text-starlight-200 {
+  color: #1E293B;
+}
+
+html:not(.dark) .text-starlight-300,
+.light .text-starlight-300 {
+  color: #475569;
+}
+
+html:not(.dark) .text-starlight-400,
+.light .text-starlight-400 {
+  color: #64748B;
+}
+
+/* Background surfaces in light mode */
+html:not(.dark) .bg-space-950,
+.light .bg-space-950 {
+  background-color: #F8FAFC;
+}
+
+html:not(.dark) .bg-space-900,
+.light .bg-space-900 {
+  background-color: #FFFFFF;
+}
+
+html:not(.dark) .bg-space-850,
+.light .bg-space-850 {
+  background-color: #F1F5F9;
+}
+
+html:not(.dark) .bg-space-800,
+.light .bg-space-800 {
+  background-color: #E2E8F0;
+}
+

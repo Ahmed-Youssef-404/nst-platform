@@ -53,13 +53,13 @@ export default async function InstructorLayout({
                     <StarsBackground />
 
                     {/* Top Command Bar */}
-                    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between border-b border-border/70 bg-space-950/80 px-4 md:px-8 backdrop-blur-md">
+                    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between border-b border-border/70 bg-space-900/80 dark:bg-space-950/80 px-4 md:px-8 backdrop-blur-md">
                         <div className="flex items-center gap-3">
-                            <SidebarTrigger className="text-starlight-300 hover:text-starlight-100 hover:bg-space-850 p-2 rounded-lg transition-colors" />
+                            <SidebarTrigger className="text-starlight-400 hover:text-starlight-100 hover:bg-space-850 p-2 rounded-lg transition-colors" />
                             <div className="h-4 w-px bg-border/80 hidden sm:block" />
                             <div className="flex items-center gap-2">
-                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gold-500/10 text-gold-400 border border-gold-500/25 shadow-xs">
-                                    <Sparkles className="size-3 text-gold-400 animate-pulse" />
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gold-500/10 text-gold-700 dark:text-gold-400 border border-gold-500/25 shadow-xs">
+                                    <Sparkles className="size-3 text-gold-600 dark:text-gold-400 animate-pulse" />
                                     <span>Instructor Command Deck</span>
                                 </span>
                             </div>

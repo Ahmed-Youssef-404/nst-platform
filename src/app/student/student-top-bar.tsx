@@ -23,7 +23,7 @@ const ZONE_STYLES: Record<
     normal: {
         label: "Optimal Zone",
         badgeClassName: "bg-emerald-500/10 text-emerald-400 border-emerald-500/25",
-        barClassName: "border-border/70 bg-space-950/80",
+        barClassName: "border-border/70 bg-space-900/80 dark:bg-space-950/80",
         message: null,
         icon: null,
     },
@@ -59,8 +59,8 @@ export async function StudentTopBar({ studentId }: { studentId: string }) {
                         <span className="text-sm font-semibold text-starlight-100 truncate">
                             {balance.name}
                         </span>
-                        <span className="hidden sm:inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold bg-gold-500/10 text-gold-400 border border-gold-500/20">
-                            <Sparkles className="size-2.5 text-gold-400" />
+                        <span className="hidden sm:inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold bg-gold-500/10 text-gold-700 dark:text-gold-400 border border-gold-500/20">
+                            <Sparkles className="size-2.5 text-gold-600 dark:text-gold-400" />
                             Cadet
                         </span>
                     </div>
@@ -79,21 +79,21 @@ export async function StudentTopBar({ studentId }: { studentId: string }) {
                 <div className="flex shrink-0 items-center gap-3">
                     <Link
                         href="/student/st-history"
-                        className="group flex items-center gap-2 rounded-xl bg-space-850/90 hover:bg-space-800 px-3 py-1.5 border border-gold-500/30 shadow-gold transition-all duration-200"
+                        className="group flex items-center gap-2 rounded-xl bg-space-900 dark:bg-space-850/90 hover:bg-space-850 dark:hover:bg-space-800 px-3 py-1.5 border border-gold-500/30 shadow-gold transition-all duration-200"
                         title="View ST Transaction History"
                     >
-                        <div className="flex size-6 items-center justify-center rounded-lg bg-gold-500/20 text-gold-400 group-hover:scale-110 transition-transform">
-                            <Coins className="size-3.5 text-gold-400" />
+                        <div className="flex size-6 items-center justify-center rounded-lg bg-gold-500/15 text-gold-600 dark:text-gold-400 group-hover:scale-110 transition-transform">
+                            <Coins className="size-3.5 text-gold-600 dark:text-gold-400" />
                         </div>
                         <div className="flex items-baseline gap-1.5">
-                            <span className="font-mono text-base font-bold tabular-nums text-gold-300">
+                            <span className="font-mono text-base font-bold tabular-nums text-gold-700 dark:text-gold-300">
                                 {balance.levelSt}
                             </span>
-                            <span className="text-[11px] font-semibold tracking-wider text-gold-400 uppercase">
+                            <span className="text-[11px] font-semibold tracking-wider text-gold-600 dark:text-gold-400 uppercase">
                                 ST
                             </span>
                         </div>
-                        <ChevronRight className="size-3.5 text-starlight-400 group-hover:text-gold-300 transition-colors" />
+                        <ChevronRight className="size-3.5 text-starlight-400 group-hover:text-gold-600 dark:group-hover:text-gold-300 transition-colors" />
                     </Link>
                 </div>
 

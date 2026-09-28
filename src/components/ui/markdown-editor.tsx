@@ -141,7 +141,7 @@ export function MarkdownEditor({
                             className={cn(
                                 "flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all",
                                 activeTab === "write"
-                                    ? "bg-space-900 text-gold-400 font-semibold shadow-xs"
+                                    ? "bg-space-900 text-gold-700 dark:text-gold-400 font-semibold shadow-xs"
                                     : "text-starlight-300 hover:text-starlight-100"
                             )}
                         >
@@ -154,7 +154,7 @@ export function MarkdownEditor({
                             className={cn(
                                 "flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all",
                                 activeTab === "preview"
-                                    ? "bg-space-900 text-gold-400 font-semibold shadow-xs"
+                                    ? "bg-space-900 text-gold-700 dark:text-gold-400 font-semibold shadow-xs"
                                     : "text-starlight-300 hover:text-starlight-100"
                             )}
                         >
@@ -275,7 +275,7 @@ export function MarkdownEditor({
                                 onClick={() => appendMarkdownSnippet("- New list item")}
                                 className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-space-800/80 hover:bg-space-750 text-starlight-200 hover:text-starlight-100 text-xs font-medium border border-border/50 transition-colors"
                             >
-                                <Plus className="size-3 text-gold-400" />
+                                <Plus className="size-3 text-gold-600 dark:text-gold-400" />
                                 <span>Add Point</span>
                             </button>
                             <button
@@ -283,7 +283,7 @@ export function MarkdownEditor({
                                 onClick={() => appendMarkdownSnippet("- [ ] New task")}
                                 className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-space-800/80 hover:bg-space-750 text-starlight-200 hover:text-starlight-100 text-xs font-medium border border-border/50 transition-colors"
                             >
-                                <CheckSquare className="size-3 text-gold-400" />
+                                <CheckSquare className="size-3 text-gold-600 dark:text-gold-400" />
                                 <span>Add Task</span>
                             </button>
                         </div>
@@ -328,10 +328,10 @@ export function MarkdownEditor({
                                 </div>
                             ) : (
                                 <div className="flex flex-col items-center justify-center py-8 text-center text-starlight-400">
-                                    <PenLine className="size-7 mb-2 opacity-40 text-gold-400" />
+                                    <PenLine className="size-7 mb-2 opacity-40 text-gold-600 dark:text-gold-400" />
                                     <p className="text-xs font-medium">Nothing to preview yet</p>
                                     <p className="text-[11px] text-starlight-400/80 mt-1">
-                                        Type Markdown in the <span className="font-semibold text-gold-400">Write</span> tab to see live formatted results here.
+                                        Type Markdown in the <span className="font-semibold text-gold-700 dark:text-gold-400">Write</span> tab to see live formatted results here.
                                     </p>
                                 </div>
                             )}
@@ -345,7 +345,7 @@ export function MarkdownEditor({
                                     <button
                                         type="button"
                                         onClick={() => appendMarkdownSnippet("- New list item")}
-                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-space-850 hover:bg-space-800 text-starlight-200 hover:text-gold-400 border border-border/60 transition-colors text-xs font-semibold"
+                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-space-850 hover:bg-space-800 text-starlight-200 hover:text-gold-700 dark:hover:text-gold-400 border border-border/60 transition-colors text-xs font-semibold"
                                     >
                                         <Plus className="size-3" />
                                         <span>+ Add Point</span>
