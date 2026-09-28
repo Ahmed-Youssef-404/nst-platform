@@ -113,52 +113,52 @@ export type STReasonCode =
 // can never forget to pick a track.
 export type ApplySTChangeInput =
     | {
-          track: "INTERMEDIATE";
-          studentId: string;
-          levelId: string; // the Level the student was in when this happened
-          type: STTransactionKind;
-          reason: STReasonCode;
-          amount: number; // always positive
-          relatedEntityId?: string | null; // taskId / hintId / sessionId / storeItemId / etc.
-      }
+        track: "INTERMEDIATE";
+        studentId: string;
+        levelId: string; // the Level the student was in when this happened
+        type: STTransactionKind;
+        reason: STReasonCode;
+        amount: number; // always positive
+        relatedEntityId?: string | null; // taskId / hintId / sessionId / storeItemId / etc.
+    }
     | {
-          track: "BEGINNER";
-          studentId: string;
-          weekId: string; // the Week the student was in when this happened
-          type: STTransactionKind;
-          reason: STReasonCode;
-          amount: number; // always positive
-          relatedEntityId?: string | null;
-          wasHalvedDueToLateResource?: boolean; // BEGINNER-only halving flag
-      };
+        track: "BEGINNER";
+        studentId: string;
+        weekId: string; // the Week the student was in when this happened
+        type: STTransactionKind;
+        reason: STReasonCode;
+        amount: number; // always positive
+        relatedEntityId?: string | null;
+        wasHalvedDueToLateResource?: boolean; // BEGINNER-only halving flag
+    };
 
 export type STTransactionResult =
     | {
-          track: "INTERMEDIATE";
-          id: string;
-          studentId: string;
-          levelId: string;
-          type: STTransactionKind;
-          reason: STReasonCode;
-          amount: number;
-          relatedEntityId: string | null;
-          levelStBalance: number;
-          avgStBalance: number;
-          createdAt: Date;
-      }
+        track: "INTERMEDIATE";
+        id: string;
+        studentId: string;
+        levelId: string;
+        type: STTransactionKind;
+        reason: STReasonCode;
+        amount: number;
+        relatedEntityId: string | null;
+        levelStBalance: number;
+        avgStBalance: number;
+        createdAt: Date;
+    }
     | {
-          track: "BEGINNER";
-          id: string;
-          studentId: string;
-          weekId: string;
-          type: STTransactionKind;
-          reason: STReasonCode;
-          amount: number;
-          relatedEntityId: string | null;
-          beginnerStBalance: number;
-          wasHalvedDueToLateResource: boolean;
-          createdAt: Date;
-      };
+        track: "BEGINNER";
+        id: string;
+        studentId: string;
+        weekId: string;
+        type: STTransactionKind;
+        reason: STReasonCode;
+        amount: number;
+        relatedEntityId: string | null;
+        beginnerStBalance: number;
+        wasHalvedDueToLateResource: boolean;
+        createdAt: Date;
+    };
 
 export type BalanceZone = "normal" | "warning" | "danger";
 
@@ -548,8 +548,15 @@ export interface LockWeekResult {
 // if the Week's required file was not ACCEPTED at finalize time; the -10
 // penalty is never halved.
 
-export interface SaveDraftGradeInput {
-    submissionId: string;
+// One of two ways to identify what's being graded:
+//   - submissionId: the normal INTERNAL-task path - a real Submission
+//     already exists (student saved a DRAFT and/or locked the Week).
+//   - studentId + taskId: the EXTERNAL-task path - EXTERNAL Tasks have no
+//     on-platform Submission at all, so saveDraftGrade synthesizes one
+//     (mode: EXTERNAL, no file/link/text content) the first time an
+//     Instructor grades that student on that Task, purely so TaskGrade
+//     has a submissionId to anchor to like every other Task.
+export type SaveDraftGradeInput = {
     gradedBy: string; // instructorId
     fieldScores: { rubricFieldId: string; awardedPoints: number }[]; // each awardedPoints <= that field's maxPoints
     // Explicit toggle: true = instructor is marking this student's
@@ -558,7 +565,7 @@ export interface SaveDraftGradeInput {
     // fieldScores is ignored (no rubric points) and this Task counts
     // toward the -10 penalty at finalize time.
     markedInvalid: boolean;
-}
+} & ({ submissionId: string } | { studentId: string; taskId: string });
 
 export interface DraftGradeResult {
     id: string; // TaskGrade id

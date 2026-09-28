@@ -72,39 +72,109 @@ async function assertInstructorAssignedToGroup(
     }
 }
 
+// Resolves a SaveDraftGradeInput to a concrete submissionId, creating the
+// synthetic EXTERNAL-task Submission row on first use if the caller
+// identified the target via (studentId, taskId) instead of an existing
+// submissionId. Also loads exactly what saveDraftGrade needs from the
+// resolved Submission's Task (groupId for auth, rubric fields for
+// validation) plus its current TaskGrade (to block edits after finalize).
+async function resolveSubmissionForGrading(
+    input: SaveDraftGradeInput
+): Promise<{
+    submissionId: string;
+    task: {
+        weekId: string | null;
+        week: { groupId: string } | null;
+        rubricFields: { id: string; maxPoints: number }[];
+    };
+    taskGrade: { finalizedAt: Date | null } | null;
+}> {
+    if ("submissionId" in input) {
+        const submission = await prisma.submission.findUnique({
+            where: { id: input.submissionId },
+            include: {
+                task: {
+                    select: {
+                        weekId: true,
+                        week: { select: { groupId: true } },
+                        rubricFields: { select: { id: true, maxPoints: true } },
+                    },
+                },
+                taskGrade: { select: { finalizedAt: true } },
+            },
+        });
+
+        if (!submission || !submission.task.weekId || !submission.task.week) {
+            throw new Error(
+                "Submission not found or does not belong to a BEGINNER Task."
+            );
+        }
+
+        return {
+            submissionId: submission.id,
+            task: submission.task,
+            taskGrade: submission.taskGrade,
+        };
+    }
+
+    // (studentId, taskId) path - EXTERNAL Task, no on-platform Submission
+    // exists yet. Verify the Task really is EXTERNAL (INTERNAL Tasks must
+    // go through the submissionId path - they have a real Submission the
+    // student created) and synthesize one, reusing it on repeat calls via
+    // the (studentId, taskId) unique constraint.
+    const task = await prisma.task.findUnique({
+        where: { id: input.taskId },
+        select: {
+            type: true,
+            weekId: true,
+            week: { select: { groupId: true } },
+            rubricFields: { select: { id: true, maxPoints: true } },
+        },
+    });
+
+    if (!task || !task.weekId || !task.week) {
+        throw new Error("Task not found or does not belong to a BEGINNER Week.");
+    }
+
+    if (task.type !== "EXTERNAL") {
+        throw new Error(
+            "This Task is INTERNAL and already has a Submission - pass submissionId instead of studentId/taskId."
+        );
+    }
+
+    const submission = await prisma.submission.upsert({
+        where: {
+            studentId_taskId: { studentId: input.studentId, taskId: input.taskId },
+        },
+        create: {
+            studentId: input.studentId,
+            taskId: input.taskId,
+            mode: "EXTERNAL",
+            status: "SUBMITTED",
+        },
+        update: {},
+        include: { taskGrade: { select: { finalizedAt: true } } },
+    });
+
+    return {
+        submissionId: submission.id,
+        task: { weekId: task.weekId, week: task.week, rubricFields: task.rubricFields },
+        taskGrade: submission.taskGrade,
+    };
+}
+
 // ------------------------------------------------------------------
 // 1. saveDraftGrade
 // ------------------------------------------------------------------
 export async function saveDraftGrade(
     input: SaveDraftGradeInput
 ): Promise<DraftGradeResult> {
-    const submission = await prisma.submission.findUnique({
-        where: { id: input.submissionId },
-        include: {
-            task: {
-                select: {
-                    id: true,
-                    weekId: true,
-                    week: { select: { groupId: true } },
-                    rubricFields: { select: { id: true, maxPoints: true } },
-                },
-            },
-            taskGrade: { select: { finalizedAt: true } },
-        },
-    });
+    const resolved = await resolveSubmissionForGrading(input);
+    const { submissionId, task, taskGrade } = resolved;
 
-    if (!submission || !submission.task.weekId || !submission.task.week) {
-        throw new Error(
-            "Submission not found or does not belong to a BEGINNER Task."
-        );
-    }
+    await assertInstructorAssignedToGroup(input.gradedBy, task.week!.groupId);
 
-    await assertInstructorAssignedToGroup(
-        input.gradedBy,
-        submission.task.week.groupId
-    );
-
-    if (submission.taskGrade?.finalizedAt) {
+    if (taskGrade?.finalizedAt) {
         throw new Error(
             "This student's Week has already been finalized. Grading can no longer be changed here - use a manual correction instead."
         );
@@ -112,7 +182,7 @@ export async function saveDraftGrade(
 
     if (!input.markedInvalid) {
         const fieldsById = new Map(
-            submission.task.rubricFields.map((f) => [f.id, f.maxPoints])
+            task.rubricFields.map((f) => [f.id, f.maxPoints])
         );
 
         for (const score of input.fieldScores) {
@@ -136,7 +206,7 @@ export async function saveDraftGrade(
         const providedIds = new Set(
             input.fieldScores.map((s) => s.rubricFieldId)
         );
-        for (const field of submission.task.rubricFields) {
+        for (const field of task.rubricFields) {
             if (!providedIds.has(field.id)) {
                 throw new Error(
                     `Missing a score for rubric field ${field.id}. All rubric fields must be scored (0 is allowed).`
@@ -145,11 +215,11 @@ export async function saveDraftGrade(
         }
     }
 
-    const taskGrade = await prisma.$transaction(async (tx) => {
+    const taskGradeRow = await prisma.$transaction(async (tx) => {
         const grade = await tx.taskGrade.upsert({
-            where: { submissionId: input.submissionId },
+            where: { submissionId },
             create: {
-                submissionId: input.submissionId,
+                submissionId,
                 gradedBy: input.gradedBy,
                 markedInvalid: input.markedInvalid,
             },
@@ -177,8 +247,8 @@ export async function saveDraftGrade(
     });
 
     return {
-        id: taskGrade.id,
-        submissionId: input.submissionId,
+        id: taskGradeRow.id,
+        submissionId,
         gradedBy: input.gradedBy,
         finalizedAt: null,
         fieldScores: input.markedInvalid ? [] : input.fieldScores,
