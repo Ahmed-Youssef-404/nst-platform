@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+    Calendar,
     CalendarCheck,
     Coins,
     History,
@@ -28,45 +29,53 @@ import {
 import { LogoutButton } from "@/components/logout-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-const NAV_ITEMS = [
-    {
-        href: "/student",
-        label: "My Sessions",
-        icon: CalendarCheck,
-        description: "Active level & sessions",
-    },
-    {
-        href: "/student/ranking",
-        label: "Ranking",
-        icon: Trophy,
-        description: "Group leaderboard & podium",
-    },
-    {
-        href: "/student/levels",
-        label: "Level History",
-        icon: History,
-        description: "Past levels & archives",
-    },
-    {
-        href: "/student/st-history",
-        label: "ST History",
-        icon: Coins,
-        description: "Star Tokens & transactions",
-    },
-    {
-        href: "/student/feedback",
-        label: "Send Feedback",
-        icon: MessageSquareWarning,
-        description: "Share your voice with team",
-    },
-];
-
 export function StudentSidebar({
     studentName,
+    groupType = "INTERMEDIATE",
 }: {
     studentName: string;
+    groupType?: "BEGINNER" | "INTERMEDIATE";
 }) {
     const pathname = usePathname();
+
+    const isBeginner = groupType === "BEGINNER";
+
+    const navItems = [
+        {
+            href: "/student",
+            label: isBeginner ? "My Weeks" : "My Sessions",
+            icon: isBeginner ? Calendar : CalendarCheck,
+            description: isBeginner ? "Weekly modules & tasks" : "Active level & sessions",
+        },
+        {
+            href: "/student/ranking",
+            label: "Ranking",
+            icon: Trophy,
+            description: "Group leaderboard & podium",
+        },
+        ...(isBeginner
+            ? []
+            : [
+                  {
+                      href: "/student/levels",
+                      label: "Level History",
+                      icon: History,
+                      description: "Past levels & archives",
+                  },
+              ]),
+        {
+            href: "/student/st-history",
+            label: "ST History",
+            icon: Coins,
+            description: "Star Tokens & transactions",
+        },
+        {
+            href: "/student/feedback",
+            label: "Send Feedback",
+            icon: MessageSquareWarning,
+            description: "Share your voice with team",
+        },
+    ];
 
     const initials = studentName
         .trim()
@@ -111,7 +120,7 @@ export function StudentSidebar({
                 </div>
 
                 <SidebarMenu className="gap-1.5">
-                    {NAV_ITEMS.map((item) => {
+                    {navItems.map((item) => {
                         const isActive =
                             item.href === "/student"
                                 ? pathname === "/student"

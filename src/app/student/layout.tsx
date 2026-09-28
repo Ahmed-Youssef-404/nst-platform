@@ -7,7 +7,7 @@
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { getCurrentStudentId } from "@/lib/auth/get-current-user";
-import { getStudentName } from "@/lib/data/get-student-name";
+import { getStudentProfile } from "@/lib/data/get-student-name";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { StudentSidebar } from "@/components/student-sidebar";
 import { StudentTopBar } from "./student-top-bar";
@@ -26,12 +26,12 @@ export default async function StudentLayout({
         redirect("/login");
     }
 
-    const name = await getStudentName(studentId);
+    const profile = await getStudentProfile(studentId);
 
     return (
         <SidebarProvider defaultOpen={true}>
             <div className="flex min-h-screen w-full bg-space-950 text-starlight-100 selection:bg-gold-500/25 selection:text-gold-300">
-                <StudentSidebar studentName={name} />
+                <StudentSidebar studentName={profile.name} groupType={profile.groupType} />
                 <SidebarInset className="flex flex-col min-w-0 bg-transparent relative">
                     <StarsBackground />
 

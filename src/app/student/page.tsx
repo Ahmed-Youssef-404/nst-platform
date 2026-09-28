@@ -1,17 +1,18 @@
-// src/app/student/page.tsx
-// Server Component - the "My Sessions" List page
-
 import { redirect } from "next/navigation";
 import { Info } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { getCurrentStudentId } from "@/lib/auth/get-current-user";
 import { reconcileStudentST } from "@/lib/st-economy/reconcile";
+import { getStudentProfile } from "@/lib/data/get-student-name";
 import { getStudentLevel } from "@/lib/data/get-student-level";
+import { getStudentWeeks } from "@/lib/data/get-student-weeks";
 import { SessionListView } from "./session-list-view";
+import { StudentWeekListView } from "./student-week-list-view";
 
 const REDIRECT_MESSAGES: Record<string, string> = {
     "session-not-started": "That session hasn't started yet. Please check back when it's live.",
     "session-not-found": "That session isn't available or does not belong to your group.",
+    "week-not-started": "That training week hasn't started yet. Please check back when it's live.",
+    "week-not-found": "That training week isn't available or does not belong to your group.",
 };
 
 export default async function StudentDashboardPage({
@@ -29,7 +30,11 @@ export default async function StudentDashboardPage({
     const bannerText = message ? REDIRECT_MESSAGES[message] : undefined;
 
     await reconcileStudentST(studentId);
-    const level = await getStudentLevel(studentId);
+    const profile = await getStudentProfile(studentId);
+
+    const isBeginner = profile.groupType === "BEGINNER";
+    const beginnerWeeksData = isBeginner ? await getStudentWeeks(studentId) : null;
+    const level = !isBeginner ? await getStudentLevel(studentId) : null;
 
     return (
         <div className="space-y-6">
@@ -39,7 +44,12 @@ export default async function StudentDashboardPage({
                     <p className="text-sm font-medium">{bannerText}</p>
                 </div>
             )}
-            <SessionListView level={level} />
+
+            {isBeginner ? (
+                <StudentWeekListView data={beginnerWeeksData} />
+            ) : (
+                <SessionListView level={level} />
+            )}
         </div>
     );
 }

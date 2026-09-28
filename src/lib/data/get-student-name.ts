@@ -10,6 +10,30 @@ import { PrismaPg } from "@prisma/adapter-pg";
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
+export interface StudentProfile {
+    name: string;
+    groupType: "BEGINNER" | "INTERMEDIATE";
+}
+
+export async function getStudentProfile(studentId: string): Promise<StudentProfile> {
+    const student = await prisma.student.findUniqueOrThrow({
+        where: { id: studentId },
+        select: {
+            name: true,
+            group: {
+                select: {
+                    type: true,
+                },
+            },
+        },
+    });
+
+    return {
+        name: student.name,
+        groupType: student.group.type,
+    };
+}
+
 export async function getStudentName(studentId: string): Promise<string> {
     const student = await prisma.student.findUniqueOrThrow({
         where: { id: studentId },

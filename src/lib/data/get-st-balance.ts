@@ -19,8 +19,10 @@ export async function getStudentBalance(studentId: string) {
         select: {
             name: true,
             avgSt: true,
+            beginnerSt: true,
             group: {
                 select: {
+                    type: true,
                     levels: {
                         where: { isActive: true },
                         select: {
@@ -34,6 +36,14 @@ export async function getStudentBalance(studentId: string) {
             },
         },
     });
+
+    if (student.group.type === "BEGINNER") {
+        const beginnerSt = student.beginnerSt ?? 0;
+        return {
+            name: student.name,
+            ...getBalanceStatus(beginnerSt, student.avgSt),
+        };
+    }
 
     // A Student's Group should always have exactly one active Level, and
     // that Level should always have a LevelStBalance row for this student
