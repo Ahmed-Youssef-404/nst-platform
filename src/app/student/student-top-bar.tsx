@@ -1,15 +1,10 @@
 // src/app/student/student-top-bar.tsx
 // Async Server Component. Lives in the Student layout (not a single page)
-// so it renders as a sticky bar pinned to the top of every /student page -
-// per client request, this replaced the old STBalanceCard which only ever
-// showed on the "My Sessions" list page.
-//
-// Fetches its own data (reconcile + balance) independently of whatever
-// page is rendering below it, and is wrapped in its own <Suspense> in
-// layout.tsx so a slow balance read never blocks the page content's own
-// streaming/loading.tsx boundary, and vice versa.
+// so it renders as a sticky bar pinned to the top of every /student page.
+// Wrapped in its own <Suspense> in layout.tsx.
 
-import { Coins } from "lucide-react";
+import Link from "next/link";
+import { Coins, AlertTriangle, ShieldAlert, Sparkles, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { reconcileStudentST } from "@/lib/st-economy/reconcile";
 import { getStudentBalance } from "@/lib/data/get-st-balance";
@@ -19,65 +14,97 @@ const ZONE_STYLES: Record<
     BalanceZone,
     {
         label: string | null;
-        badgeVariant: "warning" | "destructive";
+        badgeClassName: string;
         barClassName: string;
         message: string | null;
+        icon: typeof AlertTriangle | null;
     }
 > = {
     normal: {
-        label: null,
-        badgeVariant: "warning",
-        barClassName: "border-border bg-card",
+        label: "Optimal Zone",
+        badgeClassName: "bg-emerald-500/10 text-emerald-400 border-emerald-500/25",
+        barClassName: "border-border/70 bg-space-950/80",
         message: null,
+        icon: null,
     },
     warning: {
-        label: "Warning",
-        badgeVariant: "warning",
-        barClassName: "border-warning bg-warning-bg text-warning",
-        message: "Your Level ST is running low. Keep an eye on it.",
+        label: "Low ST Warning",
+        badgeClassName: "bg-amber-500/15 text-amber-400 border-amber-500/30 animate-pulse",
+        barClassName: "border-amber-500/40 bg-amber-950/30 text-amber-200",
+        message: "Your Level ST is running low. Complete tasks or earn bonuses to replenish your balance.",
+        icon: AlertTriangle,
     },
     danger: {
-        label: "Danger Zone",
-        badgeVariant: "destructive",
-        barClassName: "border-error bg-error-bg text-error",
-        message: "Your Level ST has hit zero or below. Talk to your instructor.",
+        label: "Critical Danger Zone",
+        badgeClassName: "bg-red-500/20 text-red-400 border-red-500/40 animate-pulse",
+        barClassName: "border-red-500/50 bg-red-950/40 text-red-200",
+        message: "Your Level ST has depleted to zero or below! Contact your instructor to avoid penalties.",
+        icon: ShieldAlert,
     },
 };
 
 export async function StudentTopBar({ studentId }: { studentId: string }) {
-    // Idempotent - harmless if page.tsx below also reconciles for its own
-    // reasons. Kept here too so the balance shown in the bar is always
-    // fresh, on every Student page, not just the list page.
     await reconcileStudentST(studentId);
     const balance = await getStudentBalance(studentId);
     const zoneStyle = ZONE_STYLES[balance.zone];
 
     return (
         <div
-            className={`
-            sticky top-0 z-20 border-b px-6 py-3 
-            backdrop-blur-md bg-white/5 
-            ${zoneStyle.barClassName}
-        `}
+            className={`sticky top-0 z-30 border-b px-4 md:px-8 py-3 backdrop-blur-xl transition-all duration-300 ${zoneStyle.barClassName}`}
         >
-            <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-x-4 gap-y-1">
-                <div className="flex min-w-0 items-center gap-2">
-                    <span className="truncate text-base font-medium">
-                        {/* Welcome, {balance.name} */}
-                        {balance.name}
-                    </span>
-                    {zoneStyle.label && (
-                        <Badge variant={zoneStyle.badgeVariant}>{zoneStyle.label}</Badge>
+            <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                {/* Left: Greeting & status */}
+                <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-starlight-100 truncate">
+                            {balance.name}
+                        </span>
+                        <span className="hidden sm:inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold bg-gold-500/10 text-gold-400 border border-gold-500/20">
+                            <Sparkles className="size-2.5 text-gold-400" />
+                            Cadet
+                        </span>
+                    </div>
+
+                    {zoneStyle.label && balance.zone !== "normal" && (
+                        <div className="flex items-center gap-1.5">
+                            {zoneStyle.icon && <zoneStyle.icon className="size-3.5 shrink-0 text-amber-400" />}
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${zoneStyle.badgeClassName}`}>
+                                {zoneStyle.label}
+                            </span>
+                        </div>
                     )}
                 </div>
-                <div className="flex shrink-0 items-center gap-1.5">
-                    <Coins className="size-4 text-coin" />
-                    <span className="text-lg font-bold tabular-nums">
-                        {balance.levelSt} ST
-                    </span>
+
+                {/* Right: Star Tokens Balance */}
+                <div className="flex shrink-0 items-center gap-3">
+                    <Link
+                        href="/student/st-history"
+                        className="group flex items-center gap-2 rounded-xl bg-space-850/90 hover:bg-space-800 px-3 py-1.5 border border-gold-500/30 shadow-gold transition-all duration-200"
+                        title="View ST Transaction History"
+                    >
+                        <div className="flex size-6 items-center justify-center rounded-lg bg-gold-500/20 text-gold-400 group-hover:scale-110 transition-transform">
+                            <Coins className="size-3.5 text-gold-400" />
+                        </div>
+                        <div className="flex items-baseline gap-1.5">
+                            <span className="font-mono text-base font-bold tabular-nums text-gold-300">
+                                {balance.levelSt}
+                            </span>
+                            <span className="text-[11px] font-semibold tracking-wider text-gold-400 uppercase">
+                                ST
+                            </span>
+                        </div>
+                        <ChevronRight className="size-3.5 text-starlight-400 group-hover:text-gold-300 transition-colors" />
+                    </Link>
                 </div>
+
+                {/* Warning / Danger Message */}
                 {zoneStyle.message && (
-                    <p className="w-full text-xs">{zoneStyle.message}</p>
+                    <div className="w-full pt-1">
+                        <div className="flex items-center gap-2 rounded-lg bg-space-950/60 px-3 py-1.5 text-xs border border-current/20">
+                            {zoneStyle.icon && <zoneStyle.icon className="size-3.5 shrink-0" />}
+                            <p className="font-medium">{zoneStyle.message}</p>
+                        </div>
+                    </div>
                 )}
             </div>
         </div>

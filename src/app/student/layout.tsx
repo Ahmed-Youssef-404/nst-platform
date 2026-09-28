@@ -1,16 +1,8 @@
 // src/app/student/layout.tsx
 // Server Component. Wraps every /student page with the dashboard shell:
-//   Sidebar   - platform name/trigger, "My Sessions" nav, avatar+name+logout
-//   Top bar   - sticky "Welcome, {name}" + ST balance, pinned above every
-//               page's content (see student-top-bar.tsx) - client wants
-//               this visible everywhere, not just the list page
-//   Inset     - the actual page content (each page still owns its own
-//               data fetching beyond the top bar; the layout only needs
-//               the student's name for the sidebar footer)
-//
-// Middleware already guards /student for the "student" role, but this is
-// a server component so it verifies directly rather than trusting that
-// alone (same pattern as page.tsx).
+//   Sidebar   - platform brand, student navigation, avatar + logout
+//   Top bar   - sticky name + ST balance pinned above every page
+//   Inset     - the page content with space theme and full responsiveness
 
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
@@ -21,6 +13,7 @@ import { StudentSidebar } from "@/components/student-sidebar";
 import { StudentTopBar } from "./student-top-bar";
 import { StudentTopBarSkeleton } from "./student-top-bar-skeleton";
 import StarsBackground from "@/components/StarsBackground";
+import { Sparkles } from "lucide-react";
 
 export default async function StudentLayout({
     children,
@@ -36,24 +29,34 @@ export default async function StudentLayout({
     const name = await getStudentName(studentId);
 
     return (
-        <SidebarProvider>
-            <StudentSidebar studentName={name} />
-            <SidebarInset>
-                {/* backdrop-blur-md bg-white/5  */}
-                <header className="flex items-center gap-2 border-b border-border px-4 py-3 md:hidden">
-                    <SidebarTrigger />
-                    <span className="font-display text-sm font-semibold">
-                        NST Platform
-                    </span>
-                </header>
-                <Suspense fallback={<StudentTopBarSkeleton />}>
-                    <StudentTopBar studentId={studentId} />
-                </Suspense>
-                <StarsBackground /> 
-                <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-10 relative z-10">
-                    {children}
-                </main>
-            </SidebarInset>
+        <SidebarProvider defaultOpen={true}>
+            <div className="flex min-h-screen w-full bg-space-950 text-starlight-100 selection:bg-gold-500/25 selection:text-gold-300">
+                <StudentSidebar studentName={name} />
+                <SidebarInset className="flex flex-col min-w-0 bg-transparent relative">
+                    <StarsBackground />
+
+                    {/* Mobile Header Bar */}
+                    <header className="flex md:hidden items-center justify-between border-b border-border/70 bg-space-950/90 px-4 py-3 sticky top-0 z-40 backdrop-blur-md">
+                        <div className="flex items-center gap-2.5">
+                            <SidebarTrigger className="text-starlight-300 hover:text-starlight-100 p-1.5 rounded-lg" />
+                            <div className="flex items-center gap-1.5">
+                                <Sparkles className="size-4 text-gold-400" />
+                                <span className="font-display text-sm font-bold tracking-tight text-starlight-100">
+                                    NST Platform
+                                </span>
+                            </div>
+                        </div>
+                    </header>
+
+                    <Suspense fallback={<StudentTopBarSkeleton />}>
+                        <StudentTopBar studentId={studentId} />
+                    </Suspense>
+
+                    <main className="flex-1 w-full relative z-10 px-4 py-8 md:px-8 max-w-7xl mx-auto animate-fade-in">
+                        {children}
+                    </main>
+                </SidebarInset>
+            </div>
         </SidebarProvider>
     );
 }

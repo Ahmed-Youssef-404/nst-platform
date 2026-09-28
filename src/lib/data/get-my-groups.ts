@@ -26,6 +26,18 @@ export function computeSessionStatus(
     return "completed";
 }
 
+export type WeekStatus = "upcoming" | "ongoing" | "ended";
+
+export function computeWeekStatus(
+    startDate: Date,
+    endDate: Date,
+    now: Date = new Date()
+): WeekStatus {
+    if (now < startDate) return "upcoming";
+    if (now <= endDate) return "ongoing";
+    return "ended";
+}
+
 export interface InstructorSessionSummary {
     id: string;
     title: string;
@@ -44,11 +56,24 @@ export interface InstructorLevelSummary {
     sessions: InstructorSessionSummary[];
 }
 
+export interface InstructorWeekSummary {
+    id: string;
+    name: string;
+    startDate: Date;
+    endDate: Date;
+    playlistUrl: string;
+    requiredFileLabel: string;
+    status: WeekStatus;
+    taskCount: number;
+}
+
 export interface InstructorGroupSummary {
     id: string;
     name: string;
     batchName: string;
+    type: "BEGINNER" | "INTERMEDIATE";
     activeLevel: InstructorLevelSummary | null;
+    weeks: InstructorWeekSummary[];
 }
 
 export async function getMyGroups(
@@ -70,6 +95,12 @@ export async function getMyGroups(
                             },
                         },
                     },
+                    weeks: {
+                        orderBy: { startDate: "asc" },
+                        include: {
+                            _count: { select: { tasks: true } },
+                        },
+                    },
                 },
             },
         },
@@ -81,10 +112,22 @@ export async function getMyGroups(
     return instructorGroups.map(({ group }) => {
         const activeLevel = group.levels[0] ?? null;
 
+        const weeks: InstructorWeekSummary[] = (group.weeks ?? []).map((week) => ({
+            id: week.id,
+            name: week.name,
+            startDate: week.startDate,
+            endDate: week.endDate,
+            playlistUrl: week.playlistUrl,
+            requiredFileLabel: week.requiredFileLabel,
+            status: computeWeekStatus(week.startDate, week.endDate, now),
+            taskCount: week._count.tasks,
+        }));
+
         return {
             id: group.id,
             name: group.name,
             batchName: group.batch.name,
+            type: group.type,
             activeLevel: activeLevel
                 ? {
                     id: activeLevel.id,
@@ -106,6 +149,7 @@ export async function getMyGroups(
                     })),
                 }
                 : null,
+            weeks,
         };
     });
 }

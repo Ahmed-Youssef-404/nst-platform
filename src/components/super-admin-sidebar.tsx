@@ -1,15 +1,15 @@
-// src/components/student-sidebar.tsx
+// src/components/super-admin-sidebar.tsx
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-    CalendarCheck,
-    Coins,
-    History,
-    MessageSquareWarning,
-    Trophy,
+    Users,
+    Layers,
     Sparkles,
+    Shield,
+    Crown,
+    GraduationCap,
 } from "lucide-react";
 import {
     Sidebar,
@@ -30,50 +30,44 @@ import { ThemeToggle } from "@/components/theme-toggle";
 
 const NAV_ITEMS = [
     {
-        href: "/student",
-        label: "My Sessions",
-        icon: CalendarCheck,
-        description: "Active level & sessions",
+        href: "/super-admin",
+        label: "Overview & Users",
+        icon: Users,
+        description: "Dashboard, students & instructors",
+        exact: true,
     },
     {
-        href: "/student/ranking",
-        label: "Ranking",
-        icon: Trophy,
-        description: "Group leaderboard & podium",
+        href: "/super-admin/batches",
+        label: "Batches & Groups",
+        icon: Layers,
+        description: "Cohorts, tracks & assignments",
+        exact: false,
     },
     {
-        href: "/student/levels",
-        label: "Level History",
-        icon: History,
-        description: "Past levels & archives",
-    },
-    {
-        href: "/student/st-history",
-        label: "ST History",
-        icon: Coins,
-        description: "Star Tokens & transactions",
-    },
-    {
-        href: "/student/feedback",
-        label: "Send Feedback",
-        icon: MessageSquareWarning,
-        description: "Share your voice with team",
+        href: "/super-admin/levels",
+        label: "Levels & Progression",
+        icon: Sparkles,
+        description: "Active levels per group",
+        exact: false,
     },
 ];
 
-export function StudentSidebar({
-    studentName,
+export function SuperAdminSidebar({
+    adminName,
+    adminEmail,
 }: {
-    studentName: string;
+    adminName: string;
+    adminEmail: string;
 }) {
     const pathname = usePathname();
 
-    const initials = studentName
-        .trim()
-        .split(/\s+/)
-        .slice(0, 2)
-        .map((part) => part[0]?.toUpperCase())
-        .join("") || "ST";
+    const initials =
+        adminName
+            .trim()
+            .split(/\s+/)
+            .slice(0, 2)
+            .map((part) => part[0]?.toUpperCase())
+            .join("") || "SA";
 
     return (
         <Sidebar
@@ -84,18 +78,18 @@ export function StudentSidebar({
             <SidebarHeader className="border-b border-border/70 p-3.5">
                 <div className="flex items-center justify-between gap-2.5 group-data-[collapsible=icon]:justify-center">
                     <Link
-                        href="/student"
+                        href="/super-admin"
                         className="flex items-center gap-2.5 truncate group-data-[collapsible=icon]:hidden focus:outline-hidden"
                     >
                         <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-gold-400/25 via-gold-500/15 to-transparent border border-gold-500/30 shadow-gold">
-                            <Sparkles className="size-4 text-gold-400 animate-pulse" />
+                            <Crown className="size-4 text-gold-400 animate-pulse" />
                         </div>
                         <div className="min-w-0">
                             <span className="truncate font-display text-sm font-bold tracking-tight text-starlight-100 block">
                                 NST Platform
                             </span>
                             <span className="text-[10px] text-gold-400 font-semibold tracking-wider uppercase block -mt-0.5">
-                                Student Space
+                                Super Admin Suite
                             </span>
                         </div>
                     </Link>
@@ -104,18 +98,17 @@ export function StudentSidebar({
                 </div>
             </SidebarHeader>
 
-            {/* Navigation */}
+            {/* Navigation Content */}
             <SidebarContent className="px-3 py-4">
                 <div className="px-2 pb-2 text-[10px] font-bold uppercase tracking-widest text-starlight-400/80 group-data-[collapsible=icon]:hidden">
-                    Learning Path
+                    Command Menu
                 </div>
 
                 <SidebarMenu className="gap-1.5">
                     {NAV_ITEMS.map((item) => {
-                        const isActive =
-                            item.href === "/student"
-                                ? pathname === "/student"
-                                : pathname.startsWith(item.href);
+                        const isActive = item.exact
+                            ? pathname === item.href
+                            : pathname.startsWith(item.href);
 
                         return (
                             <SidebarMenuItem key={item.href}>
@@ -167,12 +160,13 @@ export function StudentSidebar({
                         </Avatar>
 
                         <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-                            <p className="truncate text-xs font-semibold text-starlight-100">
-                                {studentName}
+                            <p className="truncate text-xs font-semibold text-starlight-100 flex items-center gap-1">
+                                {adminName}
+                                <Shield className="size-2.5 text-gold-400 inline" />
                             </p>
-                            <span className="inline-flex items-center gap-1 text-[10px] text-gold-400/90 font-mono">
-                                Student Cadet
-                            </span>
+                            <p className="truncate text-[10px] text-starlight-400 font-mono">
+                                {adminEmail}
+                            </p>
                         </div>
                     </div>
 

@@ -1,15 +1,14 @@
-// src/components/student-sidebar.tsx
+// src/components/instructor-sidebar.tsx
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-    CalendarCheck,
-    Coins,
-    History,
-    MessageSquareWarning,
-    Trophy,
+    Compass,
     Sparkles,
+    CalendarCheck,
+    GraduationCap,
+    BookOpen,
 } from "lucide-react";
 import {
     Sidebar,
@@ -30,50 +29,29 @@ import { ThemeToggle } from "@/components/theme-toggle";
 
 const NAV_ITEMS = [
     {
-        href: "/student",
-        label: "My Sessions",
-        icon: CalendarCheck,
-        description: "Active level & sessions",
-    },
-    {
-        href: "/student/ranking",
-        label: "Ranking",
-        icon: Trophy,
-        description: "Group leaderboard & podium",
-    },
-    {
-        href: "/student/levels",
-        label: "Level History",
-        icon: History,
-        description: "Past levels & archives",
-    },
-    {
-        href: "/student/st-history",
-        label: "ST History",
-        icon: Coins,
-        description: "Star Tokens & transactions",
-    },
-    {
-        href: "/student/feedback",
-        label: "Send Feedback",
-        icon: MessageSquareWarning,
-        description: "Share your voice with team",
+        href: "/instructor",
+        label: "Groups & Tracks",
+        icon: Compass,
+        description: "Dashboard & assigned tracks",
     },
 ];
 
-export function StudentSidebar({
-    studentName,
+export function InstructorSidebar({
+    instructorName,
+    instructorEmail,
 }: {
-    studentName: string;
+    instructorName: string;
+    instructorEmail: string;
 }) {
     const pathname = usePathname();
 
-    const initials = studentName
-        .trim()
-        .split(/\s+/)
-        .slice(0, 2)
-        .map((part) => part[0]?.toUpperCase())
-        .join("") || "ST";
+    const initials =
+        instructorName
+            .trim()
+            .split(/\s+/)
+            .slice(0, 2)
+            .map((part) => part[0]?.toUpperCase())
+            .join("") || "IN";
 
     return (
         <Sidebar
@@ -84,7 +62,7 @@ export function StudentSidebar({
             <SidebarHeader className="border-b border-border/70 p-3.5">
                 <div className="flex items-center justify-between gap-2.5 group-data-[collapsible=icon]:justify-center">
                     <Link
-                        href="/student"
+                        href="/instructor"
                         className="flex items-center gap-2.5 truncate group-data-[collapsible=icon]:hidden focus:outline-hidden"
                     >
                         <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-gold-400/25 via-gold-500/15 to-transparent border border-gold-500/30 shadow-gold">
@@ -95,7 +73,7 @@ export function StudentSidebar({
                                 NST Platform
                             </span>
                             <span className="text-[10px] text-gold-400 font-semibold tracking-wider uppercase block -mt-0.5">
-                                Student Space
+                                Instructor Suite
                             </span>
                         </div>
                     </Link>
@@ -104,18 +82,15 @@ export function StudentSidebar({
                 </div>
             </SidebarHeader>
 
-            {/* Navigation */}
+            {/* Navigation Content */}
             <SidebarContent className="px-3 py-4">
                 <div className="px-2 pb-2 text-[10px] font-bold uppercase tracking-widest text-starlight-400/80 group-data-[collapsible=icon]:hidden">
-                    Learning Path
+                    Main Navigation
                 </div>
 
                 <SidebarMenu className="gap-1.5">
                     {NAV_ITEMS.map((item) => {
-                        const isActive =
-                            item.href === "/student"
-                                ? pathname === "/student"
-                                : pathname.startsWith(item.href);
+                        const isActive = pathname === item.href;
 
                         return (
                             <SidebarMenuItem key={item.href}>
@@ -168,11 +143,11 @@ export function StudentSidebar({
 
                         <div className="min-w-0 group-data-[collapsible=icon]:hidden">
                             <p className="truncate text-xs font-semibold text-starlight-100">
-                                {studentName}
+                                {instructorName}
                             </p>
-                            <span className="inline-flex items-center gap-1 text-[10px] text-gold-400/90 font-mono">
-                                Student Cadet
-                            </span>
+                            <p className="truncate text-[10px] text-starlight-400 font-mono">
+                                {instructorEmail}
+                            </p>
                         </div>
                     </div>
 

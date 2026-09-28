@@ -29,6 +29,7 @@ export async function createGroup(input: CreateGroupInput) {
         data: {
             name,
             batchId: input.batchId,
+            type: input.type ?? "INTERMEDIATE",
         },
     });
 

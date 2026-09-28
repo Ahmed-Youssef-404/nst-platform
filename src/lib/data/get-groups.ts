@@ -12,6 +12,7 @@ export interface GroupOption {
     id: string;
     name: string;
     batchName: string;
+    type?: "BEGINNER" | "INTERMEDIATE";
 }
 
 export async function getGroups(): Promise<GroupOption[]> {
@@ -24,5 +25,6 @@ export async function getGroups(): Promise<GroupOption[]> {
         id: group.id,
         name: group.name,
         batchName: group.batch.name,
+        type: group.type,
     }));
 }
