@@ -38,6 +38,7 @@ export interface GroupWithInstructors {
     batchId: string;
     studentCount: number;
     instructors: InstructorOption[];
+    type?: "BEGINNER" | "INTERMEDIATE";
 }
 
 export interface BatchWithGroups {
@@ -58,6 +59,7 @@ export interface UpdateBatchInput {
 export interface CreateGroupInput {
     name: string;
     batchId: string; // fixed at creation time, never changes afterwards
+    type?: "BEGINNER" | "INTERMEDIATE";
 }
 
 export interface UpdateGroupInput {
@@ -325,6 +327,7 @@ export interface GroupWithActiveLevel {
     name: string;
     batchId: string;
     activeLevel: LevelSummary | null;
+    type?: "BEGINNER" | "INTERMEDIATE";
 }
 
 export interface BatchWithGroupsAndLevels {

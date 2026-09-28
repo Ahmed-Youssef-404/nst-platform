@@ -1,9 +1,9 @@
 // src/app/super-admin/page.tsx
-import { UserManagementForm } from "@/app/super-admin/user-management-form";
-import { getGroups } from "@/lib/data/get-groups";
+import { getSuperAdminOverview } from "@/lib/data/get-super-admin-overview";
+import { SuperAdminOverviewView } from "@/app/super-admin/super-admin-overview-view";
 
 export default async function SuperAdminPage() {
-    const groups = await getGroups();
+    const overviewData = await getSuperAdminOverview();
 
-    return <UserManagementForm groups={groups} />;
+    return <SuperAdminOverviewView data={overviewData} />;
 }

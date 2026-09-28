@@ -40,6 +40,7 @@ export async function getBatchesWithLevels(): Promise<BatchWithGroupsAndLevels[]
                 id: group.id,
                 name: group.name,
                 batchId: group.batchId,
+                type: group.type,
                 activeLevel: activeLevel
                     ? {
                         id: activeLevel.id,

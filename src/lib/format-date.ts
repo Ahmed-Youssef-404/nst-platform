@@ -15,3 +15,10 @@ export function formatDateTime(date: Date): string {
         hour12: true
     });
 }
+
+export function formatDate(date: Date): string {
+    return date.toLocaleDateString(APP_LOCALE, {
+        dateStyle: "medium",
+        timeZone: APP_TIMEZONE,
+    });
+}

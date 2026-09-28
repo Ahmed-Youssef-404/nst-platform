@@ -34,6 +34,7 @@ export async function getBatches(): Promise<BatchWithGroups[]> {
             id: group.id,
             name: group.name,
             batchId: group.batchId,
+            type: group.type,
             studentCount: group._count.students,
             instructors: group.instructorGroups.map((ig) => ({
                 id: ig.instructor.id,

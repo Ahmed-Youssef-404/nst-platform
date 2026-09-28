@@ -1,11 +1,30 @@
 // src/app/super-admin/batches/batch-management-view.tsx
 "use client";
 
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useMemo } from "react";
+import {
+    Layers,
+    Plus,
+    Users,
+    GraduationCap,
+    Edit3,
+    Check,
+    X,
+    Trash2,
+    Sparkles,
+    Search,
+    BookOpen,
+    Compass,
+    UserPlus,
+    UserMinus,
+    AlertCircle,
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
     createBatchAction,
     updateBatchAction,
@@ -23,17 +42,129 @@ export function BatchManagementView({
     batches: BatchWithGroups[];
     instructors: InstructorOption[];
 }) {
-    return (
-        <div className="w-full max-w-none space-y-6">
-            <CreateBatchCard />
+    const [searchQuery, setSearchQuery] = useState("");
+    const [showCreateBatch, setShowCreateBatch] = useState(false);
 
-            {batches.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                    No batches yet. Create one above to get started.
-                </p>
+    // Filtered batches
+    const filteredBatches = useMemo(() => {
+        if (!searchQuery.trim()) return batches;
+        const q = searchQuery.toLowerCase();
+        return batches.filter(
+            (b) =>
+                b.name.toLowerCase().includes(q) ||
+                b.groups.some((g) => g.name.toLowerCase().includes(q))
+        );
+    }, [batches, searchQuery]);
+
+    const totalGroups = batches.reduce((acc, b) => acc + b.groups.length, 0);
+    const totalStudents = batches.reduce(
+        (acc, b) => acc + b.groups.reduce((gAcc, g) => gAcc + g.studentCount, 0),
+        0
+    );
+
+    return (
+        <div className="space-y-8 animate-fade-in pb-12">
+            {/* Header & Quick Stats */}
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-border/70 pb-6">
+                <div>
+                    <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gold-500/10 text-gold-400 border border-gold-500/25">
+                            <Layers className="size-3.5 text-gold-400" />
+                            <span>Academic Cohorts</span>
+                        </span>
+                    </div>
+                    <h1 className="font-display text-3xl font-extrabold tracking-tight text-starlight-100 mt-2">
+                        Batches & Groups Management
+                    </h1>
+                    <p className="mt-1 text-sm text-starlight-300">
+                        Create cohorts, organize learning groups into Intermediate or Beginner tracks, and assign instructors.
+                    </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                    <Button
+                        size="sm"
+                        onClick={() => setShowCreateBatch(!showCreateBatch)}
+                        className="bg-gold-500 text-space-950 hover:bg-gold-400 font-semibold shadow-gold"
+                    >
+                        <Plus className="size-4 mr-1.5" />
+                        <span>{showCreateBatch ? "Close Form" : "New Batch"}</span>
+                    </Button>
+                </div>
+            </div>
+
+            {/* Quick Metrics Bar */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="rounded-2xl border border-border/80 bg-space-900/70 p-4 backdrop-blur-md">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-starlight-400">
+                        Total Cohorts
+                    </span>
+                    <p className="font-display text-2xl font-bold text-starlight-100 mt-1">
+                        {batches.length} <span className="text-xs font-normal text-starlight-400">Batches</span>
+                    </p>
+                </div>
+                <div className="rounded-2xl border border-border/80 bg-space-900/70 p-4 backdrop-blur-md">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-starlight-400">
+                        Total Groups
+                    </span>
+                    <p className="font-display text-2xl font-bold text-starlight-100 mt-1">
+                        {totalGroups} <span className="text-xs font-normal text-starlight-400">Active Groups</span>
+                    </p>
+                </div>
+                <div className="rounded-2xl border border-border/80 bg-space-900/70 p-4 backdrop-blur-md">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-starlight-400">
+                        Total Enrolled
+                    </span>
+                    <p className="font-display text-2xl font-bold text-starlight-100 mt-1">
+                        {totalStudents} <span className="text-xs font-normal text-starlight-400">Students across cohorts</span>
+                    </p>
+                </div>
+            </div>
+
+            {/* CREATE BATCH DRAWER / CARD */}
+            {showCreateBatch && (
+                <div className="animate-slide-down">
+                    <CreateBatchCard onCreated={() => setShowCreateBatch(false)} />
+                </div>
+            )}
+
+            {/* Search Filter */}
+            <div className="relative max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-starlight-400" />
+                <Input
+                    placeholder="Search batches or groups by name..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 bg-space-900/60 border-border/80 text-starlight-100 placeholder:text-starlight-400 focus-visible:border-gold-500/50"
+                />
+            </div>
+
+            {/* BATCHES LIST */}
+            {filteredBatches.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/80 bg-space-900/50 p-12 text-center backdrop-blur-md">
+                    <Layers className="size-10 text-starlight-400/60 mb-3" />
+                    <h3 className="font-display text-base font-bold text-starlight-200">
+                        No Batches Found
+                    </h3>
+                    <p className="mt-1 text-xs text-starlight-400 max-w-sm">
+                        {batches.length === 0
+                            ? "No academic cohorts have been initialized yet. Click New Batch to create the first one."
+                            : "No batches match your search criteria. Try clearing the search."}
+                    </p>
+                    {batches.length === 0 && (
+                        <Button
+                            size="sm"
+                            onClick={() => setShowCreateBatch(true)}
+                            className="mt-4 bg-gold-500 text-space-950 font-semibold"
+                        >
+                            <Plus className="size-4 mr-1.5" />
+                            Create First Batch
+                        </Button>
+                    )}
+                </div>
             ) : (
-                <div className="space-y-4">
-                    {batches.map((batch) => (
+                <div className="space-y-6">
+                    {filteredBatches.map((batch) => (
                         <BatchCard
                             key={batch.id}
                             batch={batch}
@@ -47,10 +178,10 @@ export function BatchManagementView({
 }
 
 // ============================================
-// CREATE BATCH
+// CREATE BATCH CARD
 // ============================================
 
-function CreateBatchCard() {
+function CreateBatchCard({ onCreated }: { onCreated?: () => void }) {
     const [name, setName] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -60,46 +191,84 @@ function CreateBatchCard() {
         setError(null);
         setIsSubmitting(true);
 
-        const result = await createBatchAction({ name });
+        const result = await createBatchAction({ name: name.trim() });
 
         if (result.success) {
             setName("");
+            onCreated?.();
         } else {
-            setError(result.error ?? "Something went wrong. Please try again.");
+            setError(result.error ?? "Failed to create batch.");
         }
 
         setIsSubmitting(false);
     }
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Create Batch</CardTitle>
+        <Card className="border-gold-500/30 bg-space-900/80 backdrop-blur-md shadow-gold">
+            <CardHeader className="border-b border-border/70 pb-3">
+                <div className="flex items-center gap-2">
+                    <div className="size-7 rounded-lg bg-gold-500/10 text-gold-400 flex items-center justify-center border border-gold-500/25">
+                        <Plus className="size-4" />
+                    </div>
+                    <div>
+                        <CardTitle className="font-display text-base text-starlight-100">
+                            Create New Academic Batch
+                        </CardTitle>
+                        <CardDescription className="text-xs text-starlight-400">
+                            A batch groups students and cohorts by graduation year or session cycle (e.g. &quot;Batch 2026&quot;).
+                        </CardDescription>
+                    </div>
+                </div>
             </CardHeader>
-            <CardContent>
-                <form onSubmit={handleSubmit} className="flex items-end gap-3">
-                    <div className="flex-1 space-y-2">
-                        <Label htmlFor="new-batch-name">Batch name</Label>
+            <CardContent className="pt-4">
+                <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row items-end gap-3">
+                    <div className="flex-1 w-full space-y-1.5">
+                        <Label htmlFor="new-batch-name" className="text-xs text-starlight-300">
+                            Batch Name
+                        </Label>
                         <Input
                             id="new-batch-name"
                             type="text"
+                            placeholder="e.g. Batch 2026 - Spring"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             required
+                            autoFocus
+                            className="bg-space-950/80 border-border/80 text-starlight-100 focus-visible:border-gold-500/50"
                         />
                     </div>
-                    <Button type="submit" disabled={isSubmitting}>
-                        {isSubmitting ? "Creating..." : "Create"}
-                    </Button>
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <Button
+                            type="submit"
+                            disabled={isSubmitting}
+                            className="flex-1 sm:flex-initial bg-gold-500 text-space-950 hover:bg-gold-400 font-semibold shadow-gold h-10 px-5"
+                        >
+                            {isSubmitting ? "Creating..." : "Create Batch"}
+                        </Button>
+                        {onCreated && (
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                onClick={onCreated}
+                                className="text-starlight-400 hover:text-starlight-200"
+                            >
+                                Cancel
+                            </Button>
+                        )}
+                    </div>
                 </form>
-                {error && <p className="mt-2 text-sm text-error">{error}</p>}
+                {error && (
+                    <p className="mt-2 text-xs text-error-400 bg-error-500/10 border border-error-500/20 p-2 rounded-lg">
+                        {error}
+                    </p>
+                )}
             </CardContent>
         </Card>
     );
 }
 
 // ============================================
-// BATCH CARD (with its Groups)
+// BATCH CARD (with Groups)
 // ============================================
 
 function BatchCard({
@@ -112,9 +281,15 @@ function BatchCard({
     const [isEditingName, setIsEditingName] = useState(false);
     const [isAddingGroup, setIsAddingGroup] = useState(false);
 
+    const totalBatchStudents = batch.groups.reduce(
+        (acc, g) => acc + g.studentCount,
+        0
+    );
+
     return (
-        <Card>
-            <CardHeader className="flex-row items-center justify-between space-y-0">
+        <Card className="border-border/80 bg-space-900/70 backdrop-blur-md shadow-2 hover:border-border transition-all">
+            {/* Batch Header */}
+            <CardHeader className="border-b border-border/70 p-5 flex-col sm:flex-row sm:items-center sm:justify-between gap-3 space-y-0">
                 {isEditingName ? (
                     <BatchNameEditor
                         batchId={batch.id}
@@ -122,23 +297,68 @@ function BatchCard({
                         onDone={() => setIsEditingName(false)}
                     />
                 ) : (
-                    <>
-                        <CardTitle>{batch.name}</CardTitle>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setIsEditingName(true)}
-                        >
-                            Rename
-                        </Button>
-                    </>
+                    <div className="flex items-center justify-between sm:justify-start gap-3 w-full sm:w-auto">
+                        <div className="flex items-center gap-2.5">
+                            <div className="size-8 rounded-xl bg-space-850 border border-gold-500/30 text-gold-400 flex items-center justify-center shadow-xs">
+                                <Layers className="size-4" />
+                            </div>
+                            <div>
+                                <h3 className="font-display text-lg font-bold text-starlight-100 flex items-center gap-2">
+                                    <span>{batch.name}</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsEditingName(true)}
+                                        className="text-starlight-400 hover:text-gold-400 transition-colors"
+                                        title="Rename Batch"
+                                    >
+                                        <Edit3 className="size-3.5" />
+                                    </button>
+                                </h3>
+                                <div className="flex items-center gap-2 mt-0.5 text-xs text-starlight-400">
+                                    <span>{batch.groups.length} Groups</span>
+                                    <span>•</span>
+                                    <span>{totalBatchStudents} Enrolled Students</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 )}
+
+                <div className="flex items-center gap-2 self-end sm:self-auto">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsAddingGroup(!isAddingGroup)}
+                        className="text-xs border-gold-500/30 text-gold-300 hover:bg-gold-500/10 h-8"
+                    >
+                        <Plus className="size-3.5 mr-1" />
+                        <span>Add Group</span>
+                    </Button>
+                </div>
             </CardHeader>
-            <CardContent className="space-y-4">
+
+            <CardContent className="p-5 space-y-4">
+                {/* Form to Add New Group */}
+                {isAddingGroup && (
+                    <div className="animate-slide-down pb-2 border-b border-border/60">
+                        <CreateGroupForm
+                            batchId={batch.id}
+                            onDone={() => setIsAddingGroup(false)}
+                        />
+                    </div>
+                )}
+
+                {/* Groups Container */}
                 {batch.groups.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                        No groups in this batch yet.
-                    </p>
+                    <div className="rounded-xl border border-dashed border-border/70 bg-space-950/40 p-6 text-center">
+                        <Compass className="size-7 text-starlight-400/60 mx-auto mb-2" />
+                        <p className="text-xs text-starlight-300 font-medium">
+                            No learning groups in this batch yet.
+                        </p>
+                        <p className="text-[11px] text-starlight-400 mt-0.5">
+                            Click &quot;Add Group&quot; to define an Intermediate or Beginner group.
+                        </p>
+                    </div>
                 ) : (
                     <div className="space-y-3">
                         {batch.groups.map((group) => (
@@ -150,25 +370,14 @@ function BatchCard({
                         ))}
                     </div>
                 )}
-
-                {isAddingGroup ? (
-                    <CreateGroupForm
-                        batchId={batch.id}
-                        onDone={() => setIsAddingGroup(false)}
-                    />
-                ) : (
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setIsAddingGroup(true)}
-                    >
-                        + Add Group
-                    </Button>
-                )}
             </CardContent>
         </Card>
     );
 }
+
+// ============================================
+// BATCH NAME EDITOR
+// ============================================
 
 function BatchNameEditor({
     batchId,
@@ -184,41 +393,56 @@ function BatchNameEditor({
     const [error, setError] = useState<string | null>(null);
 
     async function handleSave() {
+        if (!name.trim()) return;
         setError(null);
         setIsSubmitting(true);
 
-        const result = await updateBatchAction({ id: batchId, name });
+        const result = await updateBatchAction({ id: batchId, name: name.trim() });
 
         if (result.success) {
             onDone();
         } else {
-            setError(result.error ?? "Something went wrong. Please try again.");
+            setError(result.error ?? "Failed to rename batch.");
         }
 
         setIsSubmitting(false);
     }
 
     return (
-        <div className="flex flex-1 items-center gap-2">
-            <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="h-8"
-                autoFocus
-            />
-            <Button size="sm" onClick={handleSave} disabled={isSubmitting}>
-                {isSubmitting ? "Saving..." : "Save"}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={onDone}>
-                Cancel
-            </Button>
-            {error && <p className="text-sm text-error">{error}</p>}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-1">
+            <div className="flex items-center gap-2 flex-1">
+                <Input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="h-8 text-sm bg-space-950/80 border-gold-500/50 text-starlight-100"
+                    autoFocus
+                />
+                <Button
+                    size="sm"
+                    onClick={handleSave}
+                    disabled={isSubmitting}
+                    className="h-8 bg-gold-500 text-space-950 font-semibold"
+                >
+                    <Check className="size-3.5 mr-1" />
+                    Save
+                </Button>
+                <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={onDone}
+                    className="h-8 text-starlight-400 hover:text-starlight-200"
+                >
+                    <X className="size-3.5 mr-1" />
+                    Cancel
+                </Button>
+            </div>
+            {error && <p className="text-xs text-error-400">{error}</p>}
         </div>
     );
 }
 
 // ============================================
-// CREATE GROUP
+// CREATE GROUP FORM (With Track Selection!)
 // ============================================
 
 function CreateGroupForm({
@@ -229,6 +453,7 @@ function CreateGroupForm({
     onDone: () => void;
 }) {
     const [name, setName] = useState("");
+    const [type, setType] = useState<"INTERMEDIATE" | "BEGINNER">("INTERMEDIATE");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -237,44 +462,94 @@ function CreateGroupForm({
         setError(null);
         setIsSubmitting(true);
 
-        const result = await createGroupAction({ name, batchId });
+        const result = await createGroupAction({
+            name: name.trim(),
+            batchId,
+            type,
+        });
 
         if (result.success) {
             onDone();
         } else {
-            setError(result.error ?? "Something went wrong. Please try again.");
+            setError(result.error ?? "Failed to create group.");
         }
 
         setIsSubmitting(false);
     }
 
     return (
-        <form onSubmit={handleSubmit} className="flex items-end gap-2 border-t pt-3">
-            <div className="flex-1 space-y-2">
-                <Label htmlFor={`new-group-name-${batchId}`}>Group name</Label>
-                <Input
-                    id={`new-group-name-${batchId}`}
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="h-8"
-                    autoFocus
-                    required
-                />
+        <div className="rounded-xl border border-border/80 bg-space-950/60 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-starlight-100 flex items-center gap-1.5">
+                    <Plus className="size-3.5 text-gold-400" />
+                    <span>Add New Learning Group</span>
+                </span>
+                <button
+                    type="button"
+                    onClick={onDone}
+                    className="text-starlight-400 hover:text-starlight-200 text-xs"
+                >
+                    Cancel
+                </button>
             </div>
-            <Button type="submit" size="sm" disabled={isSubmitting}>
-                {isSubmitting ? "Adding..." : "Add"}
-            </Button>
-            <Button type="button" size="sm" variant="ghost" onClick={onDone}>
-                Cancel
-            </Button>
-            {error && <p className="text-sm text-error">{error}</p>}
-        </form>
+
+            <form onSubmit={handleSubmit} className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                    <div className="sm:col-span-7 space-y-1">
+                        <Label htmlFor={`group-name-${batchId}`} className="text-[11px] text-starlight-300">
+                            Group Name
+                        </Label>
+                        <Input
+                            id={`group-name-${batchId}`}
+                            type="text"
+                            placeholder="e.g. Group A (Morning)"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            required
+                            autoFocus
+                            className="h-9 text-xs bg-space-900 border-border/80 text-starlight-100 focus-visible:border-gold-500/50"
+                        />
+                    </div>
+
+                    <div className="sm:col-span-5 space-y-1">
+                        <Label className="text-[11px] text-starlight-300">
+                            Curriculum Track
+                        </Label>
+                        <select
+                            value={type}
+                            onChange={(e) => setType(e.target.value as "INTERMEDIATE" | "BEGINNER")}
+                            className="flex h-9 w-full rounded-md border border-border/80 bg-space-900 px-3 py-1 text-xs text-starlight-200 focus-visible:border-gold-500/50"
+                        >
+                            <option value="INTERMEDIATE">Intermediate (Levels & Sessions)</option>
+                            <option value="BEGINNER">Beginner (Weekly Missions & Videos)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                    <p className="text-[10px] text-starlight-400">
+                        {type === "INTERMEDIATE"
+                            ? "Intermediate groups follow Level progression and session tasks."
+                            : "Beginner groups follow weekly missions with video playlists."}
+                    </p>
+                    <Button
+                        type="submit"
+                        size="sm"
+                        disabled={isSubmitting}
+                        className="bg-gold-500 text-space-950 hover:bg-gold-400 font-semibold h-8 text-xs"
+                    >
+                        {isSubmitting ? "Creating..." : "Save Group"}
+                    </Button>
+                </div>
+
+                {error && <p className="text-xs text-error-400">{error}</p>}
+            </form>
+        </div>
     );
 }
 
 // ============================================
-// GROUP ROW (name, student count, instructors)
+// GROUP ROW (Name, Track Badge, Headcount, Instructors)
 // ============================================
 
 function GroupRow({
@@ -288,8 +563,8 @@ function GroupRow({
     const [isManagingInstructors, setIsManagingInstructors] = useState(false);
 
     return (
-        <div className="rounded-md border p-3">
-            <div className="flex items-center justify-between">
+        <div className="rounded-xl border border-border/70 bg-space-950/50 p-4 hover:border-border transition-all">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 {isEditingName ? (
                     <GroupNameEditor
                         groupId={group.id}
@@ -297,36 +572,61 @@ function GroupRow({
                         onDone={() => setIsEditingName(false)}
                     />
                 ) : (
-                    <>
+                    <div className="flex items-center gap-3">
                         <div>
-                            <p className="text-sm font-medium">{group.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                                {group.studentCount}{" "}
-                                {group.studentCount === 1 ? "student" : "students"}
+                            <div className="flex items-center gap-2">
+                                <h4 className="font-semibold text-sm text-starlight-100">
+                                    {group.name}
+                                </h4>
+                                {group.type === "BEGINNER" ? (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-violet-500/15 text-violet-300 border border-violet-500/30">
+                                        Beginner Track
+                                    </span>
+                                ) : (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gold-500/15 text-gold-300 border border-gold-500/30">
+                                        Intermediate Track
+                                    </span>
+                                )}
+                            </div>
+                            <p className="text-xs text-starlight-400 mt-0.5 flex items-center gap-1.5">
+                                <Users className="size-3 text-starlight-400" />
+                                <span>
+                                    {group.studentCount}{" "}
+                                    {group.studentCount === 1 ? "student" : "students"} enrolled
+                                </span>
                             </p>
                         </div>
-                        <div className="flex gap-2">
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setIsEditingName(true)}
-                            >
-                                Rename
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                    setIsManagingInstructors((prev) => !prev)
-                                }
-                            >
-                                Instructors ({group.instructors.length})
-                            </Button>
-                        </div>
-                    </>
+                    </div>
                 )}
+
+                <div className="flex items-center gap-2 self-end sm:self-auto">
+                    {!isEditingName && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setIsEditingName(true)}
+                            className="h-7 text-xs text-starlight-400 hover:text-starlight-200"
+                        >
+                            Rename
+                        </Button>
+                    )}
+                    <Button
+                        variant={isManagingInstructors ? "secondary" : "outline"}
+                        size="sm"
+                        onClick={() => setIsManagingInstructors(!isManagingInstructors)}
+                        className={`h-7 text-xs ${
+                            isManagingInstructors
+                                ? "bg-gold-500/20 text-gold-300 border-gold-500/40"
+                                : "border-border/80 text-starlight-300"
+                        }`}
+                    >
+                        <GraduationCap className="size-3 mr-1 text-gold-400" />
+                        <span>Instructors ({group.instructors.length})</span>
+                    </Button>
+                </div>
             </div>
 
+            {/* EXPANDABLE INSTRUCTORS ASSIGNMENT */}
             {isManagingInstructors && (
                 <InstructorAssignment
                     groupId={group.id}
@@ -337,6 +637,10 @@ function GroupRow({
         </div>
     );
 }
+
+// ============================================
+// GROUP NAME EDITOR
+// ============================================
 
 function GroupNameEditor({
     groupId,
@@ -352,35 +656,50 @@ function GroupNameEditor({
     const [error, setError] = useState<string | null>(null);
 
     async function handleSave() {
+        if (!name.trim()) return;
         setError(null);
         setIsSubmitting(true);
 
-        const result = await updateGroupAction({ id: groupId, name });
+        const result = await updateGroupAction({ id: groupId, name: name.trim() });
 
         if (result.success) {
             onDone();
         } else {
-            setError(result.error ?? "Something went wrong. Please try again.");
+            setError(result.error ?? "Failed to rename group.");
         }
 
         setIsSubmitting(false);
     }
 
     return (
-        <div className="flex flex-1 items-center gap-2">
-            <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="h-8"
-                autoFocus
-            />
-            <Button size="sm" onClick={handleSave} disabled={isSubmitting}>
-                {isSubmitting ? "Saving..." : "Save"}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={onDone}>
-                Cancel
-            </Button>
-            {error && <p className="text-sm text-error">{error}</p>}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-1">
+            <div className="flex items-center gap-2 flex-1">
+                <Input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="h-8 text-xs bg-space-900 border-gold-500/40 text-starlight-100"
+                    autoFocus
+                />
+                <Button
+                    size="sm"
+                    onClick={handleSave}
+                    disabled={isSubmitting}
+                    className="h-8 bg-gold-500 text-space-950 font-semibold text-xs"
+                >
+                    <Check className="size-3 mr-1" />
+                    Save
+                </Button>
+                <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={onDone}
+                    className="h-8 text-starlight-400 hover:text-starlight-200 text-xs"
+                >
+                    <X className="size-3 mr-1" />
+                    Cancel
+                </Button>
+            </div>
+            {error && <p className="text-xs text-error-400">{error}</p>}
         </div>
     );
 }
@@ -421,7 +740,7 @@ function InstructorAssignment({
         if (result.success) {
             setSelectedInstructorId("");
         } else {
-            setError(result.error ?? "Something went wrong. Please try again.");
+            setError(result.error ?? "Failed to assign instructor.");
         }
 
         setIsSubmitting(false);
@@ -434,52 +753,73 @@ function InstructorAssignment({
         const result = await unassignInstructorAction({ instructorId, groupId });
 
         if (!result.success) {
-            setError(result.error ?? "Something went wrong. Please try again.");
+            setError(result.error ?? "Failed to remove instructor.");
         }
 
         setIsSubmitting(false);
     }
 
     return (
-        <div className="mt-3 space-y-2 border-t pt-3">
+        <div className="mt-3.5 pt-3.5 border-t border-border/60 space-y-3 animate-fade-in">
+            <span className="text-[11px] font-semibold text-starlight-300 block">
+                Assigned Mentors
+            </span>
+
             {assignedInstructors.length === 0 ? (
-                <p className="text-xs text-muted-foreground">
-                    No instructors assigned yet.
+                <p className="text-xs text-starlight-400/80 italic">
+                    No instructors assigned to this group yet. Select from below to assign.
                 </p>
             ) : (
-                <ul className="space-y-1">
-                    {assignedInstructors.map((instructor) => (
-                        <li
-                            key={instructor.id}
-                            className="flex items-center justify-between text-sm"
-                        >
-                            <span>
-                                {instructor.name}{" "}
-                                <span className="text-xs text-muted-foreground">
+                <div className="flex flex-wrap gap-2">
+                    {assignedInstructors.map((instructor) => {
+                        const initials =
+                            instructor.name
+                                .trim()
+                                .split(/\s+/)
+                                .slice(0, 2)
+                                .map((p) => p[0]?.toUpperCase())
+                                .join("") || "IN";
+
+                        return (
+                            <div
+                                key={instructor.id}
+                                className="flex items-center gap-2 pl-2 pr-1.5 py-1 rounded-xl bg-space-900 border border-border/80 text-xs text-starlight-200"
+                            >
+                                <Avatar size="sm" className="size-5 text-[9px] border border-gold-500/30">
+                                    <AvatarFallback className="bg-space-850 text-gold-400">
+                                        {initials}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <span className="font-medium text-starlight-100">
+                                    {instructor.name}
+                                </span>
+                                <span className="text-[10px] text-starlight-400 font-mono">
                                     ({instructor.email})
                                 </span>
-                            </span>
-                            <button
-                                type="button"
-                                onClick={() => handleUnassign(instructor.id)}
-                                disabled={isSubmitting}
-                                className="text-xs text-error hover:underline disabled:opacity-50"
-                            >
-                                Remove
-                            </button>
-                        </li>
-                    ))}
-                </ul>
+                                <button
+                                    type="button"
+                                    onClick={() => handleUnassign(instructor.id)}
+                                    disabled={isSubmitting}
+                                    className="p-1 rounded-md text-error-400 hover:bg-error-500/10 transition-colors disabled:opacity-50"
+                                    title="Unassign instructor"
+                                >
+                                    <X className="size-3" />
+                                </button>
+                            </div>
+                        );
+                    })}
+                </div>
             )}
 
-            {availableInstructors.length > 0 && (
-                <div className="flex items-center gap-2">
+            {/* Add Available Instructor */}
+            {availableInstructors.length > 0 ? (
+                <div className="flex flex-col sm:flex-row items-center gap-2 pt-1">
                     <select
                         value={selectedInstructorId}
                         onChange={(e) => setSelectedInstructorId(e.target.value)}
-                        className="border-input flex h-8 flex-1 rounded-md border bg-transparent px-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                        className="flex h-8 flex-1 w-full rounded-lg border border-border/80 bg-space-900 px-3 text-xs text-starlight-200 focus-visible:border-gold-500/50"
                     >
-                        <option value="">Select an instructor to add...</option>
+                        <option value="">Select an available instructor to assign...</option>
                         {availableInstructors.map((instructor) => (
                             <option key={instructor.id} value={instructor.id}>
                                 {instructor.name} ({instructor.email})
@@ -490,13 +830,19 @@ function InstructorAssignment({
                         size="sm"
                         onClick={handleAssign}
                         disabled={isSubmitting || !selectedInstructorId}
+                        className="w-full sm:w-auto h-8 text-xs bg-gold-500 text-space-950 font-semibold hover:bg-gold-400"
                     >
-                        Add
+                        <UserPlus className="size-3 mr-1" />
+                        Assign
                     </Button>
                 </div>
+            ) : (
+                <p className="text-[11px] text-starlight-400">
+                    All registered instructors are already assigned to this group.
+                </p>
             )}
 
-            {error && <p className="text-sm text-error">{error}</p>}
+            {error && <p className="text-xs text-error-400">{error}</p>}
         </div>
     );
 }
