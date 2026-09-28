@@ -117,6 +117,20 @@ const components: Components = {
     h3: ({ children }) => (
         <h3 className="font-display text-sm font-semibold [&:not(:first-child)]:mt-3">{children}</h3>
     ),
+    input: ({ type, checked, disabled, ...props }) => {
+        if (type === "checkbox") {
+            return (
+                <input
+                    type="checkbox"
+                    checked={checked}
+                    readOnly={disabled}
+                    className="mr-2 size-3.5 rounded border border-border/80 text-gold-500 accent-gold-500 align-middle"
+                    {...props}
+                />
+            );
+        }
+        return <input type={type} {...props} />;
+    },
     table: ({ children }) => (
         <div className="my-3 overflow-x-auto rounded-md border border-border">
             <table className="w-full border-collapse text-xs">{children}</table>
@@ -158,7 +172,7 @@ export function MarkdownContent({
     className?: string;
 }) {
     return (
-        <div className={cn("text-sm", className)}>
+        <div className={cn("text-sm text-starlight-200", className)}>
             <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
                 {content}
             </ReactMarkdown>

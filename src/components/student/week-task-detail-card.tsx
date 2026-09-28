@@ -29,6 +29,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { MarkdownEditor } from "@/components/ui/markdown-editor";
 import { Label } from "@/components/ui/label";
 import {
     Dialog,
@@ -575,15 +576,12 @@ export function WeekTaskDetailCard({
 
                                 {selectedMode === "TEXT" && (
                                     <div className="space-y-2">
-                                        <Label className="text-xs text-starlight-300">
-                                            Solution Content / Markdown
-                                        </Label>
-                                        <Textarea
+                                        <MarkdownEditor
+                                            label="Solution Content / Markdown"
                                             rows={5}
-                                            placeholder="Paste your source code or explanation here..."
+                                            placeholder="Paste your source code, explanation, or notes in Markdown..."
                                             value={textInput}
-                                            onChange={(e) => setTextInput(e.target.value)}
-                                            className="border-border/70 bg-space-950 text-starlight-200 text-xs font-mono"
+                                            onChange={(val) => setTextInput(val)}
                                         />
                                     </div>
                                 )}

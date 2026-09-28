@@ -1,9 +1,11 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import "./nst-design-v1.0.css";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/theme-provider";
+import { RouteProgressBar } from "@/components/route-progress-bar";
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
@@ -41,15 +43,16 @@ export default function RootLayout({
       className={cn("h-full", "antialiased", geistSans.variable, geistMono.variable, "font-sans", inter.variable, spaceGrotesk.variable)}
       suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col bg-background text-foreground">
         <ThemeProvider
           attribute="class"
-          // defaultTheme="system"
-          // enableSystem
           defaultTheme="dark"
-          enableSystem={false}
+          enableSystem
           disableTransitionOnChange
         >
+          <Suspense fallback={null}>
+            <RouteProgressBar />
+          </Suspense>
           {children}
         </ThemeProvider>
       </body>

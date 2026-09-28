@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { MarkdownEditor } from "@/components/ui/markdown-editor";
 import { submitFeedbackAction } from "@/lib/actions/feedback";
 import type { FeedbackTypeCode } from "@/types/types";
 
@@ -201,13 +202,12 @@ export function SendFeedbackForm() {
                     </span>
                 </div>
 
-                <Textarea
+                <MarkdownEditor
+                    id="feedback-message"
                     value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Describe your thoughts, constructive feedback, or suggestions openly..."
-                    maxLength={MAX_MESSAGE_LENGTH}
-                    rows={7}
-                    className="bg-space-900 border-border/80 text-starlight-100 text-sm focus-visible:ring-gold-500 leading-relaxed resize-y"
+                    onChange={(val) => setMessage(val.slice(0, MAX_MESSAGE_LENGTH))}
+                    placeholder="Describe your thoughts, constructive feedback, or suggestions openly using Markdown..."
+                    rows={6}
                     required
                 />
             </div>

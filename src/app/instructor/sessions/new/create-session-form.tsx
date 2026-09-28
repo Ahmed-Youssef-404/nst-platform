@@ -13,6 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { MarkdownEditor } from "@/components/ui/markdown-editor";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -316,11 +317,13 @@ function TaskEditor({
                 </div>
 
                 <div className="space-y-2">
-                    <Label htmlFor={`task-${task.key}-description`}>Description</Label>
-                    <Textarea
+                    <MarkdownEditor
                         id={`task-${task.key}-description`}
+                        label="Description"
+                        placeholder="Write task description in Markdown..."
                         value={task.description}
-                        onChange={(e) => onChange({ description: e.target.value })}
+                        onChange={(val) => onChange({ description: val })}
+                        rows={4}
                         required
                     />
                 </div>

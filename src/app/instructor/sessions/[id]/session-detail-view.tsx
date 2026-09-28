@@ -30,6 +30,7 @@ import {
 import { getSubmissionFileUrlAction } from "@/lib/actions/submission-management";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
+import { MarkdownEditor } from "@/components/ui/markdown-editor";
 import { formatDateTime } from "@/lib/format-date";
 // import type { SessionDetail } from "@/lib/data/get-session-detail";
 // import type { SessionStatus } from "@/lib/data/get-my-groups";
@@ -623,12 +624,13 @@ function GradingForm({
             </div>
 
             <div className="space-y-1">
-                <Label htmlFor={`comment-${submissionId}`}>Comment (optional)</Label>
-                <Textarea
+                <MarkdownEditor
                     id={`comment-${submissionId}`}
+                    label="Comment (optional)"
                     value={instructorComment}
-                    onChange={(e) => setInstructorComment(e.target.value)}
-                    placeholder="Feedback for the student..."
+                    onChange={(val) => setInstructorComment(val)}
+                    placeholder="Feedback for the student in Markdown (code, bullet points, suggestions)..."
+                    rows={4}
                 />
             </div>
 

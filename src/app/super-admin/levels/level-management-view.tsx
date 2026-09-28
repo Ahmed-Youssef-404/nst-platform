@@ -21,6 +21,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { MarkdownEditor } from "@/components/ui/markdown-editor";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -479,16 +480,13 @@ function CreateLevelCard({
                     </div>
 
                     <div className="space-y-1.5">
-                        <Label htmlFor="level-description" className="text-xs text-starlight-300">
-                            Description & Learning Objectives (Optional)
-                        </Label>
-                        <Textarea
+                        <MarkdownEditor
                             id="level-description"
-                            placeholder="Briefly outline topics, algorithms, or concepts covered in this level..."
+                            label="Description & Learning Objectives (Optional)"
+                            placeholder="Briefly outline topics, algorithms, or concepts covered in this level in Markdown..."
                             value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            rows={3}
-                            className="bg-space-950/80 border-border/80 text-starlight-100 focus-visible:border-gold-500/50"
+                            onChange={(val) => setDescription(val)}
+                            rows={4}
                         />
                     </div>
 

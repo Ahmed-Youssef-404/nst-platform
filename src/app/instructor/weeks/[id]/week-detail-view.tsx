@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { MarkdownEditor } from "@/components/ui/markdown-editor";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
     Select,
@@ -939,17 +940,14 @@ function TaskFormDialog({
                     </div>
 
                     <div className="space-y-1.5">
-                        <Label htmlFor="task-description" className="text-xs font-semibold text-starlight-200">
-                            Task Description (Markdown supported)
-                        </Label>
-                        <Textarea
+                        <MarkdownEditor
                             id="task-description"
-                            placeholder="Provide the problem statement, constraints, and instructions..."
+                            label="Task Description"
+                            placeholder="Provide the problem statement, constraints, code snippets, and instructions in Markdown..."
                             value={description}
-                            onChange={(e) => setDescription(e.target.value)}
+                            onChange={(val) => setDescription(val)}
                             disabled={isSubmitting}
-                            rows={4}
-                            className="bg-space-850/80 border-border/80 text-starlight-100 placeholder:text-starlight-400/60 focus-visible:border-gold-500 focus-visible:ring-gold-500/20 rounded-xl text-xs font-mono"
+                            rows={5}
                             required
                         />
                     </div>

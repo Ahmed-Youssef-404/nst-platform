@@ -11,8 +11,8 @@ function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="skeleton"
       className={cn(
-        "relative overflow-hidden rounded-md bg-muted",
-        "before:absolute before:inset-0 before:content-[''] before:bg-gradient-to-r before:from-transparent before:via-[#2e3c49] before:to-transparent before:animate-shimmer-sweep",
+        "relative overflow-hidden rounded-md bg-muted/80 dark:bg-space-850",
+        "before:absolute before:inset-0 before:content-[''] before:bg-gradient-to-r before:from-transparent before:via-gold-500/20 before:to-transparent before:animate-shimmer-sweep",
         className
       )}
       {...props}

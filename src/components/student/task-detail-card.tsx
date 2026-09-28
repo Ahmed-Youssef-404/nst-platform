@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { MarkdownEditor } from "@/components/ui/markdown-editor";
 import { Label } from "@/components/ui/label";
 import {
     Select,
@@ -513,15 +514,12 @@ function SubmissionPanel({
 
                     {mode === "TEXT" && (
                         <div className="space-y-2">
-                            <Label className="text-xs text-starlight-300">
-                                Solution Text / Code
-                            </Label>
-                            <Textarea
+                            <MarkdownEditor
+                                label="Solution Text / Code (Markdown supported)"
                                 value={textContent}
-                                onChange={(e) => setTextContent(e.target.value)}
-                                placeholder="Paste your solution or explanations here..."
+                                onChange={(val) => setTextContent(val)}
+                                placeholder="Paste your solution, code blocks, or explanations here in Markdown..."
                                 rows={6}
-                                className="bg-space-900 border-border/80 text-starlight-100 font-mono text-xs focus-visible:ring-gold-500"
                                 required
                             />
                         </div>

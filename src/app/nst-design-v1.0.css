@@ -4,10 +4,95 @@
  * 01. RAW DESIGN TOKENS
  * ============================================================ */
 
-:root {
+:root,
+.light {
 
   /* ==========================================================
-   * Space — Deep Space Backgrounds
+   * 01.A LIGHT MODE TOKENS (Luminous, Airy, High-Contrast)
+   * ========================================================== */
+
+  --space-950: #F8FAFC;
+  --space-900: #FFFFFF;
+  --space-850: #F1F5F9;
+  --space-800: #E2E8F0;
+  --space-750: #CBD5E1;
+
+  --starlight-100: #0F172A;
+  --starlight-200: #334155;
+  --starlight-300: #64748B;
+  --starlight-400: #94A3B8;
+
+  --gold-300: #F3C966;
+  --gold-400: #D8981A;
+  --gold-500: #B8780E;
+  --gold-600: #9A6208;
+  --gold-700: #7C4D05;
+  --gold-800: #5C3802;
+  --gold-900: #3E2401;
+
+  --violet-400: #8B5CF6;
+  --violet-500: #7C3AED;
+  --violet-600: #6D28D9;
+
+  --blue-400: #3B82F6;
+  --blue-500: #2563EB;
+  --blue-600: #1D4ED8;
+
+  --amber-400: #F59E0B;
+  --amber-500: #D97706;
+  --amber-600: #B45309;
+
+  --success-400: #34D399;
+  --success-500: #059669;
+  --success-600: #047857;
+
+  --info-400: #60A5FA;
+  --info-500: #2563EB;
+  --info-600: #1D4ED8;
+
+  --warning-400: #FBBF24;
+  --warning-500: #D97706;
+  --warning-600: #B45309;
+
+  --error-400: #F87171;
+  --error-500: #DC2626;
+  --error-600: #B91C1C;
+
+  --shadow-none: none;
+  --shadow-1: 0 1px 2px rgb(15 23 42 / 0.05), 0 1px 3px rgb(15 23 42 / 0.05);
+  --shadow-2: 0 4px 6px -1px rgb(15 23 42 / 0.07), 0 2px 4px -2px rgb(15 23 42 / 0.05);
+  --shadow-3: 0 10px 15px -3px rgb(15 23 42 / 0.08), 0 4px 6px -4px rgb(15 23 42 / 0.05);
+  --shadow-4: 0 20px 25px -5px rgb(15 23 42 / 0.09), 0 8px 10px -6px rgb(15 23 42 / 0.05);
+  --shadow-5: 0 25px 50px -12px rgb(15 23 42 / 0.12);
+
+  --shadow-gold: 0 4px 14px rgb(184 120 14 / 0.18), 0 1px 3px rgb(184 120 14 / 0.10);
+  --shadow-gold-strong: 0 8px 24px rgb(184 120 14 / 0.25), 0 2px 6px rgb(184 120 14 / 0.15);
+  --shadow-starlight: 0 4px 14px rgb(15 23 42 / 0.08);
+
+  --border-subtle: rgb(15 23 42 / 0.06);
+  --border-default: rgb(15 23 42 / 0.11);
+  --border-strong: rgb(15 23 42 / 0.20);
+  --border-gold: var(--gold-500);
+  --border-gold-subtle: rgb(184 120 14 / 0.22);
+  --border-focus: var(--gold-500);
+  --border-brand: var(--gold-500);
+
+  --border-error: var(--error-500);
+  --border-success: var(--success-500);
+  --border-info: var(--info-500);
+
+  --divider-subtle: rgb(15 23 42 / 0.05);
+  --divider-default: rgb(15 23 42 / 0.09);
+  --divider-strong: rgb(15 23 42 / 0.16);
+
+  --shadow-focus: 0 0 0 3px rgb(184 120 14 / 0.20);
+  --border-glow-gold: 0 0 0 1px rgb(184 120 14 / 0.20), 0 0 16px rgb(184 120 14 / 0.12);
+}
+
+.dark {
+
+  /* ==========================================================
+   * 01.B DARK MODE TOKENS (Deep Space, Starlight & Gold)
    * ========================================================== */
 
   --space-950: #050507;
@@ -16,20 +101,10 @@
   --space-800: #11121A;
   --space-750: #161722;
 
-
-  /* ==========================================================
-   * Starlight — Text & Light
-   * ========================================================== */
-
   --starlight-100: #F7F4ED;
   --starlight-200: #DEDAD0;
   --starlight-300: #AAA69D;
   --starlight-400: #716E68;
-
-
-  /* ==========================================================
-   * Gold — Starlight Gold / Brand
-   * ========================================================== */
 
   --gold-300: #F6D77A;
   --gold-400: #F2C866;
@@ -39,37 +114,17 @@
   --gold-800: #8C611C;
   --gold-900: #594014;
 
-
-  /* ==========================================================
-   * Cosmic Violet — Atmosphere
-   * ========================================================== */
-
   --violet-400: #A98BFF;
   --violet-500: #8066D9;
   --violet-600: #5945A6;
-
-
-  /* ==========================================================
-   * Stellar Blue — Atmosphere / Info
-   * ========================================================== */
 
   --blue-400: #79BFFF;
   --blue-500: #4D91D9;
   --blue-600: #3266A3;
 
-
-  /* ==========================================================
-   * Solar Amber — Atmospheric / Warning
-   * ========================================================== */
-
   --amber-400: #FFD27A;
   --amber-500: #E9AD45;
   --amber-600: #B97820;
-
-
-  /* ==========================================================
-   * Semantic Colors
-   * ========================================================== */
 
   --success-400: #69D6A3;
   --success-500: #2BE292;
@@ -87,34 +142,7 @@
   --error-500: #CA2C2C;
   --error-600: #AD3E3E;
 
-
-  /* ==========================================================
-   * Typography — Raw Heading Sizes
-   * Used as the min/max values for fluid typography.
-   * ========================================================== */
-
-  --text-display-size: 4.5rem;
-  --text-display-size-mobile: 2.5rem;
-
-  --text-h1-size: 3.75rem;
-  --text-h1-size-mobile: 2rem;
-
-  --text-h2-size: 3rem;
-  --text-h2-size-mobile: 1.75rem;
-
-  --text-h3-size: 2.25rem;
-  --text-h3-size-mobile: 1.5rem;
-
-  --text-h4-size: 1.875rem;
-  --text-h4-size-mobile: 1.25rem;
-
-
-  /* ==========================================================
-   * Shadows / Elevation
-   * ========================================================== */
-
   --shadow-none: none;
-
   --shadow-1:
     0 1px 2px rgb(0 0 0 / 0.18),
     0 2px 6px rgb(0 0 0 / 0.12);
@@ -135,11 +163,6 @@
     0 12px 24px rgb(0 0 0 / 0.28),
     0 32px 64px rgb(0 0 0 / 0.28);
 
-
-  /* ==========================================================
-   * Gold / Starlight Glows
-   * ========================================================== */
-
   --shadow-gold:
     0 0 12px rgb(232 184 74 / 0.20),
     0 0 28px rgb(232 184 74 / 0.10);
@@ -151,21 +174,6 @@
   --shadow-starlight:
     0 0 12px rgb(247 244 237 / 0.12),
     0 0 28px rgb(247 244 237 / 0.06);
-
-
-  /* ==========================================================
-   * Border Widths
-   * ========================================================== */
-
-  --border-width-0: 0px;
-  --border-width-1: 1px;
-  --border-width-2: 2px;
-  --border-width-4: 4px;
-
-
-  /* ==========================================================
-   * Border Colors
-   * ========================================================== */
 
   --border-subtle: rgb(247 244 237 / 0.08);
   --border-default: rgb(247 244 237 / 0.14);
@@ -181,31 +189,19 @@
   --border-success: var(--success-500);
   --border-info: var(--info-500);
 
-
-  /* ==========================================================
-   * Dividers
-   * ========================================================== */
-
   --divider-subtle: rgb(247 244 237 / 0.06);
   --divider-default: rgb(247 244 237 / 0.10);
   --divider-strong: rgb(247 244 237 / 0.16);
 
-
-  /* ==========================================================
-   * Focus
-   * ========================================================== */
-
   --shadow-focus:
     0 0 0 3px rgb(232 184 74 / 0.20);
-
-
-  /* ==========================================================
-   * Brand Border Glow
-   * ========================================================== */
 
   --border-glow-gold:
     0 0 0 1px rgb(232 184 74 / 0.20),
     0 0 16px rgb(232 184 74 / 0.12);
+}
+
+:root {
 
 
   /* ==========================================================
@@ -1114,3 +1110,24 @@ samp {
     scroll-behavior: auto !important;
   }
 }
+
+
+/* ============================================================
+ * 09. BUTTON CONTRAST & CARD SURFACE CLARITY
+ * ============================================================ */
+
+/* Ensure buttons and badges with gold/emerald/amber background always maintain dark text */
+.bg-gold-500.text-space-950,
+.bg-gold-400.text-space-950,
+.bg-amber-500.text-space-950,
+.bg-emerald-500.text-space-950,
+.bg-success-500.text-space-950,
+[class*="bg-gold"].text-space-950 {
+  color: #050507 !important;
+}
+
+/* Card clarity enhancements: Prevents background animations from bleeding through cards */
+.card-clarity {
+  background-color: var(--space-900) !important;
+  backdrop-filter: blur(16px);
+}
