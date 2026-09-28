@@ -242,10 +242,9 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
                             onClick={() => setActiveTab("students")}
                             className={`
                                 relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200
-                                ${
-                                    activeTab === "students"
-                                        ? "bg-gold-500/15 text-gold-700 dark:text-gold-300 border border-gold-500/30 shadow-gold"
-                                        : "text-starlight-300 hover:bg-space-850 hover:text-starlight-100 border border-transparent"
+                                ${activeTab === "students"
+                                    ? "bg-gold-500/15 text-gold-700 dark:text-gold-300 border border-gold-500/30 shadow-gold"
+                                    : "text-starlight-300 hover:bg-space-850 hover:text-starlight-100 border border-transparent"
                                 }
                             `}
                         >
@@ -264,10 +263,9 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
                             onClick={() => setActiveTab("instructors")}
                             className={`
                                 relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200
-                                ${
-                                    activeTab === "instructors"
-                                        ? "bg-gold-500/15 text-gold-700 dark:text-gold-300 border border-gold-500/30 shadow-gold"
-                                        : "text-starlight-300 hover:bg-space-850 hover:text-starlight-100 border border-transparent"
+                                ${activeTab === "instructors"
+                                    ? "bg-gold-500/15 text-gold-700 dark:text-gold-300 border border-gold-500/30 shadow-gold"
+                                    : "text-starlight-300 hover:bg-space-850 hover:text-starlight-100 border border-transparent"
                                 }
                             `}
                         >
@@ -286,10 +284,9 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
                             onClick={() => setActiveTab("create")}
                             className={`
                                 relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200
-                                ${
-                                    activeTab === "create"
-                                        ? "bg-gold-500/15 text-gold-700 dark:text-gold-300 border border-gold-500/30 shadow-gold"
-                                        : "text-starlight-300 hover:bg-space-850 hover:text-starlight-100 border border-transparent"
+                                ${activeTab === "create"
+                                    ? "bg-gold-500/15 text-gold-700 dark:text-gold-300 border border-gold-500/30 shadow-gold"
+                                    : "text-starlight-300 hover:bg-space-850 hover:text-starlight-100 border border-transparent"
                                 }
                             `}
                         >
@@ -613,10 +610,9 @@ function AccountCreationSection({ groups }: { groups: GroupOption[] }) {
                             onClick={() => setAccountType("student")}
                             className={`
                                 flex items-center justify-between p-3.5 rounded-xl border text-left transition-all
-                                ${
-                                    accountType === "student"
-                                        ? "bg-gold-500/10 border-gold-500/40 text-starlight-100 shadow-gold"
-                                        : "bg-space-850/50 border-border/70 text-starlight-300 hover:border-border hover:bg-space-850"
+                                ${accountType === "student"
+                                    ? "bg-gold-500/10 border-gold-500/40 text-starlight-100 shadow-gold"
+                                    : "bg-space-850/50 border-border/70 text-starlight-300 hover:border-border hover:bg-space-850"
                                 }
                             `}
                         >
@@ -637,10 +633,9 @@ function AccountCreationSection({ groups }: { groups: GroupOption[] }) {
                             onClick={() => setAccountType("instructor")}
                             className={`
                                 flex items-center justify-between p-3.5 rounded-xl border text-left transition-all
-                                ${
-                                    accountType === "instructor"
-                                        ? "bg-gold-500/10 border-gold-500/40 text-starlight-100 shadow-gold"
-                                        : "bg-space-850/50 border-border/70 text-starlight-300 hover:border-border hover:bg-space-850"
+                                ${accountType === "instructor"
+                                    ? "bg-gold-500/10 border-gold-500/40 text-starlight-100 shadow-gold"
+                                    : "bg-space-850/50 border-border/70 text-starlight-300 hover:border-border hover:bg-space-850"
                                 }
                             `}
                         >
@@ -663,7 +658,9 @@ function AccountCreationSection({ groups }: { groups: GroupOption[] }) {
                     <span className="text-[11px] font-bold uppercase tracking-wider text-gold-400 block mb-1">
                         NST Authentication Notice
                     </span>
-                    <ul className="text-xs text-starlight-400 space-y-2 list-disc list-inside mt-2">
+
+                    {/* غيرنا list-inside لـ list-outside وضفنا pl-5 */}
+                    <ul className="text-xs text-starlight-400 space-y-2 list-disc list-outside pl-5 mt-2">
                         <li>
                             Student ID codes (e.g. <code className="text-gold-300">NST-1001</code>) are permanent and used for student login.
                         </li>
