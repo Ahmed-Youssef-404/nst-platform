@@ -1,7 +1,7 @@
 // src/app/instructor/weeks/[id]/grade/week-grading-view.tsx
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -74,27 +74,32 @@ export function WeekGradingView({ data }: { data: WeekGradingViewData }) {
     const finalizedCount = data.students.filter((s) => s.isFinalized).length;
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-8 animate-fade-in">
             {/* Top Bar */}
             <div className="space-y-3">
                 <Link
                     href={`/instructor/weeks/${data.week.id}`}
-                    className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    className="inline-flex items-center gap-1.5 text-xs text-starlight-400 hover:text-gold-300 font-mono transition-colors"
                 >
-                    <ChevronLeft className="size-4" />
+                    <ChevronLeft className="size-3.5" />
                     Back to Week details
                 </Link>
 
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                        <div className="flex items-center gap-2">
-                            <h1 className="font-display text-2xl font-bold tracking-tight">
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                            <h1 className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-starlight-100">
                                 Grading: {data.week.name}
                             </h1>
-                            <Badge variant="outline">{data.week.status}</Badge>
+                            <Badge className="bg-space-850 text-starlight-300 border-border/80 text-xs px-2.5 py-0.5 rounded-full font-mono">
+                                {data.week.status}
+                            </Badge>
                         </div>
-                        <p className="text-sm text-muted-foreground mt-0.5">
-                            {data.week.groupName} · {data.week.batchName} · {finalizedCount} of {data.students.length} students finalized
+                        <p className="mt-1 text-xs text-starlight-300 font-mono">
+                            {data.week.groupName} · {data.week.batchName} ·{" "}
+                            <span className="text-gold-400 font-semibold">
+                                {finalizedCount} of {data.students.length} students finalized
+                            </span>
                         </p>
                     </div>
                 </div>
@@ -105,25 +110,25 @@ export function WeekGradingView({ data }: { data: WeekGradingViewData }) {
                 {/* Left Roster: Students List */}
                 <div className="lg:col-span-4 space-y-3">
                     <div className="relative">
-                        <Search className="size-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <Search className="size-3.5 text-starlight-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                         <Input
                             placeholder="Search student..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-9 text-xs"
+                            className="pl-9 text-xs bg-space-850/80 border-border/80 text-starlight-100 placeholder:text-starlight-400/60 rounded-xl focus-visible:border-gold-500 focus-visible:ring-gold-500/20"
                         />
                     </div>
 
-                    <Card className="overflow-hidden border-border/80">
-                        <CardHeader className="py-3 px-4 border-b border-border bg-muted/20">
-                            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                                Students ({filteredStudents.length})
+                    <Card className="overflow-hidden border-border/80 bg-space-900/80 rounded-2xl shadow-2 backdrop-blur-md">
+                        <CardHeader className="py-3 px-4 border-b border-border/70 bg-space-950/40">
+                            <CardTitle className="text-xs font-bold text-starlight-300 uppercase tracking-wider font-mono">
+                                Enrolled Students ({filteredStudents.length})
                             </CardTitle>
                         </CardHeader>
-                        <div className="divide-y divide-border max-h-[70vh] overflow-y-auto">
+                        <div className="divide-y divide-border/60 max-h-[70vh] overflow-y-auto">
                             {filteredStudents.length === 0 ? (
-                                <p className="text-xs text-muted-foreground p-4 text-center">
-                                    No students found.
+                                <p className="text-xs text-starlight-400 p-6 text-center italic">
+                                    No students found matching search.
                                 </p>
                             ) : (
                                 filteredStudents.map((student) => {
@@ -134,48 +139,48 @@ export function WeekGradingView({ data }: { data: WeekGradingViewData }) {
                                             key={student.studentId}
                                             type="button"
                                             onClick={() => setSelectedStudentId(student.studentId)}
-                                            className={`w-full text-left p-3.5 transition-colors flex items-start justify-between gap-2 ${
+                                            className={`w-full text-left p-3.5 transition-all flex items-start justify-between gap-3 ${
                                                 isSelected
-                                                    ? "bg-primary/10 border-l-2 border-primary"
-                                                    : "hover:bg-muted/30"
+                                                    ? "bg-gold-500/10 border-l-4 border-l-gold-500 shadow-gold"
+                                                    : "hover:bg-space-850/60 border-l-4 border-l-transparent"
                                             }`}
                                         >
-                                            <div className="space-y-1 min-w-0">
+                                            <div className="space-y-1.5 min-w-0">
                                                 <p
-                                                    className={`text-sm font-medium truncate ${
-                                                        isSelected ? "text-primary" : "text-foreground"
+                                                    className={`text-sm font-bold truncate ${
+                                                        isSelected ? "text-gold-300" : "text-starlight-100"
                                                     }`}
                                                 >
                                                     {student.studentName}
                                                 </p>
                                                 <div className="flex items-center gap-1.5 flex-wrap">
                                                     {student.isFinalized ? (
-                                                        <Badge variant="success" className="text-[10px] h-4 px-1.5">
+                                                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-success-500/15 text-success-400 border border-success-500/30">
                                                             Finalized
-                                                        </Badge>
+                                                        </span>
                                                     ) : (
-                                                        <Badge variant="outline" className="text-[10px] h-4 px-1.5 text-muted-foreground">
+                                                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-space-850 text-starlight-400 border border-border/80">
                                                             Pending
-                                                        </Badge>
+                                                        </span>
                                                     )}
 
                                                     {student.isLocked && (
-                                                        <Badge variant="outline" className="text-[10px] h-4 px-1.5 gap-0.5">
+                                                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-space-850 text-gold-400 border border-gold-500/30 flex items-center gap-0.5">
                                                             <Lock className="size-2.5" />
                                                             Locked
-                                                        </Badge>
+                                                        </span>
                                                     )}
 
                                                     {student.resource?.status === "ACCEPTED" ? (
-                                                        <span className="text-[10px] text-success font-medium">
+                                                        <span className="text-[10px] text-success-400 font-semibold font-mono">
                                                             File ✓
                                                         </span>
                                                     ) : student.resource?.fileUrl ? (
-                                                        <span className="text-[10px] text-amber-500 font-medium">
+                                                        <span className="text-[10px] text-amber-400 font-semibold font-mono">
                                                             File PENDING
                                                         </span>
                                                     ) : (
-                                                        <span className="text-[10px] text-muted-foreground">
+                                                        <span className="text-[10px] text-starlight-400 font-mono">
                                                             No file
                                                         </span>
                                                     )}
@@ -183,7 +188,7 @@ export function WeekGradingView({ data }: { data: WeekGradingViewData }) {
                                             </div>
 
                                             <div className="shrink-0 text-right">
-                                                <span className="text-xs font-mono font-medium text-coin">
+                                                <span className="text-xs font-mono font-bold text-gold-400 bg-gold-500/10 px-2 py-0.5 rounded-md border border-gold-500/20">
                                                     {student.beginnerSt} ST
                                                 </span>
                                             </div>
@@ -207,8 +212,8 @@ export function WeekGradingView({ data }: { data: WeekGradingViewData }) {
                             onFinalizeClick={() => setFinalizeModalOpen(true)}
                         />
                     ) : (
-                        <Card className="p-8 text-center text-muted-foreground">
-                            Please select a student from the list to begin grading.
+                        <Card className="p-12 text-center text-starlight-400 rounded-2xl border-border/80 bg-space-900/60">
+                            Please select a student from the left roster to begin grading.
                         </Card>
                     )}
                 </div>
@@ -295,33 +300,37 @@ function StudentGradingWorkspace({
     return (
         <div className="space-y-6">
             {/* Student Header Card */}
-            <Card className="border-border/80 shadow-sm">
-                <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4">
+            <Card className="rounded-2xl border border-border/80 bg-space-900/80 shadow-2 backdrop-blur-md overflow-hidden">
+                <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 border-b border-border/70 bg-space-950/40">
                     <div>
                         <div className="flex items-center gap-2.5">
-                            <CardTitle className="text-xl font-display">
+                            <CardTitle className="text-xl font-bold font-display text-starlight-100">
                                 {student.studentName}
                             </CardTitle>
                             {student.isFinalized ? (
-                                <Badge variant="success">Finalized</Badge>
+                                <Badge className="bg-success-500/15 text-success-400 border-success-500/30 text-xs px-2.5 py-0.5 rounded-full font-semibold">
+                                    Finalized
+                                </Badge>
                             ) : (
-                                <Badge variant="outline">Grading In Progress</Badge>
+                                <Badge className="bg-amber-500/15 text-amber-300 border-amber-500/30 text-xs px-2.5 py-0.5 rounded-full font-semibold">
+                                    Grading In Progress
+                                </Badge>
                             )}
                         </div>
-                        <CardDescription className="mt-1 flex items-center gap-3 text-xs">
-                            <span className="flex items-center gap-1 font-mono text-coin font-medium">
+                        <CardDescription className="mt-1 flex items-center gap-3 text-xs text-starlight-300 font-mono">
+                            <span className="flex items-center gap-1.5 text-gold-400 font-bold">
                                 <Coins className="size-3.5" />
                                 Current Balance: {student.beginnerSt} ST
                             </span>
                             <span>•</span>
                             <span>
                                 {student.isLocked ? (
-                                    <span className="text-foreground">
-                                        Manually locked week on {student.resource?.lockedAt ? formatDateTime(student.resource.lockedAt) : ""}
+                                    <span className="text-starlight-200">
+                                        Locked: {student.resource?.lockedAt ? formatDateTime(student.resource.lockedAt) : ""}
                                     </span>
                                 ) : (
-                                    <span className="text-muted-foreground">
-                                        Week not manually locked by student
+                                    <span className="text-starlight-400">
+                                        Not manually locked by student
                                     </span>
                                 )}
                             </span>
@@ -329,7 +338,10 @@ function StudentGradingWorkspace({
                     </div>
 
                     {!student.isFinalized && (
-                        <Button onClick={onFinalizeClick} className="shrink-0 gap-1.5">
+                        <Button
+                            onClick={onFinalizeClick}
+                            className="shrink-0 gap-1.5 bg-gold-500 hover:bg-gold-400 text-space-950 font-bold shadow-gold rounded-xl text-xs transition-all"
+                        >
                             <UserCheck className="size-4" />
                             Finalize Week Grading
                         </Button>
@@ -337,7 +349,7 @@ function StudentGradingWorkspace({
                 </CardHeader>
 
                 {student.isFinalized && (
-                    <div className="mx-6 mb-4 rounded-md bg-success/10 border border-success/20 p-3 text-xs text-success flex items-center gap-2">
+                    <div className="m-5 rounded-xl bg-success-500/10 border border-success-500/25 p-3.5 text-xs text-success-400 flex items-center gap-2">
                         <Check className="size-4 shrink-0" />
                         <span>
                             Grading for this student has been finalized and ST rewards/penalties have been permanently recorded.
@@ -347,80 +359,95 @@ function StudentGradingWorkspace({
             </Card>
 
             {/* Mandatory Resource File Section */}
-            <Card className="border-border/80">
-                <CardHeader className="pb-3">
+            <Card className="rounded-2xl border border-border/80 bg-space-900/80 shadow-2 backdrop-blur-md overflow-hidden">
+                <CardHeader className="p-5 border-b border-border/70 bg-space-950/40">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            <FileText className="size-4 text-primary" />
-                            <CardTitle className="text-base font-semibold">
+                            <FileText className="size-4 text-gold-400" />
+                            <CardTitle className="text-sm font-bold text-starlight-100 font-display">
                                 Required Deliverable: {week.requiredFileLabel}
                             </CardTitle>
                         </div>
 
                         {student.resource?.status === "ACCEPTED" ? (
-                            <Badge variant="success">ACCEPTED (100% ST)</Badge>
+                            <Badge className="bg-success-500/15 text-success-400 border-success-500/30 text-xs px-2.5 py-0.5 rounded-full font-semibold">
+                                ACCEPTED (100% ST)
+                            </Badge>
                         ) : student.resource?.status === "REJECTED" ? (
-                            <Badge variant="destructive">REJECTED (×0.5 ST Penalty)</Badge>
+                            <Badge className="bg-error-500/15 text-error-400 border-error-500/30 text-xs px-2.5 py-0.5 rounded-full font-semibold">
+                                REJECTED (×0.5 ST Penalty)
+                            </Badge>
                         ) : student.resource?.fileUrl ? (
-                            <Badge variant="warning">PENDING REVIEW</Badge>
+                            <Badge className="bg-amber-500/15 text-amber-300 border-amber-500/30 text-xs px-2.5 py-0.5 rounded-full font-semibold">
+                                PENDING REVIEW
+                            </Badge>
                         ) : (
-                            <Badge variant="secondary">NOT UPLOADED</Badge>
+                            <Badge className="bg-space-850 text-starlight-400 border-border/80 text-xs px-2.5 py-0.5 rounded-full font-mono">
+                                NOT UPLOADED
+                            </Badge>
                         )}
                     </div>
                 </CardHeader>
 
-                <CardContent className="space-y-3 text-sm">
+                <CardContent className="p-5 space-y-3.5 text-xs">
                     {fileActionError && (
-                        <div className="text-xs text-destructive flex items-center gap-1.5 p-2 rounded bg-destructive/10">
-                            <AlertCircle className="size-3.5" />
+                        <div className="text-xs text-error-400 flex items-center gap-2 p-3 rounded-xl bg-error-500/10 border border-error-500/25">
+                            <AlertCircle className="size-4 shrink-0" />
                             <span>{fileActionError}</span>
                         </div>
                     )}
 
                     {student.resource?.fileUrl ? (
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-lg border border-border bg-card">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-border/70 bg-space-850/80">
                             <div className="space-y-1">
-                                <p className="font-medium text-xs text-foreground flex items-center gap-1.5">
-                                    <FileText className="size-3.5 text-muted-foreground" />
+                                <p className="font-semibold text-xs text-starlight-100 flex items-center gap-1.5">
+                                    <FileText className="size-3.5 text-gold-400" />
                                     Deliverable Uploaded
                                 </p>
-                                <p className="text-xs text-muted-foreground">
+                                <p className="text-[11px] text-starlight-400 font-mono">
                                     Uploaded on: {student.resource.submittedAt ? formatDateTime(student.resource.submittedAt) : "N/A"}
                                 </p>
                             </div>
 
                             <div className="flex items-center gap-2 flex-wrap">
                                 <Button
-                                    size="xs"
+                                    size="sm"
                                     variant="outline"
                                     onClick={() => handleOpenFile(student.resource!.fileUrl!)}
                                     disabled={downloadLoading}
+                                    className="border-border/80 bg-space-800 hover:bg-space-750 text-starlight-200 rounded-xl text-xs font-semibold"
                                 >
-                                    <Download className="size-3 mr-1" />
+                                    <Download className="size-3.5 mr-1" />
                                     {downloadLoading ? "Opening..." : "View File"}
                                 </Button>
 
                                 {!student.isFinalized && (
                                     <>
                                         <Button
-                                            size="xs"
-                                            variant={student.resource.status === "ACCEPTED" ? "default" : "outline"}
+                                            size="sm"
                                             onClick={() => handleSetResourceStatus("ACCEPTED")}
                                             disabled={resourceStatusLoading}
-                                            className="text-success border-success/30 hover:bg-success/10"
+                                            className={`rounded-xl text-xs font-semibold ${
+                                                student.resource.status === "ACCEPTED"
+                                                    ? "bg-success-500 text-space-950 font-bold"
+                                                    : "bg-success-500/15 text-success-400 border border-success-500/30 hover:bg-success-500/25"
+                                            }`}
                                         >
-                                            <CheckCircle2 className="size-3 mr-1" />
+                                            <CheckCircle2 className="size-3.5 mr-1" />
                                             Accept
                                         </Button>
 
                                         <Button
-                                            size="xs"
-                                            variant={student.resource.status === "REJECTED" ? "default" : "outline"}
+                                            size="sm"
                                             onClick={() => handleSetResourceStatus("REJECTED")}
                                             disabled={resourceStatusLoading}
-                                            className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                                            className={`rounded-xl text-xs font-semibold ${
+                                                student.resource.status === "REJECTED"
+                                                    ? "bg-error-500 text-white font-bold"
+                                                    : "bg-error-500/15 text-error-400 border border-error-500/30 hover:bg-error-500/25"
+                                            }`}
                                         >
-                                            <XCircle className="size-3 mr-1" />
+                                            <XCircle className="size-3.5 mr-1" />
                                             Reject
                                         </Button>
                                     </>
@@ -428,25 +455,30 @@ function StudentGradingWorkspace({
                             </div>
                         </div>
                     ) : (
-                        <div className="p-3.5 rounded-lg border border-dashed border-border text-xs text-muted-foreground flex items-center gap-2">
-                            <AlertCircle className="size-4 text-amber-500 shrink-0" />
+                        <div className="p-4 rounded-xl border border-dashed border-amber-500/30 bg-amber-500/10 text-xs text-amber-300 flex items-center gap-2.5">
+                            <AlertCircle className="size-4 text-amber-400 shrink-0" />
                             <span>
-                                Student has not uploaded this required file. In accordance with course guidelines, all positive ST rewards for this week will be halved at finalization.
+                                Student has not uploaded this required file. In accordance with platform policy, all positive ST rewards for this week will be halved (×0.5) at finalization.
                             </span>
                         </div>
                     )}
 
-                    <p className="text-[11px] text-muted-foreground/80 italic">
-                        * Notice: The halving rule applies automatically to the sum of positive rewards (rubrics, bonuses, first-solvers, and finish-all) unless this deliverable is marked ACCEPTED before finalization.
+                    <p className="text-[11px] text-starlight-400/80 italic">
+                        * Note: The halving rule applies automatically to the sum of positive rewards (rubrics, bonuses, first-solvers, and finish-all) unless this deliverable is marked ACCEPTED before finalization.
                     </p>
                 </CardContent>
             </Card>
 
             {/* Tasks Grading Section */}
             <div className="space-y-4">
-                <h3 className="font-display text-base font-semibold">
-                    Tasks & Rubric Grading ({tasks.length})
-                </h3>
+                <div className="flex items-center gap-2">
+                    <h3 className="font-display text-lg font-bold text-starlight-100">
+                        Tasks & Rubric Grading
+                    </h3>
+                    <span className="rounded-full bg-space-800 border border-border/80 px-2 py-0.5 text-[11px] font-mono text-starlight-300">
+                        {tasks.length} {tasks.length === 1 ? "Task" : "Tasks"}
+                    </span>
+                </div>
 
                 <div className="space-y-4">
                     {tasks.map((task, index) => {
@@ -493,8 +525,6 @@ function TaskGradingCard({
     isSuggestedFirstSolver: boolean;
     onFileOpen: (fileUrl: string) => void;
 }) {
-    const router = useRouter();
-
     const existingGrade = taskData?.draftGrade;
     const submission = taskData?.submission;
 
@@ -502,7 +532,6 @@ function TaskGradingCard({
         existingGrade?.markedInvalid ?? false
     );
 
-    // Initial scores from draftGrade or 0
     const [fieldScores, setFieldScores] = useState<Record<string, number>>(() => {
         const scores: Record<string, number> = {};
         for (const rf of task.rubricFields) {
@@ -550,7 +579,6 @@ function TaskGradingCard({
             } else {
                 setSaveSuccess(true);
                 setTimeout(() => setSaveSuccess(false), 2500);
-                router.refresh();
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : "Error saving draft grade.");
@@ -560,153 +588,155 @@ function TaskGradingCard({
     }
 
     return (
-        <Card className="border-border/80">
-            <CardHeader className="pb-3 flex flex-row items-start justify-between space-y-0">
+        <Card className="rounded-2xl border border-border/80 bg-space-900/80 shadow-2 backdrop-blur-md overflow-hidden transition-all duration-200 hover:border-gold-500/30">
+            <CardHeader className="flex flex-row items-start justify-between space-y-0 p-5 border-b border-border/70 bg-space-950/40">
                 <div className="space-y-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-display font-semibold text-xs text-muted-foreground">
-                            #{index}
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                        <span className="font-mono font-bold text-xs text-gold-400 bg-gold-500/10 border border-gold-500/20 px-2 py-0.5 rounded-md">
+                            Task #{index}
                         </span>
-                        <CardTitle className="text-base font-semibold">
+                        <CardTitle className="text-base font-bold text-starlight-100 font-display">
                             {task.title}
                         </CardTitle>
-                        <Badge variant="outline" className="text-xs">
+                        <Badge className="bg-space-850 text-starlight-300 border-border/80 text-[10px] px-2 py-0.5 rounded-full font-mono">
                             {task.type}
                         </Badge>
                         {task.isBonus && (
-                            <Badge variant="warning" className="text-xs">
+                            <Badge className="bg-amber-500/15 text-amber-300 border-amber-500/30 text-[10px] px-2 py-0.5 rounded-full font-semibold">
                                 Bonus (+5 ST)
                             </Badge>
                         )}
                         {isSuggestedFirstSolver && (
-                            <Badge variant="outline" className="text-xs border-gold-500/40 text-gold-400 bg-gold-500/10 gap-1">
+                            <Badge className="bg-gold-500/15 text-gold-300 border-gold-500/30 text-[10px] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1 shadow-gold">
                                 <Trophy className="size-3 text-gold-400" />
-                                Earliest Manual Solver
+                                Earliest Solver
                             </Badge>
                         )}
                     </div>
                 </div>
 
-                <div className="text-right">
-                    <span className="text-sm font-semibold font-mono">
-                        {markedInvalid ? (
-                            <span className="text-destructive font-bold">Invalid (-10 ST)</span>
-                        ) : (
-                            <span>{totalAwarded} / 15 pts</span>
-                        )}
+                <div className="flex items-center gap-2 shrink-0">
+                    <span className="font-mono font-bold text-xs text-gold-400 bg-gold-500/10 border border-gold-500/20 px-2.5 py-1 rounded-full">
+                        Score: {markedInvalid ? "0" : totalAwarded} / 15 pts
                     </span>
                 </div>
             </CardHeader>
 
-            <CardContent className="space-y-4 text-sm">
-                {/* Student Solution Area */}
-                <div className="rounded-lg border border-border bg-muted/20 p-3.5 space-y-2">
+            <CardContent className="p-5 space-y-4 text-xs">
+                {/* Submission Details */}
+                <div className="rounded-xl border border-border/70 bg-space-850/60 p-3.5 space-y-2">
                     <div className="flex items-center justify-between text-xs">
-                        <span className="font-semibold text-foreground">
-                            Student Solution:
+                        <span className="font-semibold text-starlight-200">
+                            Student Submission
                         </span>
                         {submission ? (
-                            <Badge variant="secondary" className="text-[10px]">
-                                Mode: {submission.mode} · {submission.status}
-                            </Badge>
+                            <span className="text-starlight-400 font-mono text-[11px]">
+                                Submitted {formatDateTime(submission.submittedAt)}
+                            </span>
                         ) : (
-                            <Badge variant="outline" className="text-[10px] text-destructive border-destructive/30">
-                                {task.type === "EXTERNAL" ? "EXTERNAL (Check on OJ)" : "No submission on platform"}
-                            </Badge>
+                            <span className="text-error-400 font-mono text-[11px] font-semibold">
+                                No submission on record
+                            </span>
                         )}
                     </div>
 
-                    {submission ? (
-                        <div className="text-xs space-y-2 pt-1">
-                            {submission.mode === "TEXT" && (
-                                <pre className="p-2.5 rounded bg-background border border-border text-foreground font-mono text-xs whitespace-pre-wrap max-h-40 overflow-y-auto">
-                                    {submission.textContent || "(empty text)"}
-                                </pre>
+                    {submission && (
+                        <div className="space-y-1.5 pt-1 text-xs">
+                            {submission.textContent && (
+                                <div className="space-y-1">
+                                    <span className="text-starlight-400 text-[10px] uppercase font-mono">
+                                        Source Code / Content:
+                                    </span>
+                                    <pre className="p-3 rounded-lg bg-space-950 border border-border/70 text-starlight-200 font-mono text-xs overflow-x-auto max-h-48">
+                                        <code>{submission.textContent}</code>
+                                    </pre>
+                                </div>
                             )}
 
-                            {submission.mode === "LINK" && (
-                                <a
-                                    href={submission.externalLink ?? "#"}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1.5 text-primary hover:underline text-xs font-mono"
-                                >
-                                    <ExternalLink className="size-3.5" />
-                                    {submission.externalLink}
-                                </a>
+                            {submission.externalLink && (
+                                <div className="flex items-center gap-2 pt-1">
+                                    <span className="text-starlight-400">External URL:</span>
+                                    <a
+                                        href={submission.externalLink}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-gold-400 hover:text-gold-300 font-semibold underline flex items-center gap-1"
+                                    >
+                                        <ExternalLink className="size-3" />
+                                        {submission.externalLink}
+                                    </a>
+                                </div>
                             )}
 
-                            {submission.mode === "FILE" && submission.fileUrl && (
-                                <Button
-                                    size="xs"
-                                    variant="outline"
-                                    onClick={() => onFileOpen(submission.fileUrl!)}
-                                >
-                                    <Download className="size-3 mr-1" />
-                                    Download Solution File
-                                </Button>
+                            {submission.fileUrl && (
+                                <div className="flex items-center gap-2 pt-1">
+                                    <span className="text-starlight-400">Uploaded File:</span>
+                                    <Button
+                                        size="xs"
+                                        variant="outline"
+                                        onClick={() => onFileOpen(submission.fileUrl!)}
+                                        className="border-border/80 bg-space-800 text-starlight-200 rounded-lg text-xs"
+                                    >
+                                        <Download className="size-3 mr-1" />
+                                        Download / View File
+                                    </Button>
+                                </div>
                             )}
-
-                            <p className="text-[10px] text-muted-foreground">
-                                Submitted on: {formatDateTime(submission.submittedAt)}
-                            </p>
                         </div>
-                    ) : (
-                        <p className="text-xs text-muted-foreground italic">
-                            {task.type === "EXTERNAL"
-                                ? "This is an external task. Grade the student based on their profile/activity on the designated external platform."
-                                : "The student did not submit work for this task."}
+                    )}
+                </div>
+
+                {/* Marked Invalid Flag */}
+                <div className="rounded-xl border border-border/70 bg-space-950/50 p-3.5 space-y-2">
+                    <div className="flex items-center gap-2">
+                        <Checkbox
+                            id={`invalid-${task.id}`}
+                            checked={markedInvalid}
+                            onCheckedChange={(c) => setMarkedInvalid(Boolean(c))}
+                            disabled={isFinalized || isSaving}
+                        />
+                        <Label
+                            htmlFor={`invalid-${task.id}`}
+                            className="text-xs font-bold text-error-400 cursor-pointer flex items-center gap-1.5"
+                        >
+                            <AlertCircle className="size-3.5" />
+                            Mark submission as Invalid / Plagiarized (-10 ST Penalty)
+                        </Label>
+                    </div>
+
+                    {markedInvalid && (
+                        <p className="text-[11px] text-error-400/90 pl-6">
+                            When marked invalid, rubric points are discarded and the student receives a permanent -10 ST penalty for this task.
                         </p>
                     )}
                 </div>
 
-                {/* Rubric Evaluation Form */}
-                <div className="space-y-3 pt-1">
-                    <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-foreground flex items-center gap-1">
-                            <Sparkles className="size-3 text-gold-400" />
-                            Rubric Criteria Scoring:
-                        </span>
-
-                        {!isFinalized && (
-                            <div className="flex items-center gap-2">
-                                <Checkbox
-                                    id={`invalid-${task.id}`}
-                                    checked={markedInvalid}
-                                    onCheckedChange={(c) => setMarkedInvalid(Boolean(c))}
-                                />
-                                <Label
-                                    htmlFor={`invalid-${task.id}`}
-                                    className="text-xs text-destructive font-medium cursor-pointer"
-                                >
-                                    Mark as Invalid / Unsubmitted
-                                </Label>
-                            </div>
-                        )}
-                    </div>
+                {/* Rubric Criteria Evaluation */}
+                <div className="space-y-2">
+                    <Label className="text-xs font-bold text-starlight-200 flex items-center gap-1.5">
+                        <Sparkles className="size-3.5 text-gold-400" />
+                        Rubric Criteria Scores (Total: 15 max)
+                    </Label>
 
                     {markedInvalid ? (
-                        <div className="rounded-md bg-destructive/10 border border-destructive/20 p-3 text-xs text-destructive flex items-center gap-2">
-                            <AlertCircle className="size-4 shrink-0" />
-                            <span>
-                                This task is marked Invalid. It will yield 0 rubric points and trigger a -10 ST penalty for this task at finalization.
-                            </span>
-                        </div>
+                        <p className="text-xs text-starlight-400 italic p-3 rounded-xl bg-space-950/60 border border-border/60">
+                            Rubric scoring is disabled because this task is marked as Invalid.
+                        </p>
                     ) : (
-                        <div className="space-y-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                             {task.rubricFields.map((field) => {
                                 const currentScore = fieldScores[field.id] ?? 0;
 
                                 return (
                                     <div
                                         key={field.id}
-                                        className="flex items-center justify-between gap-3 p-2.5 rounded border border-border bg-card text-xs"
+                                        className="flex items-center justify-between gap-3 p-3 rounded-xl border border-border/70 bg-space-850/70 text-xs"
                                     >
                                         <div className="space-y-0.5">
-                                            <p className="font-medium text-foreground">
+                                            <p className="font-semibold text-starlight-100">
                                                 {field.fieldName}
                                             </p>
-                                            <p className="text-[10px] text-muted-foreground">
+                                            <p className="text-[10px] text-starlight-400 font-mono">
                                                 Max points: {field.maxPoints}
                                             </p>
                                         </div>
@@ -728,9 +758,9 @@ function TaskGradingCard({
                                                     }));
                                                 }}
                                                 disabled={isFinalized || isSaving}
-                                                className="w-16 text-center text-xs h-7"
+                                                className="w-16 text-center text-xs font-mono bg-space-900 border-border/80 text-starlight-100 rounded-lg focus-visible:border-gold-500"
                                             />
-                                            <span className="text-muted-foreground">/ {field.maxPoints}</span>
+                                            <span className="text-starlight-400 font-mono">/ {field.maxPoints}</span>
                                         </div>
                                     </div>
                                 );
@@ -740,28 +770,29 @@ function TaskGradingCard({
                 </div>
 
                 {error && (
-                    <p className="text-xs text-destructive flex items-center gap-1">
-                        <AlertCircle className="size-3" />
+                    <p className="text-xs text-error-400 flex items-center gap-1.5 p-2 rounded-lg bg-error-500/10 border border-error-500/25">
+                        <AlertCircle className="size-3.5 shrink-0" />
                         {error}
                     </p>
                 )}
 
                 {/* Save Draft Action */}
                 {!isFinalized && (
-                    <div className="flex items-center justify-end gap-2 pt-2 border-t">
+                    <div className="flex items-center justify-end gap-3 pt-3 border-t border-border/70">
                         {saveSuccess && (
-                            <span className="text-xs text-success flex items-center gap-1 font-medium">
+                            <span className="text-xs text-success-400 flex items-center gap-1.5 font-semibold">
                                 <Check className="size-3.5" />
                                 Draft saved!
                             </span>
                         )}
                         <Button
-                            size="xs"
+                            size="sm"
                             variant="outline"
                             onClick={handleSaveDraft}
                             disabled={isSaving}
+                            className="border-border/80 bg-space-850 hover:bg-space-800 text-starlight-200 rounded-xl text-xs font-semibold"
                         >
-                            <Save className="size-3 mr-1" />
+                            <Save className="size-3.5 mr-1 text-gold-400" />
                             {isSaving ? "Saving..." : "Save Task Draft"}
                         </Button>
                     </div>
@@ -793,7 +824,6 @@ function FinalizeGradingModal({
     const [isFinalizing, setIsFinalizing] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Compute preview according to grade-week.ts formula:
     const isResourceAccepted = student.resource?.status === "ACCEPTED";
     const wasHalved = !isResourceAccepted;
 
@@ -817,7 +847,6 @@ function FinalizeGradingModal({
         if (isInvalid || (!hasSub && task.type === "INTERNAL")) {
             penaltyTotal += 10;
         } else {
-            // Add rubric points
             if (draft?.fieldScores) {
                 rubricTotal += draft.fieldScores.reduce((a, b) => a + b.awardedPoints, 0);
             }
@@ -867,142 +896,123 @@ function FinalizeGradingModal({
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-lg bg-space-900/95 border-border/80 text-starlight-100 rounded-2xl backdrop-blur-xl shadow-4 max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                        <UserCheck className="size-5 text-primary" />
+                    <DialogTitle className="flex items-center gap-2 font-display text-lg font-bold text-starlight-100">
+                        <UserCheck className="size-5 text-gold-400" />
                         Finalize Week Grading
                     </DialogTitle>
-                    <DialogDescription>
-                        Review the score calculation for {student.studentName}. Once finalized, ST transactions are permanently executed.
+                    <DialogDescription className="text-xs text-starlight-400">
+                        Review the score calculation for {student.studentName}. Once finalized, ST transactions are permanently recorded.
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4 pt-2">
                     {error && (
-                        <div className="flex items-center gap-2 rounded-md bg-destructive/10 p-3 text-xs text-destructive border border-destructive/20">
+                        <div className="flex items-center gap-2 rounded-xl bg-error-500/10 p-3 text-xs text-error-400 border border-error-500/25">
                             <AlertCircle className="size-4 shrink-0" />
                             <span>{error}</span>
                         </div>
                     )}
 
                     {/* First Solver Selection */}
-                    <div className="rounded-lg border border-border bg-card p-3 space-y-2">
-                        <Label className="text-xs font-semibold flex items-center gap-1.5">
+                    <div className="rounded-xl border border-border/80 bg-space-950/60 p-4 space-y-2.5">
+                        <Label className="text-xs font-bold text-starlight-100 flex items-center gap-1.5">
                             <Trophy className="size-3.5 text-gold-400" />
                             First Solver Bonus (+5 ST per confirmed task)
                         </Label>
-                        <p className="text-[11px] text-muted-foreground">
-                            Check tasks where this student is confirmed as the earliest manual-lock solver:
+                        <p className="text-[11px] text-starlight-400">
+                            Check tasks where this student is confirmed as the earliest solver:
                         </p>
 
-                        <div className="space-y-1.5 pt-1">
+                        <div className="space-y-2 pt-1">
                             {tasks.map((task) => (
-                                <div
-                                    key={task.id}
-                                    className="flex items-center justify-between text-xs p-2 rounded bg-muted/40"
-                                >
-                                    <span className="font-medium truncate max-w-xs">{task.title}</span>
-                                    <div className="flex items-center gap-1.5">
-                                        <Checkbox
-                                            id={`first-${task.id}`}
-                                            checked={firstSolverTaskIds.includes(task.id)}
-                                            onCheckedChange={() => toggleFirstSolver(task.id)}
-                                        />
-                                        <Label htmlFor={`first-${task.id}`} className="text-xs cursor-pointer">
-                                            +5 ST
-                                        </Label>
-                                    </div>
+                                <div key={task.id} className="flex items-center gap-2">
+                                    <Checkbox
+                                        id={`first-solver-${task.id}`}
+                                        checked={firstSolverTaskIds.includes(task.id)}
+                                        onCheckedChange={() => toggleFirstSolver(task.id)}
+                                        disabled={isFinalizing}
+                                    />
+                                    <Label
+                                        htmlFor={`first-solver-${task.id}`}
+                                        className="text-xs text-starlight-200 cursor-pointer truncate max-w-sm"
+                                    >
+                                        {task.title}
+                                    </Label>
                                 </div>
                             ))}
                         </div>
                     </div>
 
-                    {/* Calculation Breakdown Table */}
-                    <div className="rounded-lg border border-border bg-card p-3.5 space-y-2 text-xs">
-                        <p className="font-semibold text-foreground pb-1 border-b border-border">
-                            Score Calculation Summary
+                    {/* Scoring Breakdown Card */}
+                    <div className="rounded-xl border border-border/80 bg-space-950/80 p-4 space-y-2.5 font-mono text-xs">
+                        <p className="font-sans font-bold text-starlight-100 text-xs flex items-center gap-1.5 border-b border-border/70 pb-2">
+                            <Coins className="size-3.5 text-gold-400" />
+                            Final ST Breakdown Formula
                         </p>
 
-                        <div className="space-y-1.5">
+                        <div className="space-y-1.5 text-starlight-300">
                             <div className="flex justify-between">
-                                <span className="text-muted-foreground">Rubric Points:</span>
-                                <span className="font-mono font-medium">+{rubricTotal} ST</span>
+                                <span>Rubric Points Sum:</span>
+                                <span className="text-starlight-100 font-bold">+{rubricTotal} ST</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Bonus Tasks (+5 each):</span>
+                                <span className="text-starlight-100 font-bold">+{bonusTotal} ST</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>First Solver Bonus (+5 each):</span>
+                                <span className="text-gold-400 font-bold">+{firstSolverBonus} ST</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Finish All Tasks Bonus:</span>
+                                <span className="text-gold-400 font-bold">+{finishAllBonus} ST</span>
                             </div>
 
-                            {bonusTotal > 0 && (
-                                <div className="flex justify-between text-gold-400">
-                                    <span>Bonus Tasks Solved:</span>
-                                    <span className="font-mono font-medium">+{bonusTotal} ST</span>
-                                </div>
-                            )}
-
-                            {firstSolverBonus > 0 && (
-                                <div className="flex justify-between text-gold-400">
-                                    <span>First Solver Bonus:</span>
-                                    <span className="font-mono font-medium">+{firstSolverBonus} ST</span>
-                                </div>
-                            )}
-
-                            {finishAllBonus > 0 && (
-                                <div className="flex justify-between text-success">
-                                    <span>Finished All Tasks Bonus:</span>
-                                    <span className="font-mono font-medium">+{finishAllBonus} ST</span>
-                                </div>
-                            )}
-
-                            <div className="flex justify-between font-semibold pt-1 border-t border-border/50">
-                                <span>Sum of Positive Rewards:</span>
-                                <span className="font-mono">+{rawPositiveTotal} ST</span>
+                            <div className="border-t border-border/70 pt-1.5 flex justify-between">
+                                <span>Raw Positive Total:</span>
+                                <span className="text-starlight-100 font-bold">+{rawPositiveTotal} ST</span>
                             </div>
 
-                            {/* Halving Notice */}
-                            <div className="p-2 rounded bg-muted/50 border border-border text-[11px] space-y-1">
-                                <div className="flex justify-between font-medium">
-                                    <span>Deliverable Status:</span>
-                                    <span className={isResourceAccepted ? "text-success" : "text-destructive"}>
-                                        {isResourceAccepted ? "ACCEPTED (No Penalty)" : "NOT ACCEPTED (Halved ×0.5)"}
-                                    </span>
+                            {wasHalved && (
+                                <div className="flex justify-between text-amber-400 font-semibold bg-amber-500/10 p-2 rounded-lg border border-amber-500/20">
+                                    <span>File Not Accepted Penalty:</span>
+                                    <span>× 0.5 (Halved to +{finalPositive} ST)</span>
                                 </div>
-                                {wasHalved && (
-                                    <div className="flex justify-between text-destructive">
-                                        <span>Reward after Halving:</span>
-                                        <span className="font-mono font-bold">+{finalPositive} ST</span>
-                                    </div>
-                                )}
-                            </div>
+                            )}
 
                             {penaltyTotal > 0 && (
-                                <div className="flex justify-between text-destructive font-medium pt-1">
-                                    <span>Unsubmitted / Invalid Penalties (-10 each):</span>
-                                    <span className="font-mono font-bold">-{penaltyTotal} ST</span>
+                                <div className="flex justify-between text-error-400 font-semibold bg-error-500/10 p-2 rounded-lg border border-error-500/20">
+                                    <span>Penalties (-10 per missing/invalid):</span>
+                                    <span>-{penaltyTotal} ST</span>
                                 </div>
                             )}
-                        </div>
 
-                        {/* Net Result */}
-                        <div className="p-2.5 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-between text-sm font-semibold">
-                            <span>Net ST Adjustment:</span>
-                            <span className={`font-mono ${netStDelta >= 0 ? "text-success" : "text-destructive"}`}>
-                                {netStDelta >= 0 ? `+${netStDelta}` : netStDelta} ST
-                            </span>
-                        </div>
+                            <div className="border-t border-border/70 pt-2 flex justify-between font-bold text-sm">
+                                <span className="font-sans text-starlight-100">Net Balance Change:</span>
+                                <span className={netStDelta >= 0 ? "text-gold-400" : "text-error-400"}>
+                                    {netStDelta >= 0 ? `+${netStDelta}` : netStDelta} ST
+                                </span>
+                            </div>
 
-                        <div className="flex justify-between text-xs text-muted-foreground pt-1">
-                            <span>Resulting Student Balance:</span>
-                            <span className="font-mono font-semibold text-coin">
-                                {resultingBalance} ST (from {student.beginnerSt} ST)
-                            </span>
+                            <div className="flex justify-between text-xs text-starlight-400 pt-1">
+                                <span>New Projected Balance:</span>
+                                <span className="text-starlight-100 font-bold">
+                                    {student.beginnerSt} → {resultingBalance} ST
+                                </span>
+                            </div>
                         </div>
                     </div>
 
-                    <div className="flex items-center justify-end gap-2 pt-3 border-t">
+                    <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-border/70">
                         <Button
                             type="button"
                             variant="outline"
                             size="sm"
                             onClick={onClose}
                             disabled={isFinalizing}
+                            className="border-border/80 bg-space-850 hover:bg-space-800 text-starlight-300 rounded-xl text-xs font-semibold"
                         >
                             Cancel
                         </Button>
@@ -1011,9 +1021,9 @@ function FinalizeGradingModal({
                             size="sm"
                             onClick={handleFinalize}
                             disabled={isFinalizing}
-                            className="bg-primary text-primary-foreground hover:bg-primary/80"
+                            className="bg-gold-500 hover:bg-gold-400 text-space-950 font-bold shadow-gold rounded-xl text-xs"
                         >
-                            {isFinalizing ? "Finalizing & Saving..." : "Confirm & Finalize Grading"}
+                            {isFinalizing ? "Finalizing..." : "Confirm & Finalize Grading"}
                         </Button>
                     </div>
                 </div>
