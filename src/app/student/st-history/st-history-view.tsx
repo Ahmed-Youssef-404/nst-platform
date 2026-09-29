@@ -105,40 +105,44 @@ export function StudentSTHistoryView({ initialPage }: { initialPage: STHistoryPa
         <div className="space-y-6">
             {/* Quick Summary Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="rounded-2xl border border-border/70 bg-space-900/70 p-5 space-y-1">
-                    <span className="text-xs font-semibold text-starlight-400 uppercase tracking-wider block">
+                <div className="rounded-2xl border border-border/80 bg-card p-5 space-y-1 shadow-xs dark:bg-space-900/70 dark:border-border/70">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
                         Logged Transactions
                     </span>
-                    <p className="font-mono text-2xl font-bold text-starlight-100">
+                    <p className="font-mono text-2xl font-bold text-foreground">
                         {transactions.length}
                     </p>
-                    <p className="text-[11px] text-starlight-400">total records in ledger</p>
+                    <p className="text-[11px] text-muted-foreground">total records in ledger</p>
                 </div>
 
-                <div className="rounded-2xl border border-emerald-500/25 bg-emerald-950/20 p-5 space-y-1">
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-5 space-y-1 shadow-xs dark:border-emerald-500/25 dark:bg-emerald-950/20">
                     <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider block">
+                        <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-400 uppercase tracking-wider block">
                             Rewards Earned
                         </span>
-                        <TrendingUp className="size-4 text-emerald-400" />
+                        <div className="size-7 rounded-lg bg-emerald-100 flex items-center justify-center dark:bg-emerald-500/20">
+                            <TrendingUp className="size-4 text-emerald-700 dark:text-emerald-400" />
+                        </div>
                     </div>
-                    <p className="font-mono text-2xl font-bold text-emerald-300">
+                    <p className="font-mono text-2xl font-bold text-emerald-800 dark:text-emerald-300">
                         {rewardsCount}
                     </p>
-                    <p className="text-[11px] text-emerald-400/80">positive bonuses & credits</p>
+                    <p className="text-[11px] text-emerald-700/80 dark:text-emerald-400/80">positive bonuses & credits</p>
                 </div>
 
-                <div className="rounded-2xl border border-red-500/20 bg-red-950/15 p-5 space-y-1">
+                <div className="rounded-2xl border border-rose-200 bg-rose-50/80 p-5 space-y-1 shadow-xs dark:border-red-500/20 dark:bg-red-950/15">
                     <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-red-400 uppercase tracking-wider block">
+                        <span className="text-xs font-semibold text-rose-800 dark:text-red-400 uppercase tracking-wider block">
                             Deductions & Unlocks
                         </span>
-                        <TrendingDown className="size-4 text-red-400" />
+                        <div className="size-7 rounded-lg bg-rose-100 flex items-center justify-center dark:bg-red-500/20">
+                            <TrendingDown className="size-4 text-rose-700 dark:text-red-400" />
+                        </div>
                     </div>
-                    <p className="font-mono text-2xl font-bold text-red-300">
+                    <p className="font-mono text-2xl font-bold text-rose-800 dark:text-red-300">
                         {penaltiesCount}
                     </p>
-                    <p className="text-[11px] text-red-400/80">hints unlocked & penalties</p>
+                    <p className="text-[11px] text-rose-700/80 dark:text-red-400/80">hints unlocked & penalties</p>
                 </div>
             </div>
 
@@ -152,8 +156,8 @@ export function StudentSTHistoryView({ initialPage }: { initialPage: STHistoryPa
                         onClick={() => setFilter("ALL")}
                         className={`text-xs h-8 rounded-lg ${
                             filter === "ALL"
-                                ? "bg-gold-500 text-space-950 font-bold hover:bg-gold-400"
-                                : "border-border/70 bg-space-900 text-starlight-300 hover:bg-space-850"
+                                ? "bg-gold-500 text-space-950 font-bold hover:bg-gold-400 shadow-xs"
+                                : "border-border/80 bg-background text-foreground hover:bg-muted dark:border-border/70 dark:bg-space-900 dark:text-starlight-300 dark:hover:bg-space-850"
                         }`}
                     >
                         All Activity ({transactions.length})
@@ -166,8 +170,8 @@ export function StudentSTHistoryView({ initialPage }: { initialPage: STHistoryPa
                         onClick={() => setFilter("REWARDS")}
                         className={`text-xs h-8 rounded-lg ${
                             filter === "REWARDS"
-                                ? "bg-emerald-500 text-space-950 font-bold hover:bg-emerald-400"
-                                : "border-border/70 bg-space-900 text-starlight-300 hover:bg-space-850"
+                                ? "bg-emerald-600 text-white font-bold hover:bg-emerald-500 dark:bg-emerald-500 dark:text-space-950 dark:hover:bg-emerald-400 shadow-xs"
+                                : "border-border/80 bg-background text-foreground hover:bg-muted dark:border-border/70 dark:bg-space-900 dark:text-starlight-300 dark:hover:bg-space-850"
                         }`}
                     >
                         Rewards ({rewardsCount})
@@ -180,8 +184,8 @@ export function StudentSTHistoryView({ initialPage }: { initialPage: STHistoryPa
                         onClick={() => setFilter("PENALTIES")}
                         className={`text-xs h-8 rounded-lg ${
                             filter === "PENALTIES"
-                                ? "bg-red-500 text-white font-bold hover:bg-red-400"
-                                : "border-border/70 bg-space-900 text-starlight-300 hover:bg-space-850"
+                                ? "bg-rose-600 text-white font-bold hover:bg-rose-500 dark:bg-red-500 dark:hover:bg-red-400 shadow-xs"
+                                : "border-border/80 bg-background text-foreground hover:bg-muted dark:border-border/70 dark:bg-space-900 dark:text-starlight-300 dark:hover:bg-space-850"
                         }`}
                     >
                         Deductions ({penaltiesCount})
@@ -190,9 +194,9 @@ export function StudentSTHistoryView({ initialPage }: { initialPage: STHistoryPa
             </div>
 
             {/* Transactions Timeline */}
-            <div className="rounded-2xl border border-border/70 bg-space-900/60 overflow-hidden divide-y divide-border/60 shadow-xl">
+            <div className="rounded-2xl border border-border/80 bg-card overflow-hidden divide-y divide-border/60 shadow-md dark:border-border/70 dark:bg-space-900/60 dark:shadow-xl">
                 {filteredTransactions.length === 0 ? (
-                    <div className="p-8 text-center text-xs text-starlight-400">
+                    <div className="p-8 text-center text-xs text-muted-foreground dark:text-starlight-400">
                         No transactions match the selected filter.
                     </div>
                 ) : (
@@ -203,7 +207,7 @@ export function StudentSTHistoryView({ initialPage }: { initialPage: STHistoryPa
             </div>
 
             {error && (
-                <p className="text-center text-xs text-red-400">{error}</p>
+                <p className="text-center text-xs text-red-500 dark:text-red-400">{error}</p>
             )}
 
             {/* Load More Action */}
@@ -213,11 +217,11 @@ export function StudentSTHistoryView({ initialPage }: { initialPage: STHistoryPa
                         variant="outline"
                         onClick={handleLoadMore}
                         disabled={isPending}
-                        className="rounded-xl border-gold-500/40 bg-space-900/80 hover:bg-space-850 text-gold-300 font-semibold px-6 shadow-gold text-xs h-10"
+                        className="rounded-xl border-gold-500/40 bg-card hover:bg-muted text-foreground dark:bg-space-900/80 dark:hover:bg-space-850 dark:text-gold-300 font-semibold px-6 shadow-xs text-xs h-10"
                     >
                         {isPending ? (
                             <>
-                                <Loader2 className="size-4 mr-2 animate-spin text-gold-400" />
+                                <Loader2 className="size-4 mr-2 animate-spin text-gold-500 dark:text-gold-400" />
                                 Loading older transactions...
                             </>
                         ) : (
@@ -236,23 +240,23 @@ function STHistoryRow({ transaction }: { transaction: STTransactionResult }) {
     const signedAmount = isReward ? `+${transaction.amount}` : `-${transaction.amount}`;
 
     return (
-        <div className="flex items-center justify-between gap-4 px-5 py-4 transition-colors hover:bg-space-850/50">
+        <div className="flex items-center justify-between gap-4 px-5 py-4 transition-colors hover:bg-muted/40 dark:hover:bg-space-850/50">
             <div className="flex min-w-0 items-center gap-3.5">
                 <div
                     className={`flex size-10 shrink-0 items-center justify-center rounded-xl border ${
                         isReward
-                            ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30 shadow-xs"
-                            : "bg-red-500/15 text-red-400 border-red-500/30"
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200 shadow-xs dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30"
+                            : "bg-rose-50 text-rose-700 border-rose-200 shadow-xs dark:bg-red-500/15 dark:text-red-400 dark:border-red-500/30"
                     }`}
                 >
                     <Icon className="size-5" />
                 </div>
 
                 <div className="min-w-0 space-y-0.5">
-                    <p className="truncate text-sm font-semibold text-starlight-100">
+                    <p className="truncate text-sm font-semibold text-foreground dark:text-starlight-100">
                         {getReasonLabel(transaction.reason)}
                     </p>
-                    <p className="text-xs text-starlight-400 font-mono">
+                    <p className="text-xs text-muted-foreground dark:text-starlight-400 font-mono">
                         {formatDateTime(transaction.createdAt)}
                     </p>
                 </div>
@@ -261,7 +265,9 @@ function STHistoryRow({ transaction }: { transaction: STTransactionResult }) {
             <div className="text-right shrink-0">
                 <span
                     className={`font-mono text-base font-extrabold tabular-nums ${
-                        isReward ? "text-gold-300" : "text-red-400"
+                        isReward
+                            ? "text-emerald-700 dark:text-gold-300"
+                            : "text-rose-700 dark:text-red-400"
                     }`}
                 >
                     {signedAmount} ST

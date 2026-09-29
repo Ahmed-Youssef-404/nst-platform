@@ -31,6 +31,7 @@ import { getSubmissionFileUrlAction } from "@/lib/actions/submission-management"
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { MarkdownEditor } from "@/components/ui/markdown-editor";
+import { MarkdownContent } from "@/components/markdown-content";
 import { formatDateTime } from "@/lib/format-date";
 // import type { SessionDetail } from "@/lib/data/get-session-detail";
 // import type { SessionStatus } from "@/lib/data/get-my-groups";
@@ -161,21 +162,26 @@ export function SessionDetailView({
                                         {task.allowedSubmissionMode ?? "Student chooses freely"}
                                     </p>
                                 )}
-                                <div className="space-y-2 border-t border-border pt-3">
-                                    <p className="text-xs font-medium text-muted-foreground">
-                                        Hints
+                                <div className="space-y-2.5 border-t border-border pt-3">
+                                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                                        Hints ({task.hints.length})
                                     </p>
                                     {task.hints.map((hint) => (
                                         <div
                                             key={hint.id}
-                                            className="flex items-start justify-between gap-3 text-sm"
+                                            className="flex flex-col gap-1.5 text-xs rounded-xl border border-border/60 bg-space-950/40 p-3"
                                         >
-                                            <span>
-                                                {hint.order}. {hint.content}
-                                            </span>
-                                            <span className="shrink-0 text-muted-foreground">
-                                                {hint.cost} ST
-                                            </span>
+                                            <div className="flex items-center justify-between text-xs">
+                                                <span className="font-mono font-bold text-gold-400">
+                                                    Hint #{hint.order}
+                                                </span>
+                                                <span className="shrink-0 font-mono text-[11px] text-muted-foreground bg-space-850 px-2 py-0.5 rounded-md border border-border/60">
+                                                    {hint.cost} ST
+                                                </span>
+                                            </div>
+                                            <div className="text-xs text-starlight-200 pt-0.5">
+                                                <MarkdownContent content={hint.content} />
+                                            </div>
                                         </div>
                                     ))}
                                 </div>

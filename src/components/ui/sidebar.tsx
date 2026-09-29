@@ -162,7 +162,25 @@ function Sidebar({
   variant?: "sidebar" | "floating" | "inset"
   collapsible?: "offcanvas" | "icon" | "none"
 }) {
-  const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+  const { isMobile, state, openMobile, setOpenMobile, setOpen } = useSidebar()
+
+  const handleEmptyAreaClick = React.useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if (state !== "collapsed") return
+      const target = event.target as HTMLElement | null
+      if (!target) return
+      // If clicking inside an interactive element, do not expand
+      if (
+        target.closest(
+          "a, button, input, textarea, select, [role='button'], [tabindex='0'], [data-sidebar='trigger']"
+        )
+      ) {
+        return
+      }
+      setOpen(true)
+    },
+    [state, setOpen]
+  )
 
   if (collapsible === "none") {
     return (
@@ -242,7 +260,11 @@ function Sidebar({
         <div
           data-sidebar="sidebar"
           data-slot="sidebar-inner"
-          className="flex size-full flex-col bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:shadow-sm group-data-[variant=floating]:ring-1 group-data-[variant=floating]:ring-sidebar-border"
+          onClick={handleEmptyAreaClick}
+          className={cn(
+            "flex size-full flex-col bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:shadow-sm group-data-[variant=floating]:ring-1 group-data-[variant=floating]:ring-sidebar-border",
+            state === "collapsed" && "group-data-[collapsible=icon]:cursor-pointer [&_a]:cursor-pointer [&_button]:cursor-pointer"
+          )}
         >
           {children}
         </div>

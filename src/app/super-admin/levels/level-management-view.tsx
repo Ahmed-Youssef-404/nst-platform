@@ -19,6 +19,8 @@ import {
     ArrowUpRight,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { showToast } from "@/components/ui/toast";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { MarkdownEditor } from "@/components/ui/markdown-editor";
@@ -95,11 +97,11 @@ export function LevelManagementView({
                 <div className="flex items-center gap-3">
                     <Button
                         size="sm"
-                        onClick={() => setShowCreateLevel(!showCreateLevel)}
+                        onClick={() => setShowCreateLevel(true)}
                         className="bg-gold-500 text-space-950 hover:bg-gold-400 font-semibold shadow-gold"
                     >
                         <Plus className="size-4 mr-1.5" />
-                        <span>{showCreateLevel ? "Close Creator" : "Create Level"}</span>
+                        <span>Create Level</span>
                     </Button>
                 </div>
             </div>
@@ -147,15 +149,31 @@ export function LevelManagementView({
                 </div>
             </div>
 
-            {/* CREATE LEVEL CARD */}
-            {showCreateLevel && (
-                <div className="animate-slide-down">
-                    <CreateLevelCard
+            {/* CREATE LEVEL MODAL (Requirement 16) */}
+            <Dialog open={showCreateLevel} onOpenChange={setShowCreateLevel}>
+                <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+                    <DialogHeader>
+                        <div className="flex items-center gap-2.5">
+                            <div className="size-8 rounded-lg bg-gold-500/10 text-gold-500 dark:text-gold-400 flex items-center justify-center border border-gold-500/25">
+                                <Sparkles className="size-4" />
+                            </div>
+                            <div>
+                                <DialogTitle className="font-display text-base text-foreground dark:text-starlight-100">
+                                    Create Level & Advance Cohorts
+                                </DialogTitle>
+                                <DialogDescription className="text-xs text-muted-foreground">
+                                    Define the level title, sequence number, and select intermediate cohorts to progress.
+                                </DialogDescription>
+                            </div>
+                        </div>
+                    </DialogHeader>
+                    <CreateLevelForm
                         groups={allGroups}
                         onCreated={() => setShowCreateLevel(false)}
+                        onCancel={() => setShowCreateLevel(false)}
                     />
-                </div>
-            )}
+                </DialogContent>
+            </Dialog>
 
             {/* Search Filter */}
             <div className="relative max-w-md">
@@ -310,12 +328,14 @@ interface GroupForSelection {
     activeLevel: { name: string; levelNumber: number } | null;
 }
 
-function CreateLevelCard({
+function CreateLevelForm({
     groups,
     onCreated,
+    onCancel,
 }: {
     groups: GroupForSelection[];
     onCreated?: () => void;
+    onCancel?: () => void;
 }) {
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
@@ -323,7 +343,6 @@ function CreateLevelCard({
     const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(new Set());
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
     // Only intermediate groups use Levels
     const intermediateGroups = useMemo(() => {
@@ -358,7 +377,6 @@ function CreateLevelCard({
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         setError(null);
-        setSuccessMessage(null);
 
         const levelNumberValue = Number(levelNumber);
         if (!Number.isInteger(levelNumberValue) || levelNumberValue <= 0) {
@@ -381,18 +399,18 @@ function CreateLevelCard({
         setIsSubmitting(false);
 
         if (result.success && result.data) {
-            setSuccessMessage(
-                `Level "${name}" successfully created and activated for ${result.data.length} Group${
+            showToast({
+                title: "Level Created & Launched",
+                description: `Level "${name.trim()}" successfully activated for ${result.data.length} Group${
                     result.data.length === 1 ? "" : "s"
-                }.`
-            );
+                }.`,
+                type: "success",
+            });
             setName("");
             setDescription("");
             setLevelNumber("1");
             setSelectedGroupIds(new Set());
-            setTimeout(() => {
-                onCreated?.();
-            }, 1800);
+            onCreated?.();
         } else {
             setError(result.error ?? "Failed to create Level.");
         }
@@ -410,204 +428,166 @@ function CreateLevelCard({
     }, [intermediateGroups]);
 
     return (
-        <Card className="border-gold-500/30 bg-space-900/80 backdrop-blur-md shadow-gold">
-            <CardHeader className="border-b border-border/70 pb-4">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <div className="size-8 rounded-xl bg-gold-500/10 text-gold-400 flex items-center justify-center border border-gold-500/25">
-                            <Sparkles className="size-4" />
-                        </div>
-                        <div>
-                            <CardTitle className="font-display text-base text-starlight-100">
-                                Launch New Curriculum Level
-                            </CardTitle>
-                            <CardDescription className="text-xs text-starlight-400">
-                                Define the level title, sequence number, and select intermediate cohorts to progress.
-                            </CardDescription>
-                        </div>
-                    </div>
-
-                    {onCreated && (
-                        <button
-                            type="button"
-                            onClick={onCreated}
-                            className="text-starlight-400 hover:text-starlight-200 text-xs"
-                        >
-                            Cancel
-                        </button>
-                    )}
+        <form onSubmit={handleSubmit} className="space-y-5 pt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
+                <div className="sm:col-span-8 space-y-1.5">
+                    <Label htmlFor="level-name" className="text-xs font-semibold text-foreground/90">
+                        Level Title
+                    </Label>
+                    <Input
+                        id="level-name"
+                        placeholder="e.g. Level 1: Foundations of Programming"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        required
+                        className="bg-background dark:bg-space-950/80 border-border text-foreground dark:text-starlight-100 focus-visible:border-gold-500/50"
+                    />
                 </div>
-            </CardHeader>
 
-            <CardContent className="pt-6 space-y-6">
-                {successMessage && (
-                    <div className="rounded-xl border border-success-500/30 bg-success-500/10 p-3.5 flex items-center gap-2.5 text-xs text-success-300">
-                        <CheckCircle2 className="size-4 text-success-400 shrink-0" />
-                        <span>{successMessage}</span>
+                <div className="sm:col-span-4 space-y-1.5">
+                    <Label htmlFor="level-number" className="text-xs font-semibold text-foreground/90">
+                        Level Number (Sequential)
+                    </Label>
+                    <Input
+                        id="level-number"
+                        type="number"
+                        min={1}
+                        value={levelNumber}
+                        onChange={(e) => setLevelNumber(e.target.value)}
+                        required
+                        className="bg-background dark:bg-space-950/80 border-border text-foreground dark:text-starlight-100 font-mono focus-visible:border-gold-500/50"
+                    />
+                </div>
+            </div>
+
+            <div className="space-y-1.5">
+                <MarkdownEditor
+                    id="level-description"
+                    label="Description & Learning Objectives (Optional)"
+                    placeholder="Briefly outline topics, algorithms, or concepts covered in this level in Markdown..."
+                    value={description}
+                    onChange={(val) => setDescription(val)}
+                    rows={4}
+                />
+            </div>
+
+            {/* Groups Multi-Selection */}
+            <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold text-foreground/90">
+                        Target Intermediate Groups ({selectedGroupIds.size} selected)
+                    </Label>
+                    <span className="text-[11px] text-muted-foreground">
+                        Beginner groups are excluded (they use Weekly Missions)
+                    </span>
+                </div>
+
+                {intermediateGroups.length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic p-4 rounded-xl border border-dashed border-border bg-muted/20">
+                        No Intermediate groups available. Create intermediate groups in the Batches tab first.
+                    </p>
+                ) : (
+                    <div className="max-h-56 space-y-4 overflow-y-auto rounded-xl border border-border bg-muted/20 dark:bg-space-950/60 p-4">
+                        {Array.from(groupsByBatch.entries()).map(([batchName, batchGroups]) => (
+                            <div key={batchName} className="space-y-2">
+                                <div className="flex items-center justify-between border-b border-border/60 pb-1">
+                                    <span className="text-[11px] font-bold uppercase tracking-wider text-gold-600 dark:text-gold-400">
+                                        {batchName}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => selectAllBatch(batchGroups)}
+                                        className="text-[10px] text-muted-foreground hover:text-foreground hover:underline font-medium"
+                                    >
+                                        Toggle All
+                                    </button>
+                                </div>
+
+                                <div className="space-y-1.5 pl-1">
+                                    {batchGroups.map((group) => {
+                                        const isSelected = selectedGroupIds.has(group.id);
+                                        return (
+                                            <div
+                                                key={group.id}
+                                                onClick={() => toggleGroup(group.id)}
+                                                className={`
+                                                    flex items-center justify-between p-2.5 rounded-lg border text-xs cursor-pointer transition-all
+                                                    ${
+                                                        isSelected
+                                                            ? "bg-gold-500/10 border-gold-500/35 text-foreground dark:text-starlight-100"
+                                                            : "bg-background/80 dark:bg-space-900/40 border-border/60 text-muted-foreground hover:border-border"
+                                                    }
+                                                `}
+                                            >
+                                                <div className="flex items-center gap-2.5">
+                                                    <Checkbox
+                                                        id={`group-${group.id}`}
+                                                        checked={isSelected}
+                                                        onCheckedChange={() => toggleGroup(group.id)}
+                                                    />
+                                                    <span className="font-medium">
+                                                        {group.name}
+                                                    </span>
+                                                </div>
+
+                                                {group.activeLevel ? (
+                                                    <span className="text-[10px] text-muted-foreground font-mono">
+                                                        Current: Level {group.activeLevel.levelNumber} ({group.activeLevel.name})
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-[10px] text-amber-600 dark:text-amber-400/80">
+                                                        No active level
+                                                    </span>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 )}
+            </div>
 
-                <form onSubmit={handleSubmit} className="space-y-5">
-                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
-                        <div className="sm:col-span-8 space-y-1.5">
-                            <Label htmlFor="level-name" className="text-xs text-starlight-300">
-                                Level Title
-                            </Label>
-                            <Input
-                                id="level-name"
-                                placeholder="e.g. Level 1: Foundations of Programming"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                required
-                                className="bg-space-950/80 border-border/80 text-starlight-100 focus-visible:border-gold-500/50"
-                            />
-                        </div>
-
-                        <div className="sm:col-span-4 space-y-1.5">
-                            <Label htmlFor="level-number" className="text-xs text-starlight-300">
-                                Level Number (Sequential)
-                            </Label>
-                            <Input
-                                id="level-number"
-                                type="number"
-                                min={1}
-                                value={levelNumber}
-                                onChange={(e) => setLevelNumber(e.target.value)}
-                                required
-                                className="bg-space-950/80 border-border/80 text-starlight-100 font-mono focus-visible:border-gold-500/50"
-                            />
-                        </div>
+            {/* ST Economy Transition Notice */}
+            {selectedGroupIds.size > 0 && (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 space-y-1 animate-fade-in">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-amber-600 dark:text-amber-300">
+                        <AlertTriangle className="size-4 text-amber-500 dark:text-amber-400 shrink-0" />
+                        <span>Platform Transition Notice</span>
                     </div>
+                    <p className="text-[11px] text-muted-foreground dark:text-starlight-300 leading-relaxed">
+                        Activating this level will freeze the previous active level for the selected groups. Each student in these groups will receive a fresh Level ST balance of <strong className="text-gold-600 dark:text-gold-300">50 ST</strong>. Historical balances and past sessions remain completely preserved in audit logs.
+                    </p>
+                </div>
+            )}
 
-                    <div className="space-y-1.5">
-                        <MarkdownEditor
-                            id="level-description"
-                            label="Description & Learning Objectives (Optional)"
-                            placeholder="Briefly outline topics, algorithms, or concepts covered in this level in Markdown..."
-                            value={description}
-                            onChange={(val) => setDescription(val)}
-                            rows={4}
-                        />
-                    </div>
+            {error && (
+                <p className="text-xs font-medium text-destructive bg-destructive/10 border border-destructive/20 p-2.5 rounded-lg">
+                    {error}
+                </p>
+            )}
 
-                    {/* Groups Multi-Selection */}
-                    <div className="space-y-2.5">
-                        <div className="flex items-center justify-between">
-                            <Label className="text-xs text-starlight-300">
-                                Target Intermediate Groups ({selectedGroupIds.size} selected)
-                            </Label>
-                            <span className="text-[11px] text-starlight-400">
-                                Beginner groups are excluded (they use Weekly Missions)
-                            </span>
-                        </div>
-
-                        {intermediateGroups.length === 0 ? (
-                            <p className="text-xs text-starlight-400/80 italic p-4 rounded-xl border border-dashed border-border/70 bg-space-950/40">
-                                No Intermediate groups available. Create intermediate groups in the Batches tab first.
-                            </p>
-                        ) : (
-                            <div className="max-h-72 space-y-4 overflow-y-auto rounded-xl border border-border/80 bg-space-950/60 p-4">
-                                {Array.from(groupsByBatch.entries()).map(([batchName, batchGroups]) => (
-                                    <div key={batchName} className="space-y-2">
-                                        <div className="flex items-center justify-between border-b border-border/60 pb-1">
-                                            <span className="text-[11px] font-bold uppercase tracking-wider text-gold-400">
-                                                {batchName}
-                                            </span>
-                                            <button
-                                                type="button"
-                                                onClick={() => selectAllBatch(batchGroups)}
-                                                className="text-[10px] text-starlight-400 hover:text-gold-300 hover:underline"
-                                            >
-                                                Toggle All
-                                            </button>
-                                        </div>
-
-                                        <div className="space-y-1.5 pl-1">
-                                            {batchGroups.map((group) => {
-                                                const isSelected = selectedGroupIds.has(group.id);
-                                                return (
-                                                    <div
-                                                        key={group.id}
-                                                        onClick={() => toggleGroup(group.id)}
-                                                        className={`
-                                                            flex items-center justify-between p-2.5 rounded-lg border text-xs cursor-pointer transition-all
-                                                            ${
-                                                                isSelected
-                                                                    ? "bg-gold-500/10 border-gold-500/35 text-starlight-100"
-                                                                    : "bg-space-900/40 border-border/60 text-starlight-300 hover:border-border"
-                                                            }
-                                                        `}
-                                                    >
-                                                        <div className="flex items-center gap-2.5">
-                                                            <Checkbox
-                                                                id={`group-${group.id}`}
-                                                                checked={isSelected}
-                                                                onCheckedChange={() => toggleGroup(group.id)}
-                                                            />
-                                                            <span className="font-medium">
-                                                                {group.name}
-                                                            </span>
-                                                        </div>
-
-                                                        {group.activeLevel ? (
-                                                            <span className="text-[10px] text-starlight-400 font-mono">
-                                                                Current: Level {group.activeLevel.levelNumber} ({group.activeLevel.name})
-                                                            </span>
-                                                        ) : (
-                                                            <span className="text-[10px] text-amber-400/80">
-                                                                No active level
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* ST Economy Transition Notice */}
-                    {selectedGroupIds.size > 0 && (
-                        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 space-y-1.5 animate-fade-in">
-                            <div className="flex items-center gap-2 text-xs font-semibold text-amber-300">
-                                <AlertTriangle className="size-4 text-amber-400" />
-                                <span>Platform Transition Notice</span>
-                            </div>
-                            <p className="text-[11px] text-starlight-300 leading-relaxed">
-                                Activating this level will freeze the previous active level for the selected groups. Each student in these groups will receive a fresh Level ST balance of <strong className="text-gold-300">50 ST</strong>. Historical balances and past sessions remain completely preserved in audit logs.
-                            </p>
-                        </div>
-                    )}
-
-                    {error && (
-                        <p className="text-xs font-medium text-error-400 bg-error-500/10 border border-error-500/20 p-2.5 rounded-lg">
-                            {error}
-                        </p>
-                    )}
-
-                    <div className="flex items-center justify-end gap-3 pt-2">
-                        {onCreated && (
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                onClick={onCreated}
-                                className="text-starlight-400 hover:text-starlight-200"
-                            >
-                                Cancel
-                            </Button>
-                        )}
-                        <Button
-                            type="submit"
-                            disabled={isSubmitting || selectedGroupIds.size === 0}
-                            className="bg-gold-500 text-space-950 hover:bg-gold-400 font-semibold shadow-gold h-10 px-6"
-                        >
-                            {isSubmitting ? "Activating Level..." : "Activate & Launch Level"}
-                        </Button>
-                    </div>
-                </form>
-            </CardContent>
-        </Card>
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-border/60">
+                {onCancel && (
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={onCancel}
+                        disabled={isSubmitting}
+                        className="text-muted-foreground hover:text-foreground"
+                    >
+                        Cancel
+                    </Button>
+                )}
+                <Button
+                    type="submit"
+                    disabled={isSubmitting || selectedGroupIds.size === 0}
+                    className="bg-gold-500 text-space-950 hover:bg-gold-400 font-semibold shadow-gold h-10 px-6"
+                >
+                    {isSubmitting ? "Activating Level..." : "Activate & Launch Level"}
+                </Button>
+            </div>
+        </form>
     );
 }

@@ -22,22 +22,22 @@ const ZONE_STYLES: Record<
 > = {
     normal: {
         label: "Optimal Zone",
-        badgeClassName: "bg-emerald-500/10 text-emerald-400 border-emerald-500/25",
-        barClassName: "border-border/70 bg-space-900/80 dark:bg-space-950/80",
+        badgeClassName: "bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/25",
+        barClassName: "border-border/80 bg-card/90 text-foreground dark:border-border/70 dark:bg-space-950/80",
         message: null,
         icon: null,
     },
     warning: {
         label: "Low ST Warning",
-        badgeClassName: "bg-amber-500/15 text-amber-400 border-amber-500/30 animate-pulse",
-        barClassName: "border-amber-500/40 bg-amber-950/30 text-amber-200",
+        badgeClassName: "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/30 animate-pulse",
+        barClassName: "border-amber-300/80 bg-amber-50/95 text-amber-900 shadow-xs dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-200",
         message: "Your Level ST is running low. Complete tasks or earn bonuses to replenish your balance.",
         icon: AlertTriangle,
     },
     danger: {
         label: "Critical Danger Zone",
-        badgeClassName: "bg-red-500/20 text-red-400 border-red-500/40 animate-pulse",
-        barClassName: "border-red-500/50 bg-red-950/40 text-red-200",
+        badgeClassName: "bg-red-100 text-red-800 border-red-300 dark:bg-red-500/20 dark:text-red-400 dark:border-red-500/40 animate-pulse",
+        barClassName: "border-red-300/80 bg-red-50/95 text-red-900 shadow-xs dark:border-red-500/50 dark:bg-red-950/40 dark:text-red-200",
         message: "Your Level ST has depleted to zero or below! Contact your instructor to avoid penalties.",
         icon: ShieldAlert,
     },
@@ -56,10 +56,10 @@ export async function StudentTopBar({ studentId }: { studentId: string }) {
                 {/* Left: Greeting & status */}
                 <div className="flex min-w-0 items-center gap-3">
                     <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-starlight-100 truncate">
+                        <span className="text-sm font-semibold text-foreground dark:text-starlight-100 truncate">
                             {balance.name}
                         </span>
-                        <span className="hidden sm:inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold bg-gold-500/10 text-gold-700 dark:text-gold-400 border border-gold-500/20">
+                        <span className="hidden sm:inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold bg-gold-500/10 text-gold-700 dark:text-gold-400 border border-gold-500/25">
                             <Sparkles className="size-2.5 text-gold-600 dark:text-gold-400" />
                             Cadet
                         </span>
@@ -67,7 +67,7 @@ export async function StudentTopBar({ studentId }: { studentId: string }) {
 
                     {zoneStyle.label && balance.zone !== "normal" && (
                         <div className="flex items-center gap-1.5">
-                            {zoneStyle.icon && <zoneStyle.icon className="size-3.5 shrink-0 text-amber-400" />}
+                            {zoneStyle.icon && <zoneStyle.icon className="size-3.5 shrink-0" />}
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${zoneStyle.badgeClassName}`}>
                                 {zoneStyle.label}
                             </span>
@@ -79,7 +79,7 @@ export async function StudentTopBar({ studentId }: { studentId: string }) {
                 <div className="flex shrink-0 items-center gap-3">
                     <Link
                         href="/student/st-history"
-                        className="group flex items-center gap-2 rounded-xl bg-space-900 dark:bg-space-850/90 hover:bg-space-850 dark:hover:bg-space-800 px-3 py-1.5 border border-gold-500/30 shadow-gold transition-all duration-200"
+                        className="group flex items-center gap-2 rounded-xl bg-card dark:bg-space-850/90 hover:bg-muted/70 dark:hover:bg-space-800 px-3 py-1.5 border border-gold-500/30 shadow-xs dark:shadow-gold transition-all duration-200"
                         title="View ST Transaction History"
                     >
                         <div className="flex size-6 items-center justify-center rounded-lg bg-gold-500/15 text-gold-600 dark:text-gold-400 group-hover:scale-110 transition-transform">
@@ -93,14 +93,14 @@ export async function StudentTopBar({ studentId }: { studentId: string }) {
                                 ST
                             </span>
                         </div>
-                        <ChevronRight className="size-3.5 text-starlight-400 group-hover:text-gold-600 dark:group-hover:text-gold-300 transition-colors" />
+                        <ChevronRight className="size-3.5 text-muted-foreground dark:text-starlight-400 group-hover:text-gold-600 dark:group-hover:text-gold-300 transition-colors" />
                     </Link>
                 </div>
 
                 {/* Warning / Danger Message */}
                 {zoneStyle.message && (
                     <div className="w-full pt-1">
-                        <div className="flex items-center gap-2 rounded-lg bg-space-950/60 px-3 py-1.5 text-xs border border-current/20">
+                        <div className="flex items-center gap-2 rounded-lg bg-background/80 dark:bg-space-950/60 px-3 py-1.5 text-xs border border-current/25 shadow-xs">
                             {zoneStyle.icon && <zoneStyle.icon className="size-3.5 shrink-0" />}
                             <p className="font-medium">{zoneStyle.message}</p>
                         </div>

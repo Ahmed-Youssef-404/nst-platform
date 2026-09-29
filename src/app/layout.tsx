@@ -6,6 +6,7 @@ import "./nst-design-v1.0.css";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/theme-provider";
 import { RouteProgressBar } from "@/components/route-progress-bar";
+import { Toaster } from "@/components/ui/toast";
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
@@ -54,6 +55,7 @@ export default function RootLayout({
             <RouteProgressBar />
           </Suspense>
           {children}
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>

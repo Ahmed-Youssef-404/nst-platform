@@ -20,6 +20,8 @@ import {
     AlertCircle,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { showToast } from "@/components/ui/toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -84,11 +86,11 @@ export function BatchManagementView({
                 <div className="flex items-center gap-3">
                     <Button
                         size="sm"
-                        onClick={() => setShowCreateBatch(!showCreateBatch)}
+                        onClick={() => setShowCreateBatch(true)}
                         className="bg-gold-500 text-space-950 hover:bg-gold-400 font-semibold shadow-gold"
                     >
                         <Plus className="size-4 mr-1.5" />
-                        <span>{showCreateBatch ? "Close Form" : "New Batch"}</span>
+                        <span>New Batch</span>
                     </Button>
                 </div>
             </div>
@@ -121,12 +123,27 @@ export function BatchManagementView({
                 </div>
             </div>
 
-            {/* CREATE BATCH DRAWER / CARD */}
-            {showCreateBatch && (
-                <div className="animate-slide-down">
-                    <CreateBatchCard onCreated={() => setShowCreateBatch(false)} />
-                </div>
-            )}
+            {/* CREATE BATCH MODAL (Requirement 16) */}
+            <Dialog open={showCreateBatch} onOpenChange={setShowCreateBatch}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <div className="flex items-center gap-2.5">
+                            <div className="size-8 rounded-lg bg-gold-500/10 text-gold-500 dark:text-gold-400 flex items-center justify-center border border-gold-500/25">
+                                <Plus className="size-4" />
+                            </div>
+                            <div>
+                                <DialogTitle className="font-display text-base text-foreground dark:text-starlight-100">
+                                    Create Academic Batch
+                                </DialogTitle>
+                                <DialogDescription className="text-xs text-muted-foreground">
+                                    A batch groups students and cohorts by graduation year or session cycle.
+                                </DialogDescription>
+                            </div>
+                        </div>
+                    </DialogHeader>
+                    <CreateBatchForm onCreated={() => setShowCreateBatch(false)} onCancel={() => setShowCreateBatch(false)} />
+                </DialogContent>
+            </Dialog>
 
             {/* Search Filter */}
             <div className="relative max-w-md">
@@ -178,10 +195,10 @@ export function BatchManagementView({
 }
 
 // ============================================
-// CREATE BATCH CARD
+// CREATE BATCH FORM (FOR DIALOG)
 // ============================================
 
-function CreateBatchCard({ onCreated }: { onCreated?: () => void }) {
+function CreateBatchForm({ onCreated, onCancel }: { onCreated?: () => void; onCancel?: () => void }) {
     const [name, setName] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -195,6 +212,11 @@ function CreateBatchCard({ onCreated }: { onCreated?: () => void }) {
 
         if (result.success) {
             setName("");
+            showToast({
+                title: "Batch Created",
+                description: `Academic batch "${name.trim()}" created successfully.`,
+                type: "success",
+            });
             onCreated?.();
         } else {
             setError(result.error ?? "Failed to create batch.");
@@ -204,66 +226,50 @@ function CreateBatchCard({ onCreated }: { onCreated?: () => void }) {
     }
 
     return (
-        <Card className="border-gold-500/30 bg-space-900/80 backdrop-blur-md shadow-gold">
-            <CardHeader className="border-b border-border/70 pb-3">
-                <div className="flex items-center gap-2">
-                    <div className="size-7 rounded-lg bg-gold-500/10 text-gold-400 flex items-center justify-center border border-gold-500/25">
-                        <Plus className="size-4" />
-                    </div>
-                    <div>
-                        <CardTitle className="font-display text-base text-starlight-100">
-                            Create New Academic Batch
-                        </CardTitle>
-                        <CardDescription className="text-xs text-starlight-400">
-                            A batch groups students and cohorts by graduation year or session cycle (e.g. &quot;Batch 2026&quot;).
-                        </CardDescription>
-                    </div>
-                </div>
-            </CardHeader>
-            <CardContent className="pt-4">
-                <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row items-end gap-3">
-                    <div className="flex-1 w-full space-y-1.5">
-                        <Label htmlFor="new-batch-name" className="text-xs text-starlight-300">
-                            Batch Name
-                        </Label>
-                        <Input
-                            id="new-batch-name"
-                            type="text"
-                            placeholder="e.g. Batch 2026 - Spring"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            required
-                            autoFocus
-                            className="bg-space-950/80 border-border/80 text-starlight-100 focus-visible:border-gold-500/50"
-                        />
-                    </div>
-                    <div className="flex items-center gap-2 w-full sm:w-auto">
-                        <Button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="flex-1 sm:flex-initial bg-gold-500 text-space-950 hover:bg-gold-400 font-semibold shadow-gold h-10 px-5"
-                        >
-                            {isSubmitting ? "Creating..." : "Create Batch"}
-                        </Button>
-                        {onCreated && (
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                onClick={onCreated}
-                                className="text-starlight-400 hover:text-starlight-200"
-                            >
-                                Cancel
-                            </Button>
-                        )}
-                    </div>
-                </form>
-                {error && (
-                    <p className="mt-2 text-xs text-error-400 bg-error-500/10 border border-error-500/20 p-2 rounded-lg">
-                        {error}
-                    </p>
+        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+            <div className="space-y-2">
+                <Label htmlFor="new-batch-name" className="text-xs font-semibold text-foreground/90">
+                    Batch Name
+                </Label>
+                <Input
+                    id="new-batch-name"
+                    type="text"
+                    placeholder="e.g. Batch 2026 - Spring"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                    autoFocus
+                    className="bg-background dark:bg-space-950/80 border-border text-foreground dark:text-starlight-100 focus-visible:border-gold-500/50"
+                />
+            </div>
+
+            {error && (
+                <p className="text-xs text-destructive bg-destructive/10 border border-destructive/20 p-2.5 rounded-lg">
+                    {error}
+                </p>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/60">
+                {onCancel && (
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={onCancel}
+                        disabled={isSubmitting}
+                        className="text-muted-foreground hover:text-foreground"
+                    >
+                        Cancel
+                    </Button>
                 )}
-            </CardContent>
-        </Card>
+                <Button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="bg-gold-500 text-space-950 hover:bg-gold-400 font-semibold shadow-gold px-5"
+                >
+                    {isSubmitting ? "Creating..." : "Create Batch"}
+                </Button>
+            </div>
+        </form>
     );
 }
 
@@ -328,8 +334,8 @@ function BatchCard({
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setIsAddingGroup(!isAddingGroup)}
-                        className="text-xs border-gold-500/30 text-gold-300 hover:bg-gold-500/10 h-8"
+                        onClick={() => setIsAddingGroup(true)}
+                        className="text-xs border-gold-500/30 text-gold-600 dark:text-gold-300 hover:bg-gold-500/10 h-8"
                     >
                         <Plus className="size-3.5 mr-1" />
                         <span>Add Group</span>
@@ -337,16 +343,32 @@ function BatchCard({
                 </div>
             </CardHeader>
 
+            {/* ADD GROUP MODAL (Requirement 16) */}
+            <Dialog open={isAddingGroup} onOpenChange={setIsAddingGroup}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <div className="flex items-center gap-2.5">
+                            <div className="size-8 rounded-lg bg-gold-500/10 text-gold-500 dark:text-gold-400 flex items-center justify-center border border-gold-500/25">
+                                <Plus className="size-4" />
+                            </div>
+                            <div>
+                                <DialogTitle className="font-display text-base text-foreground dark:text-starlight-100">
+                                    Add Learning Group
+                                </DialogTitle>
+                                <DialogDescription className="text-xs text-muted-foreground">
+                                    Add a new group to {batch.name} and configure its curriculum track.
+                                </DialogDescription>
+                            </div>
+                        </div>
+                    </DialogHeader>
+                    <CreateGroupForm
+                        batchId={batch.id}
+                        onDone={() => setIsAddingGroup(false)}
+                    />
+                </DialogContent>
+            </Dialog>
+
             <CardContent className="p-5 space-y-4">
-                {/* Form to Add New Group */}
-                {isAddingGroup && (
-                    <div className="animate-slide-down pb-2 border-b border-border/60">
-                        <CreateGroupForm
-                            batchId={batch.id}
-                            onDone={() => setIsAddingGroup(false)}
-                        />
-                    </div>
-                )}
 
                 {/* Groups Container */}
                 {batch.groups.length === 0 ? (
@@ -478,73 +500,67 @@ function CreateGroupForm({
     }
 
     return (
-        <div className="rounded-xl border border-border/80 bg-space-950/60 p-4 space-y-3">
-            <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-starlight-100 flex items-center gap-1.5">
-                    <Plus className="size-3.5 text-gold-400" />
-                    <span>Add New Learning Group</span>
-                </span>
-                <button
-                    type="button"
-                    onClick={onDone}
-                    className="text-starlight-400 hover:text-starlight-200 text-xs"
-                >
-                    Cancel
-                </button>
+        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+                <Label htmlFor={`group-name-${batchId}`} className="text-xs font-semibold text-foreground/90">
+                    Group Name
+                </Label>
+                <Input
+                    id={`group-name-${batchId}`}
+                    type="text"
+                    placeholder="e.g. Group A (Morning)"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                    autoFocus
+                    className="h-10 text-xs bg-background dark:bg-space-950/80 border-border text-foreground dark:text-starlight-100 focus-visible:border-gold-500/50"
+                />
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-                    <div className="sm:col-span-7 space-y-1">
-                        <Label htmlFor={`group-name-${batchId}`} className="text-[11px] text-starlight-300">
-                            Group Name
-                        </Label>
-                        <Input
-                            id={`group-name-${batchId}`}
-                            type="text"
-                            placeholder="e.g. Group A (Morning)"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            required
-                            autoFocus
-                            className="h-9 text-xs bg-space-900 border-border/80 text-starlight-100 focus-visible:border-gold-500/50"
-                        />
-                    </div>
+            <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-foreground/90">
+                    Curriculum Track
+                </Label>
+                <select
+                    value={type}
+                    onChange={(e) => setType(e.target.value as "INTERMEDIATE" | "BEGINNER")}
+                    className="flex h-10 w-full rounded-xl border border-border bg-background dark:bg-space-950/90 px-3 py-2 text-xs font-medium text-foreground dark:text-starlight-200 outline-none focus-visible:border-gold-500/50 shadow-xs"
+                >
+                    <option value="INTERMEDIATE">Intermediate (Levels & Sessions)</option>
+                    <option value="BEGINNER">Beginner (Weekly Missions & Videos)</option>
+                </select>
+                <p className="text-[11px] text-muted-foreground pt-1">
+                    {type === "INTERMEDIATE"
+                        ? "Intermediate groups follow Level progression and session tasks."
+                        : "Beginner groups follow weekly missions with video playlists."}
+                </p>
+            </div>
 
-                    <div className="sm:col-span-5 space-y-1">
-                        <Label className="text-[11px] text-starlight-300">
-                            Curriculum Track
-                        </Label>
-                        <select
-                            value={type}
-                            onChange={(e) => setType(e.target.value as "INTERMEDIATE" | "BEGINNER")}
-                            className="flex h-9 w-full rounded-md border border-border/80 bg-space-900 px-3 py-1 text-xs text-starlight-200 focus-visible:border-gold-500/50"
-                        >
-                            <option value="INTERMEDIATE">Intermediate (Levels & Sessions)</option>
-                            <option value="BEGINNER">Beginner (Weekly Missions & Videos)</option>
-                        </select>
-                    </div>
-                </div>
+            {error && (
+                <p className="text-xs text-destructive bg-destructive/10 border border-destructive/20 p-2.5 rounded-lg">
+                    {error}
+                </p>
+            )}
 
-                <div className="flex items-center justify-between pt-1">
-                    <p className="text-[10px] text-starlight-400">
-                        {type === "INTERMEDIATE"
-                            ? "Intermediate groups follow Level progression and session tasks."
-                            : "Beginner groups follow weekly missions with video playlists."}
-                    </p>
-                    <Button
-                        type="submit"
-                        size="sm"
-                        disabled={isSubmitting}
-                        className="bg-gold-500 text-space-950 hover:bg-gold-400 font-semibold h-8 text-xs"
-                    >
-                        {isSubmitting ? "Creating..." : "Save Group"}
-                    </Button>
-                </div>
-
-                {error && <p className="text-xs text-error-400">{error}</p>}
-            </form>
-        </div>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/60">
+                <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={onDone}
+                    disabled={isSubmitting}
+                    className="text-muted-foreground hover:text-foreground"
+                >
+                    Cancel
+                </Button>
+                <Button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="bg-gold-500 text-space-950 hover:bg-gold-400 font-semibold shadow-gold px-5"
+                >
+                    {isSubmitting ? "Creating..." : "Create Group"}
+                </Button>
+            </div>
+        </form>
     );
 }
 
@@ -817,7 +833,7 @@ function InstructorAssignment({
                     <select
                         value={selectedInstructorId}
                         onChange={(e) => setSelectedInstructorId(e.target.value)}
-                        className="flex h-8 flex-1 w-full rounded-lg border border-border/80 bg-space-900 px-3 text-xs text-starlight-200 focus-visible:border-gold-500/50"
+                        className="flex h-9 flex-1 w-full rounded-xl border border-border bg-background dark:bg-space-900 px-3 text-xs text-foreground dark:text-starlight-200 outline-none focus-visible:border-gold-500/50 shadow-xs"
                     >
                         <option value="">Select an available instructor to assign...</option>
                         {availableInstructors.map((instructor) => (

@@ -311,21 +311,7 @@ export function MarkdownEditor({
                             className="p-4 overflow-y-auto max-h-[500px] bg-space-950/30"
                         >
                             {currentValue.trim() ? (
-                                <div
-                                    onClick={(e) => {
-                                        // Detect if an interactive checklist was clicked in preview
-                                        const target = e.target as HTMLElement;
-                                        if (target && target.tagName === "INPUT" && (target as HTMLInputElement).type === "checkbox") {
-                                            const allCheckboxes = Array.from(e.currentTarget.querySelectorAll("input[type='checkbox']"));
-                                            const clickedIndex = allCheckboxes.indexOf(target as HTMLInputElement);
-                                            if (clickedIndex !== -1) {
-                                                handleToggleCheckbox(clickedIndex);
-                                            }
-                                        }
-                                    }}
-                                >
-                                    <MarkdownContent content={currentValue} />
-                                </div>
+                                <MarkdownContent content={currentValue} />
                             ) : (
                                 <div className="flex flex-col items-center justify-center py-8 text-center text-starlight-400">
                                     <PenLine className="size-7 mb-2 opacity-40 text-gold-600 dark:text-gold-400" />
@@ -335,31 +321,6 @@ export function MarkdownEditor({
                                     </p>
                                 </div>
                             )}
-
-                            {/* Interactive Quick Add Toolbar in Preview */}
-                            <div className="mt-4 pt-3 border-t border-border/50 flex items-center justify-between gap-2 text-xs">
-                                <span className="text-[11px] text-starlight-400">
-                                    💡 Click any checkbox above to toggle it directly!
-                                </span>
-                                <div className="flex items-center gap-1.5">
-                                    <button
-                                        type="button"
-                                        onClick={() => appendMarkdownSnippet("- New list item")}
-                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-space-850 hover:bg-space-800 text-starlight-200 hover:text-gold-700 dark:hover:text-gold-400 border border-border/60 transition-colors text-xs font-semibold"
-                                    >
-                                        <Plus className="size-3" />
-                                        <span>+ Add Point</span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => appendMarkdownSnippet("- [ ] New task item")}
-                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-space-850 hover:bg-space-800 text-starlight-200 hover:text-gold-400 border border-border/60 transition-colors text-xs font-semibold"
-                                    >
-                                        <CheckSquare className="size-3" />
-                                        <span>+ Add Task</span>
-                                    </button>
-                                </div>
-                            </div>
                         </div>
                     )}
                 </div>

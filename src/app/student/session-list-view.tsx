@@ -32,20 +32,20 @@ const STATUS_CONFIG: Record<
 > = {
     ongoing: {
         label: "Live Now",
-        badgeClassName: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-xs animate-pulse",
-        cardClassName: "border-emerald-500/50 bg-gradient-to-br from-emerald-950/20 via-space-900 to-space-950 shadow-md ring-1 ring-emerald-500/30",
+        badgeClassName: "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/40 shadow-xs animate-pulse",
+        cardClassName: "border-emerald-500/40 bg-emerald-50/50 shadow-md ring-1 ring-emerald-500/25 dark:border-emerald-500/50 dark:bg-gradient-to-br dark:from-emerald-950/20 dark:via-space-900 dark:to-space-950 dark:ring-emerald-500/30",
         isInteractive: true,
     },
     completed: {
         label: "Completed",
-        badgeClassName: "bg-space-800 text-starlight-300 border-border/80",
-        cardClassName: "border-border/70 bg-space-900/60 hover:bg-space-850/80 hover:border-gold-500/30 hover:shadow-gold",
+        badgeClassName: "bg-secondary text-secondary-foreground border-border/70 dark:bg-space-800 dark:text-starlight-300 dark:border-border/80",
+        cardClassName: "border-border/80 bg-card hover:bg-muted/30 hover:border-gold-500/40 shadow-xs hover:shadow-md dark:border-border/70 dark:bg-space-900/60 dark:hover:bg-space-850/80 dark:hover:border-gold-500/30 dark:hover:shadow-gold",
         isInteractive: true,
     },
     upcoming: {
         label: "Upcoming",
-        badgeClassName: "bg-space-850/60 text-starlight-400 border-border/50",
-        cardClassName: "border-border/40 bg-space-950/40 opacity-70",
+        badgeClassName: "bg-muted text-muted-foreground border-border/60 dark:bg-space-850/60 dark:text-starlight-400 dark:border-border/50",
+        cardClassName: "border-border/50 bg-muted/20 opacity-75 dark:border-border/40 dark:bg-space-950/40 dark:opacity-70",
         isInteractive: false,
     },
 };
@@ -238,34 +238,34 @@ function SessionCard({
 
                 {/* Title */}
                 <div>
-                    <h3 className="font-display text-base font-bold text-starlight-100 group-hover:text-gold-300 transition-colors line-clamp-2">
+                    <h3 className="font-display text-base font-bold text-foreground dark:text-starlight-100 group-hover:text-gold-600 dark:group-hover:text-gold-300 transition-colors line-clamp-2">
                         {session.title}
                     </h3>
                 </div>
             </div>
 
             {/* Middle: Details & Recording */}
-            <div className="my-4 space-y-2.5 border-t border-border/50 pt-3">
-                <div className="flex items-center gap-2 text-xs text-starlight-300">
-                    <Calendar className="size-3.5 shrink-0 text-starlight-400" />
+            <div className="my-4 space-y-2.5 border-t border-border/70 dark:border-border/50 pt-3">
+                <div className="flex items-center gap-2 text-xs text-foreground/80 dark:text-starlight-300">
+                    <Calendar className="size-3.5 shrink-0 text-muted-foreground dark:text-starlight-400" />
                     <span>{formatDateTime(session.startTime)}</span>
                 </div>
 
                 <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2 text-starlight-300">
-                        <ListTodo className="size-3.5 shrink-0 text-starlight-400" />
+                    <div className="flex items-center gap-2 text-foreground/80 dark:text-starlight-300">
+                        <ListTodo className="size-3.5 shrink-0 text-muted-foreground dark:text-starlight-400" />
                         <span>
                             {taskCount} {taskCount === 1 ? "task" : "tasks"}
                         </span>
                         {taskCount > 0 && (
-                            <span className="text-[11px] font-mono text-starlight-400">
+                            <span className="text-[11px] font-mono text-muted-foreground dark:text-starlight-400">
                                 ({submittedCount} submitted)
                             </span>
                         )}
                     </div>
 
                     {session.recordingLink && (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-gold-400 bg-gold-500/10 px-2 py-0.5 rounded-md border border-gold-500/20">
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-gold-700 bg-gold-500/10 px-2 py-0.5 rounded-md border border-gold-500/30 dark:text-gold-400 dark:border-gold-500/20">
                             <Video className="size-3" />
                             Recording
                         </span>
@@ -274,18 +274,18 @@ function SessionCard({
             </div>
 
             {/* Bottom action bar */}
-            <div className="mt-auto pt-2 flex items-center justify-between border-t border-border/40 text-xs">
+            <div className="mt-auto pt-2 flex items-center justify-between border-t border-border/60 dark:border-border/40 text-xs">
                 {isUpcoming ? (
-                    <div className="flex items-center gap-1.5 text-starlight-400/90 font-medium">
-                        <Lock className="size-3.5 text-starlight-400" />
+                    <div className="flex items-center gap-1.5 text-muted-foreground dark:text-starlight-400/90 font-medium">
+                        <Lock className="size-3.5 text-muted-foreground dark:text-starlight-400" />
                         <span>Locked until session start</span>
                     </div>
                 ) : (
                     <>
-                        <span className="text-starlight-400 group-hover:text-starlight-200 transition-colors">
+                        <span className="text-muted-foreground group-hover:text-foreground dark:text-starlight-400 dark:group-hover:text-starlight-200 transition-colors">
                             {allSubmitted ? "All tasks submitted" : "View session & tasks"}
                         </span>
-                        <div className="flex items-center gap-1 font-semibold text-gold-400 group-hover:translate-x-0.5 transition-transform">
+                        <div className="flex items-center gap-1 font-semibold text-gold-600 dark:text-gold-400 group-hover:translate-x-0.5 transition-transform">
                             <span>Open</span>
                             <ChevronRight className="size-3.5" />
                         </div>

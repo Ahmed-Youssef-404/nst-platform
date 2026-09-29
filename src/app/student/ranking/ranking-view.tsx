@@ -353,13 +353,13 @@ const PODIUM_CONFIG: Record<
         ringClassName: "ring-2 ring-slate-300 ring-offset-2 ring-offset-space-950",
     },
     3: {
-        height: "h-20 sm:h-24",
+        height: "h-24 sm:h-28",
         avatarSize: "default",
         baseClassName:
-            "bg-gradient-to-t from-amber-700/20 via-amber-700/5 to-transparent border-t-2 border-amber-500/60",
+            "bg-gradient-to-t from-amber-700/20 via-amber-700/5 to-transparent border-t-2 border-amber-600",
         medalBadge: "3rd Place",
-        medalColor: "text-amber-400",
-        ringClassName: "ring-2 ring-amber-500 ring-offset-2 ring-offset-space-950",
+        medalColor: "text-amber-500",
+        ringClassName: "ring-2 ring-amber-600 ring-offset-2 ring-offset-space-950",
     },
 };
 
@@ -371,48 +371,71 @@ function PodiumSpot({
     isCurrentStudent: boolean;
 }) {
     const config = PODIUM_CONFIG[student.rank] ?? PODIUM_CONFIG[3];
+    const isFirst = student.rank === 1;
 
     return (
-        <div className="flex w-28 sm:w-36 flex-col items-center gap-2.5">
-            {/* "That's You!" Indicator */}
-            {isCurrentStudent && (
-                <span className="rounded-full bg-gold-500 px-2.5 py-0.5 text-[10px] font-extrabold text-space-950 shadow-gold animate-bounce">
-                    That&apos;s you!
-                </span>
+        <div className="flex flex-col items-center">
+            {/* Crown for #1 */}
+            {isFirst && (
+                <div className="mb-2 animate-bounce">
+                    <Crown className="size-6 text-gold-400 fill-gold-400/30" />
+                </div>
             )}
 
-            {/* Avatar & Crown */}
-            <div className="relative">
-                {student.rank === 1 && (
-                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 flex items-center justify-center">
-                        <Crown className="size-6 text-gold-300 fill-gold-400/40 drop-shadow-[0_0_8px_rgba(232,184,74,0.6)] animate-pulse" />
-                    </div>
-                )}
+            {/* Avatar */}
+            <div className="relative mb-2">
                 <Avatar
-                    size={config.avatarSize}
-                    className={`border border-border/80 ${config.ringClassName}`}
+                    className={`
+                        ${config.avatarSize === "lg" ? "size-16 sm:size-20" : "size-12 sm:size-14"}
+                        border-2 border-space-900 bg-space-850 ${config.ringClassName}
+                    `}
                 >
-                    <AvatarFallback className="font-bold text-starlight-100 bg-space-850">
+                    <AvatarFallback
+                        className={`font-display font-bold ${
+                            config.avatarSize === "lg" ? "text-base sm:text-lg" : "text-xs sm:text-sm"
+                        } text-starlight-100 bg-space-800`}
+                    >
                         {getInitials(student.name)}
                     </AvatarFallback>
                 </Avatar>
+
+                {isCurrentStudent && (
+                    <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full bg-gold-500 px-1.5 py-0.2 text-[9px] font-bold text-space-950 uppercase tracking-wider animate-pulse">
+                        You
+                    </span>
+                )}
             </div>
 
-            {/* Student Info */}
-            <div className="text-center space-y-0.5 max-w-full">
-                <p className="truncate text-xs font-bold text-starlight-100 px-1">
+            {/* Name & ST Score */}
+            <div className="text-center mb-3">
+                <p
+                    className={`font-semibold max-w-[100px] sm:max-w-[120px] truncate ${
+                        isFirst ? "text-sm sm:text-base text-starlight-100" : "text-xs text-starlight-200"
+                    }`}
+                >
                     {student.name}
                 </p>
-                <p className="font-mono text-xs font-extrabold text-gold-300">
-                    {stValueOf(student)} ST
-                </p>
+                <div className="flex items-center justify-center gap-1 mt-0.5">
+                    <span className="font-mono text-xs sm:text-sm font-bold text-gold-300">
+                        {stValueOf(student)}
+                    </span>
+                    <span className="text-[10px] text-starlight-400 uppercase font-semibold">
+                        ST
+                    </span>
+                </div>
             </div>
 
             {/* Pedestal Block */}
             <div
-                className={`flex w-full items-start justify-center rounded-t-2xl border border-b-0 border-border/70 ${config.height} ${config.baseClassName}`}
+                className={`
+                    w-20 sm:w-28 ${config.height} rounded-t-xl flex flex-col items-center justify-start pt-3
+                    ${config.baseClassName}
+                `}
             >
-                <span className={`mt-3 text-xs font-black uppercase tracking-wider ${config.medalColor}`}>
+                <span className={`font-display text-xl sm:text-2xl font-black ${config.medalColor}`}>
+                    #{student.rank}
+                </span>
+                <span className="text-[9px] uppercase tracking-wider font-semibold text-starlight-400 mt-0.5">
                     {config.medalBadge}
                 </span>
             </div>
@@ -434,46 +457,55 @@ function RankingRow({
     return (
         <div
             className={`
-                flex items-center justify-between gap-4 px-5 py-3.5 transition-colors
+                flex items-center justify-between px-4 py-3 text-xs transition-colors
                 ${
                     isCurrentStudent
-                        ? "bg-gold-500/15 text-gold-200 border-l-4 border-gold-500"
-                        : "hover:bg-space-850/60 text-starlight-200"
+                        ? "bg-gold-500/10 hover:bg-gold-500/15"
+                        : "hover:bg-space-850/60"
                 }
             `}
         >
-            <div className="flex min-w-0 items-center gap-3.5">
+            <div className="flex items-center gap-3 min-w-0">
                 <span
-                    className={`
-                        w-7 shrink-0 text-center font-mono text-xs font-bold
-                        ${isCurrentStudent ? "text-gold-300" : "text-starlight-400"}
-                    `}
+                    className={`font-mono font-bold w-7 text-center shrink-0 ${
+                        isCurrentStudent ? "text-gold-400" : "text-starlight-400"
+                    }`}
                 >
                     #{student.rank}
                 </span>
 
-                <Avatar
-                    size="sm"
-                    className={`border border-border/60 ${isCurrentStudent ? "ring-2 ring-gold-500/50" : ""}`}
-                >
-                    <AvatarFallback className="text-xs font-bold bg-space-850 text-starlight-200">
+                <Avatar className="size-8 bg-space-800 border border-border/60 shrink-0">
+                    <AvatarFallback className="text-[11px] font-bold text-starlight-200 bg-space-850">
                         {getInitials(student.name)}
                     </AvatarFallback>
                 </Avatar>
 
-                <p className="truncate text-sm font-semibold">
-                    {student.name}
-                    {isCurrentStudent && (
-                        <span className="ml-2 rounded-md bg-gold-500/20 px-1.5 py-0.5 text-[10px] font-bold text-gold-300 border border-gold-500/40">
-                            YOU
+                <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                        <span
+                            className={`font-medium truncate ${
+                                isCurrentStudent ? "text-gold-300 font-semibold" : "text-starlight-200"
+                            }`}
+                        >
+                            {student.name}
                         </span>
-                    )}
-                </p>
+                        {isCurrentStudent && (
+                            <span className="rounded-full bg-gold-500/20 px-1.5 py-0.2 text-[9px] font-bold text-gold-300 uppercase">
+                                You
+                            </span>
+                        )}
+                    </div>
+                </div>
             </div>
 
-            <span className="shrink-0 font-mono text-sm font-extrabold text-gold-300">
-                {stValueOf(student)} ST
-            </span>
+            <div className="text-right shrink-0">
+                <span className="font-mono text-sm font-bold text-gold-300">
+                    {stValueOf(student)}
+                </span>
+                <span className="text-[10px] text-starlight-400 uppercase ml-1 font-semibold">
+                    ST
+                </span>
+            </div>
         </div>
     );
 }

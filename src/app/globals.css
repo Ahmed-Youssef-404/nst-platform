@@ -74,8 +74,8 @@
   --text-disabled: #94A3B8;
 
   /* Feedback / semantic states — error is the unified brand accent (terracotta) */
-  --success: oklch(0.62 0.13 152);
-  --success-bg: oklch(0.96 0.03 152);
+  --success: oklch(0.50 0.145 152);
+  --success-bg: oklch(0.965 0.035 152);
   --warning: oklch(0.75 0.16 55);
   --warning-bg: oklch(0.97 0.045 55);
   --error: oklch(0.559 0.179 32.8);
@@ -304,3 +304,55 @@ button:disabled {
 @theme inline {
   --animate-shimmer-sweep: shimmer-sweep 1.8s ease-in-out infinite;
 }
+
+/* ============================================
+   GLOBAL CUSTOM SCROLLBAR
+   Subtle, elegant, neutral cross-browser styling
+   ============================================ */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+}
+
+.dark * {
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.4);
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.65);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: rgba(71, 85, 105, 0.85);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.32);
+}
+
+.dark ::-webkit-scrollbar-thumb:active {
+  background: rgba(255, 255, 255, 0.48);
+}

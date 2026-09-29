@@ -1,18 +1,17 @@
 import { cn } from "@/lib/utils"
 
 /**
- * Base skeleton block. Uses a diagonal gold-tinted shimmer sweep (defined in
- * globals.css as `--animate-shimmer-sweep`) instead of a flat pulse — reads
- * as "loading something polished" rather than a placeholder gray box, and
- * the gold tint ties it back to the brand in both light and dark mode.
+ * Base skeleton block. Uses a neutral diagonal shimmer sweep (defined in
+ * globals.css as `--animate-shimmer-sweep`) with crisp contrast in both light
+ * and dark mode, avoiding plain invisible blocks or harsh tints.
  */
 function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="skeleton"
       className={cn(
-        "relative overflow-hidden rounded-md bg-muted/80 dark:bg-space-850",
-        "before:absolute before:inset-0 before:content-[''] before:bg-gradient-to-r before:from-transparent before:via-gold-500/20 before:to-transparent before:animate-shimmer-sweep",
+        "relative overflow-hidden rounded-md bg-slate-200/90 dark:bg-white/[0.08] border border-slate-300/40 dark:border-white/[0.05]",
+        "before:absolute before:inset-0 before:content-[''] before:bg-gradient-to-r before:from-transparent before:via-white/70 dark:before:via-white/12 before:to-transparent before:animate-shimmer-sweep",
         className
       )}
       {...props}

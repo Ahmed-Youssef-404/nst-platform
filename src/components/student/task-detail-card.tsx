@@ -41,6 +41,8 @@ import {
     getSubmissionFileUrlAction,
 } from "@/lib/actions/submission-management";
 import { MarkdownContent } from "@/components/markdown-content";
+import { FileDropzone } from "@/components/ui/file-dropzone";
+import { HintUnlockDialog, type HintToUnlock } from "@/components/student/hint-unlock-dialog";
 import type { StudentTaskView, StudentHintView } from "@/lib/data/get-student-level";
 import type { SubmissionModeCode } from "@/types/types";
 import { formatDateTime } from "@/lib/format-date";
@@ -138,46 +140,25 @@ function HintsList({
     hints: StudentHintView[];
     isHistorical?: boolean;
 }) {
-    const [unlockingId, setUnlockingId] = useState<string | null>(null);
-    const [error, setError] = useState<string | null>(null);
+    const [hintToUnlock, setHintToUnlock] = useState<HintToUnlock | null>(null);
     const router = useRouter();
-
-    async function handleUnlock(hint: StudentHintView) {
-        const confirmed = window.confirm(
-            `Unlock Hint #${hint.order} for ${hint.cost} ST? This cannot be undone.`
-        );
-        if (!confirmed) return;
-
-        setError(null);
-        setUnlockingId(hint.id);
-
-        const result = await unlockHintAction({ studentId, hintId: hint.id });
-
-        setUnlockingId(null);
-
-        if (result.success) {
-            router.refresh();
-        } else {
-            setError(result.error ?? "Could not unlock this hint.");
-        }
-    }
 
     if (hints.length === 0) {
         return null;
     }
 
     return (
-        <div className="space-y-3 rounded-2xl border border-border/70 bg-space-950/50 p-5">
+        <div className="space-y-3 rounded-2xl border border-border/70 bg-card dark:bg-space-950/50 p-5 shadow-xs">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                    <div className="flex size-7 items-center justify-center rounded-lg bg-gold-500/15 text-gold-400 border border-gold-500/25">
-                        <Lightbulb className="size-4 text-gold-400" />
+                    <div className="flex size-7 items-center justify-center rounded-lg bg-gold-500/15 text-gold-600 dark:text-gold-400 border border-gold-500/25">
+                        <Lightbulb className="size-4 text-gold-600 dark:text-gold-400" />
                     </div>
                     <div>
-                        <h3 className="text-sm font-bold text-starlight-100">
+                        <h3 className="text-sm font-bold text-foreground dark:text-starlight-100">
                             Orbital Hints & Intelligence
                         </h3>
-                        <p className="text-[11px] text-starlight-400">
+                        <p className="text-[11px] text-muted-foreground dark:text-starlight-400">
                             {isHistorical
                                 ? "Free to view — archived level study material"
                                 : "Unlock tactical hints using your Level Star Tokens"}
@@ -185,17 +166,10 @@ function HintsList({
                     </div>
                 </div>
 
-                <span className="text-xs font-mono text-starlight-400">
+                <span className="text-xs font-mono text-muted-foreground dark:text-starlight-400">
                     {hints.length} {hints.length === 1 ? "Hint" : "Hints"} Available
                 </span>
             </div>
-
-            {error && (
-                <div className="flex items-center gap-2 rounded-lg bg-red-950/40 p-3 text-xs text-red-300 border border-red-500/30">
-                    <AlertCircle className="size-4 shrink-0 text-red-400" />
-                    <span>{error}</span>
-                </div>
-            )}
 
             <div className="space-y-3 pt-2">
                 {hints.map((hint) => {
@@ -205,17 +179,17 @@ function HintsList({
                         return (
                             <div
                                 key={hint.id}
-                                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-border/70 bg-space-900/60 p-4 transition-all"
+                                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-border/70 bg-muted/40 dark:bg-space-900/60 p-4 transition-all"
                             >
                                 <div className="flex items-center gap-3">
-                                    <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-space-850 text-starlight-400 border border-border/60">
-                                        <Lock className="size-4 text-starlight-400" />
+                                    <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted dark:bg-space-850 text-muted-foreground dark:text-starlight-400 border border-border/60">
+                                        <Lock className="size-4" />
                                     </div>
                                     <div>
-                                        <p className="text-sm font-semibold text-starlight-200">
+                                        <p className="text-sm font-semibold text-foreground dark:text-starlight-200">
                                             Hint #{hint.order}
                                         </p>
-                                        <p className="text-xs text-starlight-400">
+                                        <p className="text-xs text-muted-foreground dark:text-starlight-400">
                                             Requires {hint.cost} ST to reveal intelligence
                                         </p>
                                     </div>
@@ -224,14 +198,17 @@ function HintsList({
                                 <Button
                                     type="button"
                                     size="sm"
-                                    disabled={unlockingId === hint.id}
-                                    onClick={() => handleUnlock(hint)}
-                                    className="bg-gold-500/20 hover:bg-gold-500/30 text-gold-300 border border-gold-500/40 shadow-gold text-xs font-semibold shrink-0"
+                                    onClick={() =>
+                                        setHintToUnlock({
+                                            id: hint.id,
+                                            order: hint.order,
+                                            cost: hint.cost,
+                                        })
+                                    }
+                                    className="h-8 text-xs bg-amber-50 hover:bg-amber-100 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-500/40 rounded-xl font-semibold shadow-xs shrink-0 transition-all"
                                 >
-                                    <KeyRound className="size-3.5 mr-1.5 text-gold-400" />
-                                    {unlockingId === hint.id
-                                        ? "Unlocking..."
-                                        : `Unlock (${hint.cost} ST)`}
+                                    <KeyRound className="size-3.5 mr-1.5 text-amber-700 dark:text-amber-400" />
+                                    Unlock ({hint.cost} ST)
                                 </Button>
                             </div>
                         );
@@ -264,6 +241,14 @@ function HintsList({
                     );
                 })}
             </div>
+
+            <HintUnlockDialog
+                isOpen={hintToUnlock !== null}
+                onClose={() => setHintToUnlock(null)}
+                hint={hintToUnlock}
+                studentId={studentId}
+                onSuccess={() => router.refresh()}
+            />
         </div>
     );
 }
@@ -543,22 +528,16 @@ function SubmissionPanel({
 
                     {mode === "FILE" && (
                         <div className="space-y-2">
-                            <Label className="text-xs text-starlight-300">
-                                Upload File (.pdf or .zip, max 5MB)
+                            <Label className="text-xs text-muted-foreground dark:text-starlight-300">
+                                Solution File (.pdf or .zip, max 5MB)
                             </Label>
-                            <div className="rounded-xl border border-dashed border-border/80 bg-space-900/60 p-4">
-                                <Input
-                                    type="file"
-                                    accept=".pdf,.zip,application/pdf,application/zip"
-                                    onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                                    className="bg-transparent border-0 text-xs text-starlight-200 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-gold-500/20 file:text-gold-300 hover:file:bg-gold-500/30 cursor-pointer"
-                                />
-                                {file && (
-                                    <p className="mt-2 text-[11px] text-gold-400 font-mono">
-                                        Selected: {file.name} ({(file.size / 1024).toFixed(1)} KB)
-                                    </p>
-                                )}
-                            </div>
+                            <FileDropzone
+                                file={file}
+                                onFileSelect={setFile}
+                                accept=".pdf,.zip,application/pdf,application/zip"
+                                maxSizeMB={5}
+                                disabled={isSubmitting}
+                            />
                         </div>
                     )}
 

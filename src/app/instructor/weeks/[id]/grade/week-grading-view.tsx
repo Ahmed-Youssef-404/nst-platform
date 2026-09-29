@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import { formatDateTime } from "@/lib/format-date";
 import { getSubmissionFileUrlAction } from "@/lib/actions/submission-management";
+import { showToast } from "@/components/ui/toast";
 import {
     saveDraftGradeAction,
     setWeekResourceStatusAction,
@@ -288,10 +289,18 @@ function StudentGradingWorkspace({
             if (res.success && res.data) {
                 window.open(res.data, "_blank");
             } else {
-                alert(res.error ?? "Could not get secure link to download file.");
+                showToast({
+                    title: "Download Error",
+                    description: res.error ?? "Could not get secure link to download file.",
+                    type: "error",
+                });
             }
         } catch (err) {
-            alert(err instanceof Error ? err.message : "Failed to open file.");
+            showToast({
+                title: "Download Error",
+                description: err instanceof Error ? err.message : "Failed to open file.",
+                type: "error",
+            });
         } finally {
             setDownloadLoading(false);
         }

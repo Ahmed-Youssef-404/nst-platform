@@ -45,6 +45,7 @@ import type {
 } from "@/lib/data/get-super-admin-overview";
 import type { GroupOption } from "@/lib/data/get-groups";
 import { formatDate } from "@/lib/format-date";
+import { showToast } from "@/components/ui/toast";
 
 export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData }) {
     const [activeTab, setActiveTab] = useState<"students" | "instructors" | "create">("students");
@@ -343,22 +344,42 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
 
                         {/* Students List */}
                         {filteredStudents.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/80 bg-space-900/40 p-12 text-center backdrop-blur-md">
-                                <Users className="size-10 text-starlight-400/60 mb-3" />
-                                <h3 className="font-display text-base font-bold text-starlight-200">
-                                    No students match your filter
+                            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/80 bg-card/40 dark:bg-space-900/40 p-12 text-center backdrop-blur-md">
+                                <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-muted dark:bg-space-850 text-muted-foreground dark:text-starlight-400 border border-border/70 mb-3">
+                                    <Users className="size-6" />
+                                </div>
+                                <h3 className="font-display text-base font-bold text-foreground dark:text-starlight-200">
+                                    {(studentSearch.trim() !== "" || studentTrackFilter !== "ALL" || studentGroupFilter !== "ALL")
+                                        ? "No students match your active filters"
+                                        : "No students enrolled yet"}
                                 </h3>
-                                <p className="mt-1 text-xs text-starlight-400 max-w-sm">
-                                    {students.length === 0
-                                        ? "No students have been enrolled in the platform yet. Use the Create Account tab to add students."
-                                        : "Try clearing search keywords or changing the track/group filters."}
+                                <p className="mt-1 text-xs text-muted-foreground dark:text-starlight-400 max-w-sm">
+                                    {(studentSearch.trim() !== "" || studentTrackFilter !== "ALL" || studentGroupFilter !== "ALL")
+                                        ? "Your active search query or track/group filters returned zero results. Reset your filters to view the full directory."
+                                        : "No students have been enrolled in the platform yet. Use the Account Creation Hub to add students."}
                                 </p>
+                                {(studentSearch.trim() !== "" || studentTrackFilter !== "ALL" || studentGroupFilter !== "ALL") && (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                            setStudentSearch("");
+                                            setStudentTrackFilter("ALL");
+                                            setStudentGroupFilter("ALL");
+                                        }}
+                                        className="mt-4 rounded-xl border-gold-500/40 text-gold-700 dark:text-gold-300 hover:bg-gold-500/10 text-xs font-semibold shadow-xs"
+                                    >
+                                        <RefreshCw className="size-3 mr-1.5" />
+                                        Clear Filters
+                                    </Button>
+                                )}
                             </div>
                         ) : (
-                            <div className="overflow-hidden rounded-2xl border border-border/80 bg-space-900/70 backdrop-blur-md shadow-2">
+                            <div className="overflow-hidden rounded-2xl border border-border/80 bg-card/70 dark:bg-space-900/70 backdrop-blur-md shadow-2">
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-left text-xs">
-                                        <thead className="border-b border-border/70 bg-space-850/60 text-[11px] font-bold uppercase tracking-wider text-starlight-400">
+                                        <thead className="border-b border-border/70 bg-muted/60 dark:bg-space-850/60 text-[11px] font-bold uppercase tracking-wider text-muted-foreground dark:text-starlight-400">
                                             <tr>
                                                 <th className="px-5 py-3.5">Student Code</th>
                                                 <th className="px-5 py-3.5">Student</th>
@@ -368,31 +389,29 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
                                                 <th className="px-5 py-3.5">Enrolled Date</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-border/60 text-starlight-200">
+                                        <tbody className="divide-y divide-border/60 text-foreground dark:text-starlight-200">
                                             {filteredStudents.map((s) => (
                                                 <tr
                                                     key={s.id}
-                                                    className="hover:bg-space-850/40 transition-colors"
+                                                    className="hover:bg-muted/40 dark:hover:bg-space-850/40 transition-colors"
                                                 >
                                                     <td className="px-5 py-3.5 whitespace-nowrap">
                                                         <StudentCodeBadge code={s.id} />
                                                     </td>
                                                     <td className="px-5 py-3.5">
-                                                        <div className="flex flex-col">
-                                                            <span className="font-semibold text-starlight-100">
+                                                        <div className="flex flex-col gap-0.5">
+                                                            <span className="font-semibold text-foreground dark:text-starlight-100">
                                                                 {s.name}
                                                             </span>
-                                                            <span className="text-[11px] text-starlight-400 font-mono">
-                                                                {s.email}
-                                                            </span>
+                                                            <CopyableEmail email={s.email} />
                                                         </div>
                                                     </td>
                                                     <td className="px-5 py-3.5 whitespace-nowrap">
                                                         <div className="flex flex-col">
-                                                            <span className="font-medium text-starlight-200">
+                                                            <span className="font-medium text-foreground/90 dark:text-starlight-200">
                                                                 {s.groupName}
                                                             </span>
-                                                            <span className="text-[10px] text-starlight-400">
+                                                            <span className="text-[10px] text-muted-foreground dark:text-starlight-400">
                                                                 {s.batchName}
                                                             </span>
                                                         </div>
@@ -564,6 +583,11 @@ function StudentCodeBadge({ code }: { code: string }) {
     function handleCopy() {
         navigator.clipboard.writeText(code);
         setCopied(true);
+        showToast({
+            title: "Copied to clipboard",
+            description: `Student Code: ${code}`,
+            type: "success",
+        });
         setTimeout(() => setCopied(false), 2000);
     }
 
@@ -572,14 +596,46 @@ function StudentCodeBadge({ code }: { code: string }) {
             type="button"
             onClick={handleCopy}
             title="Click to copy student code"
-            className="group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-space-850 border border-gold-500/30 text-gold-700 dark:text-gold-300 hover:border-gold-500/50 hover:bg-space-800 transition-all cursor-pointer"
+            className="group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-card dark:bg-space-850 border border-gold-500/30 text-gold-700 dark:text-gold-300 hover:border-gold-500/60 hover:bg-muted dark:hover:bg-space-800 transition-all cursor-pointer shadow-xs"
         >
             <Hash className="size-3 text-gold-600 dark:text-gold-400" />
             <span>{code}</span>
             {copied ? (
-                <Check className="size-3 text-success-400" />
+                <Check className="size-3 text-emerald-500" />
             ) : (
-                <Copy className="size-3 opacity-0 group-hover:opacity-100 text-starlight-400 transition-opacity" />
+                <Copy className="size-3 opacity-0 group-hover:opacity-100 text-muted-foreground dark:text-starlight-400 transition-opacity" />
+            )}
+        </button>
+    );
+}
+
+function CopyableEmail({ email }: { email: string }) {
+    const [copied, setCopied] = useState(false);
+
+    function handleCopy() {
+        navigator.clipboard.writeText(email);
+        setCopied(true);
+        showToast({
+            title: "Copied to clipboard",
+            description: `Email: ${email}`,
+            type: "success",
+        });
+        setTimeout(() => setCopied(false), 2000);
+    }
+
+    return (
+        <button
+            type="button"
+            onClick={handleCopy}
+            title="Click to copy student email"
+            className="group inline-flex items-center gap-1.5 text-[11px] text-muted-foreground dark:text-starlight-400 font-mono hover:text-foreground dark:hover:text-starlight-200 transition-colors text-left cursor-pointer"
+        >
+            <Mail className="size-3 text-muted-foreground dark:text-starlight-400 group-hover:text-gold-600 dark:group-hover:text-gold-400 transition-colors shrink-0" />
+            <span className="truncate max-w-[190px]">{email}</span>
+            {copied ? (
+                <Check className="size-3 text-emerald-500 shrink-0" />
+            ) : (
+                <Copy className="size-2.5 opacity-0 group-hover:opacity-100 text-muted-foreground dark:text-starlight-400 shrink-0 transition-opacity" />
             )}
         </button>
     );
@@ -846,88 +902,103 @@ function StudentCreationForm({ groups }: { groups: GroupOption[] }) {
                     </div>
                 )}
 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <form onSubmit={handleSubmit} className="space-y-5">
+                    {/* Visual Container for Account Entry (Requirement 17) */}
+                    <div className="rounded-xl border border-border/90 bg-muted/30 dark:bg-space-950/60 p-5 space-y-4 shadow-xs">
+                        <div className="flex items-center gap-2 pb-3 border-b border-border/60">
+                            <UserPlus className="size-4 text-gold-500 shrink-0" />
+                            <div>
+                                <h4 className="text-xs font-semibold text-foreground tracking-wide uppercase">
+                                    New Student Account Details
+                                </h4>
+                                <p className="text-[11px] text-muted-foreground">
+                                    Provide full name, student email, code ID, and cohort assignment
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                            <div className="space-y-2">
+                                <Label htmlFor="student-name" className="text-xs text-foreground/90 font-medium">
+                                    Full Name
+                                </Label>
+                                <Input
+                                    id="student-name"
+                                    type="text"
+                                    placeholder="e.g. Omar Tarek"
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    required
+                                    className="bg-background dark:bg-space-950/70 border-border text-foreground dark:text-starlight-100 focus-visible:border-gold-500/50"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="student-email" className="text-xs text-foreground/90 font-medium">
+                                    Email Address
+                                </Label>
+                                <Input
+                                    id="student-email"
+                                    type="email"
+                                    placeholder="student@example.com"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    required
+                                    className="bg-background dark:bg-space-950/70 border-border text-foreground dark:text-starlight-100 focus-visible:border-gold-500/50"
+                                />
+                            </div>
+                        </div>
+
                         <div className="space-y-2">
-                            <Label htmlFor="student-name" className="text-xs text-starlight-300">
-                                Full Name
-                            </Label>
+                            <div className="flex items-center justify-between">
+                                <Label htmlFor="student-id" className="text-xs text-foreground/90 font-medium">
+                                    Student ID Code (NST-XXXX)
+                                </Label>
+                                <button
+                                    type="button"
+                                    onClick={handleSuggestId}
+                                    className="text-[11px] text-gold-500 hover:text-gold-400 dark:text-gold-400 dark:hover:text-gold-300 hover:underline flex items-center gap-1 font-medium"
+                                >
+                                    <RefreshCw className="size-2.5" />
+                                    <span>Generate ID</span>
+                                </button>
+                            </div>
                             <Input
-                                id="student-name"
+                                id="student-id"
                                 type="text"
-                                placeholder="e.g. Omar Tarek"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
+                                placeholder="NST-1001"
+                                value={id}
+                                onChange={(e) => setId(e.target.value)}
                                 required
-                                className="bg-space-950/70 border-border/80 text-starlight-100 focus-visible:border-gold-500/50"
+                                className="bg-background dark:bg-space-950/70 border-border text-foreground dark:text-starlight-100 font-mono focus-visible:border-gold-500/50"
                             />
+                            <p className="text-[11px] text-muted-foreground">
+                                This unique code will also serve as the student&apos;s initial password.
+                            </p>
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="student-email" className="text-xs text-starlight-300">
-                                Email Address
+                            <Label htmlFor="student-group" className="text-xs text-foreground/90 font-medium">
+                                Assigned Group & Cohort
                             </Label>
-                            <Input
-                                id="student-email"
-                                type="email"
-                                placeholder="student@example.com"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
+                            <select
+                                id="student-group"
+                                value={groupId}
+                                onChange={(e) => setGroupId(e.target.value)}
                                 required
-                                className="bg-space-950/70 border-border/80 text-starlight-100 focus-visible:border-gold-500/50"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                            <Label htmlFor="student-id" className="text-xs text-starlight-300">
-                                Student ID Code (NST-XXXX)
-                            </Label>
-                            <button
-                                type="button"
-                                onClick={handleSuggestId}
-                                className="text-[11px] text-gold-400 hover:text-gold-300 hover:underline flex items-center gap-1"
+                                className="flex h-10 w-full rounded-xl border border-border bg-background dark:bg-space-950/90 px-3 py-2 text-xs font-medium text-foreground dark:text-starlight-200 outline-none focus-visible:border-gold-500/50 shadow-xs"
                             >
-                                <RefreshCw className="size-2.5" />
-                                <span>Generate ID</span>
-                            </button>
+                                {groups.map((group) => (
+                                    <option key={group.id} value={group.id}>
+                                        {group.batchName} — {group.name} [{group.type ?? "INTERMEDIATE"}]
+                                    </option>
+                                ))}
+                            </select>
                         </div>
-                        <Input
-                            id="student-id"
-                            type="text"
-                            placeholder="NST-1001"
-                            value={id}
-                            onChange={(e) => setId(e.target.value)}
-                            required
-                            className="bg-space-950/70 border-border/80 text-starlight-100 font-mono focus-visible:border-gold-500/50"
-                        />
-                        <p className="text-[11px] text-starlight-400">
-                            This unique code will also serve as the student&apos;s initial password.
-                        </p>
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label htmlFor="student-group" className="text-xs text-starlight-300">
-                            Assigned Group & Cohort
-                        </Label>
-                        <select
-                            id="student-group"
-                            value={groupId}
-                            onChange={(e) => setGroupId(e.target.value)}
-                            required
-                            className="flex h-10 w-full rounded-xl border border-border/80 bg-space-950/90 px-3 py-2 text-xs font-medium text-starlight-200 outline-none focus-visible:border-gold-500/50 shadow-xs"
-                        >
-                            {groups.map((group) => (
-                                <option key={group.id} value={group.id}>
-                                    {group.batchName} — {group.name} [{group.type ?? "INTERMEDIATE"}]
-                                </option>
-                            ))}
-                        </select>
                     </div>
 
                     {error && (
-                        <p className="text-xs font-medium text-error-400 bg-error-500/10 border border-error-500/20 p-2.5 rounded-lg">
+                        <p className="text-xs font-medium text-destructive bg-destructive/10 border border-destructive/20 p-2.5 rounded-lg">
                             {error}
                         </p>
                     )}
@@ -1067,80 +1138,97 @@ function InstructorCreationForm() {
                     </div>
                 )}
 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="instructor-name" className="text-xs text-starlight-300">
-                            Instructor Full Name
-                        </Label>
-                        <Input
-                            id="instructor-name"
-                            type="text"
-                            placeholder="e.g. Dr. Ahmed Samir"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            required
-                            className="bg-space-950/70 border-border/80 text-starlight-100 focus-visible:border-gold-500/50"
-                        />
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label htmlFor="instructor-email" className="text-xs text-starlight-300">
-                            Email Address
-                        </Label>
-                        <Input
-                            id="instructor-email"
-                            type="email"
-                            placeholder="instructor@example.com"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                            className="bg-space-950/70 border-border/80 text-starlight-100 focus-visible:border-gold-500/50"
-                        />
-                    </div>
-
-                    <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                            <Label htmlFor="instructor-password" className="text-xs text-starlight-300">
-                                Temporary Password
-                            </Label>
-                            <button
-                                type="button"
-                                onClick={handleGeneratePassword}
-                                className="text-[11px] text-gold-400 hover:text-gold-300 hover:underline flex items-center gap-1"
-                            >
-                                <RefreshCw className="size-2.5" />
-                                <span>Generate Password</span>
-                            </button>
+                <form onSubmit={handleSubmit} className="space-y-5">
+                    {/* Visual Container for Account Entry (Requirement 17) */}
+                    <div className="rounded-xl border border-border/90 bg-muted/30 dark:bg-space-950/60 p-5 space-y-4 shadow-xs">
+                        <div className="flex items-center gap-2 pb-3 border-b border-border/60">
+                            <GraduationCap className="size-4 text-gold-500 shrink-0" />
+                            <div>
+                                <h4 className="text-xs font-semibold text-foreground tracking-wide uppercase">
+                                    New Instructor Account Details
+                                </h4>
+                                <p className="text-[11px] text-muted-foreground">
+                                    Set up the instructor identity, email, and temporary credentials
+                                </p>
+                            </div>
                         </div>
-                        <div className="relative">
-                            <Input
-                                id="instructor-password"
-                                type={showPassword ? "text" : "password"}
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                required
-                                minLength={6}
-                                className="bg-space-950/70 border-border/80 text-starlight-100 font-mono pr-10 focus-visible:border-gold-500/50"
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-starlight-400 hover:text-starlight-200"
-                            >
-                                {showPassword ? (
-                                    <EyeOff className="size-4" />
-                                ) : (
-                                    <Eye className="size-4" />
-                                )}
-                            </button>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                            <div className="space-y-2">
+                                <Label htmlFor="instructor-name" className="text-xs text-foreground/90 font-medium">
+                                    Instructor Full Name
+                                </Label>
+                                <Input
+                                    id="instructor-name"
+                                    type="text"
+                                    placeholder="e.g. Dr. Ahmed Samir"
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    required
+                                    className="bg-background dark:bg-space-950/70 border-border text-foreground dark:text-starlight-100 focus-visible:border-gold-500/50"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="instructor-email" className="text-xs text-foreground/90 font-medium">
+                                    Email Address
+                                </Label>
+                                <Input
+                                    id="instructor-email"
+                                    type="email"
+                                    placeholder="instructor@example.com"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    required
+                                    className="bg-background dark:bg-space-950/70 border-border text-foreground dark:text-starlight-100 focus-visible:border-gold-500/50"
+                                />
+                            </div>
                         </div>
-                        <p className="text-[11px] text-starlight-400">
-                            Minimum 6 characters. You will need to share this password with the instructor.
-                        </p>
+
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <Label htmlFor="instructor-password" className="text-xs text-foreground/90 font-medium">
+                                    Temporary Password
+                                </Label>
+                                <button
+                                    type="button"
+                                    onClick={handleGeneratePassword}
+                                    className="text-[11px] text-gold-500 hover:text-gold-400 dark:text-gold-400 dark:hover:text-gold-300 hover:underline flex items-center gap-1 font-medium"
+                                >
+                                    <RefreshCw className="size-2.5" />
+                                    <span>Generate Password</span>
+                                </button>
+                            </div>
+                            <div className="relative">
+                                <Input
+                                    id="instructor-password"
+                                    type={showPassword ? "text" : "password"}
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    required
+                                    minLength={6}
+                                    className="bg-background dark:bg-space-950/70 border-border text-foreground dark:text-starlight-100 font-mono pr-10 focus-visible:border-gold-500/50"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                >
+                                    {showPassword ? (
+                                        <EyeOff className="size-4" />
+                                    ) : (
+                                        <Eye className="size-4" />
+                                    )}
+                                </button>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                                Minimum 6 characters. You will need to share this password with the instructor.
+                            </p>
+                        </div>
                     </div>
 
                     {error && (
-                        <p className="text-xs font-medium text-error-400 bg-error-500/10 border border-error-500/20 p-2.5 rounded-lg">
+                        <p className="text-xs font-medium text-destructive bg-destructive/10 border border-destructive/20 p-2.5 rounded-lg">
                             {error}
                         </p>
                     )}

@@ -34,6 +34,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FileDropzone } from "@/components/ui/file-dropzone";
+import { showToast } from "@/components/ui/toast";
 import {
     Dialog,
     DialogContent,
@@ -134,14 +136,31 @@ export function StudentWeekDetailView({
             const res = await uploadWeekResourceAction(formData);
 
             if (!res.success) {
-                setDeliverableError(res.error ?? "Failed to upload deliverable file.");
+                const msg = res.error ?? "Failed to upload deliverable file.";
+                setDeliverableError(msg);
+                showToast({
+                    title: "Upload Failed",
+                    description: msg,
+                    type: "error",
+                });
             } else {
                 setDeliverableSuccess("Deliverable file uploaded successfully!");
+                showToast({
+                    title: "Deliverable Uploaded",
+                    description: "Your week deliverable file has been uploaded.",
+                    type: "success",
+                });
                 setDeliverableFile(null);
                 router.refresh();
             }
         } catch (err) {
-            setDeliverableError(err instanceof Error ? err.message : "Unexpected error.");
+            const msg = err instanceof Error ? err.message : "Unexpected error.";
+            setDeliverableError(msg);
+            showToast({
+                title: "Upload Error",
+                description: msg,
+                type: "error",
+            });
         } finally {
             setIsUploadingDeliverable(false);
         }
@@ -155,10 +174,18 @@ export function StudentWeekDetailView({
             if (res.success && res.data) {
                 window.open(res.data, "_blank", "noopener,noreferrer");
             } else {
-                alert(res.error ?? "Could not generate download link.");
+                showToast({
+                    title: "Download Error",
+                    description: res.error ?? "Could not generate download link.",
+                    type: "error",
+                });
             }
         } catch (err) {
-            alert(err instanceof Error ? err.message : "Error generating download link.");
+            showToast({
+                title: "Download Error",
+                description: err instanceof Error ? err.message : "Error generating download link.",
+                type: "error",
+            });
         } finally {
             setIsDownloadingDeliverable(false);
         }
@@ -333,26 +360,30 @@ export function StudentWeekDetailView({
                     {/* Upload / Replace Form */}
                     {week.canWrite && (
                         <form onSubmit={handleUploadDeliverable} className="space-y-3 pt-1">
-                            <div className="flex items-center gap-2">
-                                <Input
-                                    type="file"
-                                    accept=".pdf,.zip,application/pdf,application/zip,application/x-zip-compressed"
-                                    onChange={(e) => setDeliverableFile(e.target.files?.[0] ?? null)}
-                                    className="border-border/70 bg-space-950 text-starlight-200 text-xs h-9 cursor-pointer file:text-xs file:font-semibold file:bg-space-850 file:text-gold-300 file:border-0 file:rounded-md file:mr-2"
-                                />
+                            <FileDropzone
+                                value={deliverableFile}
+                                onChange={setDeliverableFile}
+                                accept=".pdf,.zip,application/pdf,application/zip,application/x-zip-compressed"
+                                maxSize={5 * 1024 * 1024}
+                                description="Drag & drop your deliverable (PDF or ZIP, max 5MB), or click to browse"
+                            />
 
+                            <div className="flex justify-end">
                                 <Button
                                     type="submit"
                                     size="sm"
                                     disabled={isUploadingDeliverable || !deliverableFile}
-                                    className="h-9 px-4 text-xs font-semibold bg-gold-500 hover:bg-gold-400 text-space-950 rounded-xl shadow-gold shrink-0 transition-all"
+                                    className="h-9 px-5 text-xs font-semibold bg-gold-500 hover:bg-gold-400 text-space-950 rounded-xl shadow-gold shrink-0 transition-all"
                                 >
                                     {isUploadingDeliverable ? (
-                                        <Loader2 className="size-3.5 animate-spin" />
+                                        <>
+                                            <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+                                            Uploading...
+                                        </>
                                     ) : (
                                         <>
-                                            <UploadCloud className="size-3.5 mr-1" />
-                                            {week.resource ? "Replace" : "Upload"}
+                                            <UploadCloud className="size-3.5 mr-1.5" />
+                                            {week.resource ? "Replace Deliverable" : "Upload Deliverable"}
                                         </>
                                     )}
                                 </Button>

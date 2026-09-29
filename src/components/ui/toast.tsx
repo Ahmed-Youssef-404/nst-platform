@@ -217,6 +217,14 @@ function Toaster({
 const createToastManager = ToastPrimitive.createToastManager
 const useToastManager = ToastPrimitive.useToastManager
 
+function showToast(props: {
+  title: string
+  description?: string
+  type?: "success" | "error" | "info" | "warning" | "loading"
+}) {
+  return toast.add(props)
+}
+
 export {
   Toaster,
   Toast,
@@ -229,6 +237,8 @@ export {
   ToastTitle,
   ToastViewport,
   createToastManager,
+  showToast,
   toast,
   useToastManager,
 }
+

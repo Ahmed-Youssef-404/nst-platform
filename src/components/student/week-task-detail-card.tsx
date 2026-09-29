@@ -4,7 +4,7 @@
 
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
     AlertCircle,
@@ -31,15 +31,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { MarkdownEditor } from "@/components/ui/markdown-editor";
 import { Label } from "@/components/ui/label";
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-    DialogFooter,
-} from "@/components/ui/dialog";
-import { unlockHintAction } from "@/lib/actions/st-economy";
+import { FileDropzone } from "@/components/ui/file-dropzone";
+import { HintUnlockDialog } from "@/components/student/hint-unlock-dialog";
+import { showToast } from "@/components/ui/toast";
 import {
     saveDraftTextOrLinkAction,
     saveDraftFileAction,
@@ -94,8 +88,6 @@ export function WeekTaskDetailCard({
         order: number;
         cost: number;
     } | null>(null);
-    const [isUnlockingHint, setIsUnlockingHint] = useState(false);
-    const [hintError, setHintError] = useState<string | null>(null);
 
     // Handle Save Draft
     async function handleSaveDraft(e: React.FormEvent) {
@@ -118,8 +110,18 @@ export function WeekTaskDetailCard({
                 const res = await saveDraftFileAction(formData);
                 if (!res.success) {
                     setSaveErrorMsg(res.error ?? "Failed to save file draft.");
+                    showToast({
+                        title: "Failed to save draft",
+                        description: res.error ?? "Could not save file draft.",
+                        type: "error",
+                    });
                 } else {
                     setSaveSuccessMsg("Draft file saved successfully!");
+                    showToast({
+                        title: "Draft saved",
+                        description: "Your file draft was saved successfully.",
+                        type: "success",
+                    });
                     setSelectedFile(null);
                     router.refresh();
                 }
@@ -136,8 +138,18 @@ export function WeekTaskDetailCard({
                 });
                 if (!res.success) {
                     setSaveErrorMsg(res.error ?? "Failed to save link draft.");
+                    showToast({
+                        title: "Failed to save link",
+                        description: res.error ?? "Could not save link draft.",
+                        type: "error",
+                    });
                 } else {
                     setSaveSuccessMsg("Draft link saved successfully!");
+                    showToast({
+                        title: "Draft saved",
+                        description: "Your link draft was saved successfully.",
+                        type: "success",
+                    });
                     router.refresh();
                 }
             } else if (selectedMode === "TEXT") {
@@ -153,13 +165,29 @@ export function WeekTaskDetailCard({
                 });
                 if (!res.success) {
                     setSaveErrorMsg(res.error ?? "Failed to save text draft.");
+                    showToast({
+                        title: "Failed to save text",
+                        description: res.error ?? "Could not save text draft.",
+                        type: "error",
+                    });
                 } else {
                     setSaveSuccessMsg("Draft text saved successfully!");
+                    showToast({
+                        title: "Draft saved",
+                        description: "Your text draft was saved successfully.",
+                        type: "success",
+                    });
                     router.refresh();
                 }
             }
         } catch (err) {
-            setSaveErrorMsg(err instanceof Error ? err.message : "Unexpected error.");
+            const msg = err instanceof Error ? err.message : "Unexpected error.";
+            setSaveErrorMsg(msg);
+            showToast({
+                title: "Draft Error",
+                description: msg,
+                type: "error",
+            });
         } finally {
             setIsSavingDraft(false);
         }
@@ -173,37 +201,20 @@ export function WeekTaskDetailCard({
             if (res.success && res.data) {
                 window.open(res.data, "_blank", "noopener,noreferrer");
             } else {
-                alert(res.error ?? "Could not generate download link.");
+                showToast({
+                    title: "Download Error",
+                    description: res.error ?? "Could not generate download link.",
+                    type: "error",
+                });
             }
         } catch (err) {
-            alert(err instanceof Error ? err.message : "Error generating download URL.");
+            showToast({
+                title: "Download Error",
+                description: err instanceof Error ? err.message : "Error generating download URL.",
+                type: "error",
+            });
         } finally {
             setIsDownloading(false);
-        }
-    }
-
-    // Handle Unlock Hint Confirm
-    async function handleConfirmUnlockHint() {
-        if (!hintToUnlock) return;
-        setIsUnlockingHint(true);
-        setHintError(null);
-
-        try {
-            const res = await unlockHintAction({
-                studentId,
-                hintId: hintToUnlock.id,
-            });
-
-            if (!res.success) {
-                setHintError(res.error ?? "Failed to unlock hint.");
-            } else {
-                setHintToUnlock(null);
-                router.refresh();
-            }
-        } catch (err) {
-            setHintError(err instanceof Error ? err.message : "Unlock failed.");
-        } finally {
-            setIsUnlockingHint(false);
         }
     }
 
@@ -335,9 +346,9 @@ export function WeekTaskDetailCard({
                                                     cost: hint.cost,
                                                 })
                                             }
-                                            className="h-7 text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg font-semibold"
+                                            className="h-7 text-xs rounded-lg font-semibold border transition-all shadow-xs bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300 focus-visible:ring-2 focus-visible:ring-amber-500/40 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 dark:text-amber-300 dark:border-amber-500/40"
                                         >
-                                            <KeyRound className="size-3 mr-1" />
+                                            <KeyRound className="size-3 mr-1 text-amber-700 dark:text-amber-400" />
                                             Unlock Hint (-{hint.cost} ST)
                                         </Button>
                                     )}
@@ -546,16 +557,13 @@ export function WeekTaskDetailCard({
                                         <Label className="text-xs text-starlight-300">
                                             Select File (.pdf, .zip, max 5MB)
                                         </Label>
-                                        <div className="flex items-center gap-3">
-                                            <Input
-                                                type="file"
-                                                accept=".pdf,.zip,application/pdf,application/zip,application/x-zip-compressed"
-                                                onChange={(e) =>
-                                                    setSelectedFile(e.target.files?.[0] ?? null)
-                                                }
-                                                className="border-border/70 bg-space-950 text-starlight-200 text-xs h-9 cursor-pointer file:text-xs file:font-semibold file:bg-space-850 file:text-gold-300 file:border-0 file:rounded-md file:mr-3"
-                                            />
-                                        </div>
+                                        <FileDropzone
+                                            value={selectedFile}
+                                            onChange={setSelectedFile}
+                                            accept=".pdf,.zip,application/pdf,application/zip,application/x-zip-compressed"
+                                            maxSize={5 * 1024 * 1024}
+                                            description="Drag & drop your solution PDF or ZIP here, or click to browse"
+                                        />
                                     </div>
                                 )}
 
@@ -621,72 +629,16 @@ export function WeekTaskDetailCard({
             </div>
 
             {/* Hint Unlock Confirmation Modal */}
-            <Dialog open={hintToUnlock !== null} onOpenChange={(open) => !open && setHintToUnlock(null)}>
-                <DialogContent className="border border-border/80 bg-space-950 sm:max-w-md text-starlight-100">
-                    <DialogHeader>
-                        <DialogTitle className="font-display text-lg font-bold flex items-center gap-2">
-                            <KeyRound className="size-5 text-amber-400" />
-                            Unlock Tactical Hint #{hintToUnlock?.order}?
-                        </DialogTitle>
-                        <DialogDescription className="text-xs text-starlight-300 mt-2">
-                            Unlocking this hint will permanently deduct{" "}
-                            <span className="font-mono font-bold text-amber-300">
-                                {hintToUnlock?.cost} ST
-                            </span>{" "}
-                            from your Star Token balance.
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="rounded-xl border border-border/60 bg-space-900/60 p-3 text-xs space-y-1.5 font-mono">
-                        <div className="flex justify-between">
-                            <span className="text-starlight-400">Current ST Balance:</span>
-                            <span className="text-starlight-200">{beginnerSt} ST</span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span className="text-starlight-400">Hint Unlock Cost:</span>
-                            <span className="text-red-400">-{hintToUnlock?.cost} ST</span>
-                        </div>
-                        <div className="flex justify-between border-t border-border/50 pt-1.5 font-bold">
-                            <span className="text-starlight-300">Estimated Balance:</span>
-                            <span
-                                className={
-                                    beginnerSt - (hintToUnlock?.cost ?? 0) <= 0
-                                        ? "text-red-400"
-                                        : "text-gold-300"
-                                }
-                            >
-                                {beginnerSt - (hintToUnlock?.cost ?? 0)} ST
-                            </span>
-                        </div>
-                    </div>
-
-                    {hintError && (
-                        <p className="text-xs text-red-400 text-center">{hintError}</p>
-                    )}
-
-                    <DialogFooter className="gap-2 sm:gap-0">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={isUnlockingHint}
-                            onClick={() => setHintToUnlock(null)}
-                            className="rounded-xl border-border bg-space-850 hover:bg-space-800 text-starlight-300 text-xs"
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            type="button"
-                            size="sm"
-                            disabled={isUnlockingHint}
-                            onClick={handleConfirmUnlockHint}
-                            className="rounded-xl bg-amber-500 hover:bg-amber-400 text-space-950 font-bold text-xs"
-                        >
-                            {isUnlockingHint ? "Unlocking..." : "Confirm & Deduct ST"}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <HintUnlockDialog
+                isOpen={hintToUnlock !== null}
+                onClose={() => setHintToUnlock(null)}
+                hint={hintToUnlock}
+                studentId={studentId}
+                currentBalance={beginnerSt}
+                onSuccess={() => {
+                    router.refresh();
+                }}
+            />
         </div>
     );
 }

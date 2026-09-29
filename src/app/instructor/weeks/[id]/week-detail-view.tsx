@@ -32,6 +32,7 @@ import {
     DialogTitle,
     DialogDescription,
 } from "@/components/ui/dialog";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
     Calendar,
     Clock,
@@ -242,9 +243,7 @@ export function WeekDetailView({ week }: { week: WeekDetailForInstructor }) {
                         <Button
                             size="sm"
                             className="bg-gold-500 hover:bg-gold-400 text-space-950 font-bold shadow-gold rounded-xl text-xs transition-all"
-                            onClick={() =>
-                                setTaskModalState({ isOpen: true, taskToEdit: null })
-                            }
+                            render={<Link href={`/instructor/weeks/${week.id}/tasks/new`} />}
                         >
                             <Plus className="size-3.5 mr-1" />
                             Add Task
@@ -450,21 +449,23 @@ function TaskCard({
                             <Lightbulb className="size-3.5 text-gold-400" />
                             Hints ({task.hints.length})
                         </p>
-                        <div className="space-y-1.5">
+                        <div className="space-y-2">
                             {task.hints.map((hint) => (
                                 <div
                                     key={hint.id}
-                                    className="flex items-start justify-between gap-2.5 text-xs rounded-xl border border-border/60 bg-space-950/50 p-2.5 text-starlight-300"
+                                    className="flex flex-col gap-1.5 text-xs rounded-xl border border-border/60 bg-space-950/50 p-3 text-starlight-300"
                                 >
-                                    <span>
-                                        <strong className="text-gold-300 font-mono">
-                                            Hint #{hint.order}:
-                                        </strong>{" "}
-                                        {hint.content}
-                                    </span>
-                                    <Badge className="shrink-0 text-[10px] font-mono bg-space-850 text-starlight-300 border-border/80">
-                                        Cost: {hint.cost} ST
-                                    </Badge>
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="font-mono font-bold text-gold-300 text-xs">
+                                            Hint #{hint.order}
+                                        </span>
+                                        <Badge className="shrink-0 text-[10px] font-mono bg-space-850 text-starlight-300 border-border/80">
+                                            Cost: {hint.cost} ST
+                                        </Badge>
+                                    </div>
+                                    <div className="text-xs text-starlight-200 pt-0.5">
+                                        <MarkdownContent content={hint.content} />
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -492,16 +493,8 @@ function EditWeekDialog({
     const [name, setName] = useState(week.name);
     const [playlistUrl, setPlaylistUrl] = useState(week.playlistUrl);
     const [requiredFileLabel, setRequiredFileLabel] = useState(week.requiredFileLabel);
-    const [startDate, setStartDate] = useState(
-        new Date(week.startDate.getTime() - week.startDate.getTimezoneOffset() * 60000)
-            .toISOString()
-            .slice(0, 16)
-    );
-    const [endDate, setEndDate] = useState(
-        new Date(week.endDate.getTime() - week.endDate.getTimezoneOffset() * 60000)
-            .toISOString()
-            .slice(0, 16)
-    );
+    const [startDate, setStartDate] = useState<Date | undefined>(week.startDate);
+    const [endDate, setEndDate] = useState<Date | undefined>(week.endDate);
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -537,8 +530,13 @@ function EditWeekDialog({
             };
 
             if (week.canEditDates) {
-                input.startDate = new Date(startDate);
-                input.endDate = new Date(endDate);
+                if (!startDate || !endDate) {
+                    setError("Both start and end dates are required.");
+                    setIsSubmitting(false);
+                    return;
+                }
+                input.startDate = startDate;
+                input.endDate = endDate;
             }
 
             const res = await updateWeekAction(input);
@@ -593,31 +591,25 @@ function EditWeekDialog({
                     {week.canEditDates ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div className="space-y-1.5">
-                                <Label htmlFor="edit-start" className="text-xs font-semibold text-starlight-200">
+                                <Label className="text-xs font-semibold text-starlight-200">
                                     Start Date
                                 </Label>
-                                <Input
-                                    id="edit-start"
-                                    type="datetime-local"
-                                    value={startDate}
-                                    onChange={(e) => setStartDate(e.target.value)}
+                                <DatePicker
+                                    date={startDate}
+                                    onDateChange={setStartDate}
                                     disabled={isSubmitting}
-                                    className="bg-space-850/80 border-border/80 text-starlight-100 focus-visible:border-gold-500 focus-visible:ring-gold-500/20 rounded-xl text-xs"
-                                    required
+                                    placeholder="Pick start date"
                                 />
                             </div>
                             <div className="space-y-1.5">
-                                <Label htmlFor="edit-end" className="text-xs font-semibold text-starlight-200">
-                                    End Date
+                                <Label className="text-xs font-semibold text-starlight-200">
+                                    End Date / Deadline
                                 </Label>
-                                <Input
-                                    id="edit-end"
-                                    type="datetime-local"
-                                    value={endDate}
-                                    onChange={(e) => setEndDate(e.target.value)}
+                                <DatePicker
+                                    date={endDate}
+                                    onDateChange={setEndDate}
                                     disabled={isSubmitting}
-                                    className="bg-space-850/80 border-border/80 text-starlight-100 focus-visible:border-gold-500 focus-visible:ring-gold-500/20 rounded-xl text-xs"
-                                    required
+                                    placeholder="Pick deadline"
                                 />
                             </div>
                         </div>

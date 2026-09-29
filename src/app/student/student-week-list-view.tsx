@@ -36,20 +36,20 @@ const STATUS_CONFIG: Record<
 > = {
     ongoing: {
         label: "Live Now",
-        badgeClassName: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-xs animate-pulse",
-        cardClassName: "border-emerald-500/50 bg-gradient-to-br from-emerald-950/20 via-space-900 to-space-950 shadow-md ring-1 ring-emerald-500/30",
+        badgeClassName: "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/40 shadow-xs animate-pulse",
+        cardClassName: "border-emerald-500/40 bg-emerald-50/50 shadow-md ring-1 ring-emerald-500/25 dark:border-emerald-500/50 dark:bg-gradient-to-br dark:from-emerald-950/20 dark:via-space-900 dark:to-space-950 dark:ring-emerald-500/30",
         isInteractive: true,
     },
     ended: {
         label: "Completed",
-        badgeClassName: "bg-space-800 text-starlight-300 border-border/80",
-        cardClassName: "border-border/70 bg-space-900/60 hover:bg-space-850/80 hover:border-gold-500/30 hover:shadow-gold",
+        badgeClassName: "bg-secondary text-secondary-foreground border-border/70 dark:bg-space-800 dark:text-starlight-300 dark:border-border/80",
+        cardClassName: "border-border/80 bg-card hover:bg-muted/30 hover:border-gold-500/40 shadow-xs hover:shadow-md dark:border-border/70 dark:bg-space-900/60 dark:hover:bg-space-850/80 dark:hover:border-gold-500/30 dark:hover:shadow-gold",
         isInteractive: true,
     },
     upcoming: {
         label: "Upcoming",
-        badgeClassName: "bg-space-850/60 text-starlight-400 border-border/50",
-        cardClassName: "border-border/40 bg-space-950/40 opacity-70",
+        badgeClassName: "bg-muted text-muted-foreground border-border/60 dark:bg-space-850/60 dark:text-starlight-400 dark:border-border/50",
+        cardClassName: "border-border/50 bg-muted/20 opacity-75 dark:border-border/40 dark:bg-space-950/40 dark:opacity-70",
         isInteractive: false,
     },
 };
@@ -230,11 +230,11 @@ function WeekCard({ week }: { week: StudentWeekSummary }) {
 
                 {/* Week Name */}
                 <div>
-                    <h4 className="font-display text-lg font-bold text-starlight-100 group-hover:text-gold-300 transition-colors line-clamp-1">
+                    <h4 className="font-display text-lg font-bold text-foreground dark:text-starlight-100 group-hover:text-gold-600 dark:group-hover:text-gold-300 transition-colors line-clamp-1">
                         {week.name}
                     </h4>
-                    <p className="text-xs text-starlight-400 font-mono mt-1 flex items-center gap-1.5">
-                        <Clock className="size-3.5 text-starlight-400 shrink-0" />
+                    <p className="text-xs text-muted-foreground dark:text-starlight-400 font-mono mt-1 flex items-center gap-1.5">
+                        <Clock className="size-3.5 text-muted-foreground dark:text-starlight-400 shrink-0" />
                         <span>
                             {formatDateTime(week.startDate)} → {formatDateTime(week.endDate)}
                         </span>
@@ -242,10 +242,10 @@ function WeekCard({ week }: { week: StudentWeekSummary }) {
                 </div>
 
                 {/* Deliverable & Playlist Highlights */}
-                <div className="space-y-2 border-t border-border/50 pt-3">
+                <div className="space-y-2 border-t border-border/70 dark:border-border/50 pt-3">
                     <div className="flex items-center justify-between gap-2 text-xs">
-                        <span className="text-starlight-400 flex items-center gap-1.5 truncate">
-                            <FileText className="size-3.5 text-gold-400 shrink-0" />
+                        <span className="text-foreground/80 dark:text-starlight-400 flex items-center gap-1.5 truncate">
+                            <FileText className="size-3.5 text-gold-600 dark:text-gold-400 shrink-0" />
                             <span className="truncate">{week.requiredFileLabel}</span>
                         </span>
 
@@ -253,13 +253,13 @@ function WeekCard({ week }: { week: StudentWeekSummary }) {
                             <span
                                 className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold border ${
                                     RESOURCE_STATUS_CONFIG[week.resource.status]?.badgeClassName ??
-                                    "bg-space-800 text-starlight-300"
+                                    "bg-secondary text-secondary-foreground border-border"
                                 }`}
                             >
                                 {RESOURCE_STATUS_CONFIG[week.resource.status]?.label ?? "Uploaded"}
                             </span>
                         ) : (
-                            <span className="shrink-0 inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-400 border border-amber-500/20">
+                            <span className="shrink-0 inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400 border border-amber-500/25">
                                 <AlertCircle className="size-2.5" />
                                 File Required
                             </span>
@@ -268,11 +268,11 @@ function WeekCard({ week }: { week: StudentWeekSummary }) {
 
                     {week.playlistUrl && (
                         <div className="flex items-center justify-between gap-2 text-xs">
-                            <span className="text-starlight-400 flex items-center gap-1.5">
-                                <Video className="size-3.5 text-emerald-400 shrink-0" />
+                            <span className="text-foreground/80 dark:text-starlight-400 flex items-center gap-1.5">
+                                <Video className="size-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                                 <span>Lecture Playlist</span>
                             </span>
-                            <span className="text-[11px] text-emerald-400 font-medium">
+                            <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-medium">
                                 Ready to Watch
                             </span>
                         </div>
@@ -281,33 +281,33 @@ function WeekCard({ week }: { week: StudentWeekSummary }) {
             </div>
 
             {/* Bottom Row: Task count and action arrow */}
-            <div className="flex items-center justify-between border-t border-border/50 pt-3 mt-4 text-xs">
+            <div className="flex items-center justify-between border-t border-border/70 dark:border-border/50 pt-3 mt-4 text-xs">
                 <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1 font-mono text-starlight-300">
-                        <ListTodo className="size-3.5 text-gold-400" />
+                    <span className="inline-flex items-center gap-1 font-mono text-foreground/80 dark:text-starlight-300">
+                        <ListTodo className="size-3.5 text-gold-600 dark:text-gold-400" />
                         {week.totalTasks} {week.totalTasks === 1 ? "Task" : "Tasks"}
                     </span>
 
                     {week.draftTasksCount > 0 && !week.isLocked && (
-                        <span className="rounded-full bg-space-800 px-2 py-0.2 text-[10px] font-mono text-cyan-300 border border-cyan-500/30">
+                        <span className="rounded-full bg-cyan-50 text-cyan-800 border-cyan-200 dark:bg-space-800 dark:text-cyan-300 dark:border-cyan-500/30 px-2 py-0.2 text-[10px] font-mono border">
                             {week.draftTasksCount} draft{week.draftTasksCount > 1 ? "s" : ""}
                         </span>
                     )}
 
                     {week.submittedTasksCount > 0 && (
-                        <span className="rounded-full bg-space-800 px-2 py-0.2 text-[10px] font-mono text-emerald-300 border border-emerald-500/30">
+                        <span className="rounded-full bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-space-800 dark:text-emerald-300 dark:border-emerald-500/30 px-2 py-0.2 text-[10px] font-mono border">
                             {week.submittedTasksCount} submitted
                         </span>
                     )}
                 </div>
 
                 {!isUpcoming ? (
-                    <div className="inline-flex items-center gap-1 text-gold-400 font-semibold group-hover:translate-x-0.5 transition-transform text-xs">
+                    <div className="inline-flex items-center gap-1 text-gold-600 dark:text-gold-400 font-semibold group-hover:translate-x-0.5 transition-transform text-xs">
                         <span>Open Week</span>
                         <ChevronRight className="size-3.5" />
                     </div>
                 ) : (
-                    <span className="text-xs text-starlight-400/80 italic font-mono">
+                    <span className="text-xs text-muted-foreground dark:text-starlight-400/80 italic font-mono">
                         Locked until start
                     </span>
                 )}
