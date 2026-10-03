@@ -37,12 +37,29 @@ export async function unlockHint(input: UnlockHintInput) {
         include: {
             task: {
                 select: {
-                    session: { select: { levelId: true } },
+                    session: { select: { id: true, levelId: true } },
                     weekId: true,
                 },
             },
         },
     });
+
+    if (hint.task.session) {
+        const feedback = await prisma.sessionFeedback.findUnique({
+            where: {
+                sessionId_studentId: {
+                    sessionId: hint.task.session.id,
+                    studentId: input.studentId,
+                },
+            },
+        });
+
+        if (!feedback) {
+            throw new Error(
+                "You must rate this session before unlocking hints."
+            );
+        }
+    }
 
     // Task.session set -> INTERMEDIATE (levelId path). Task.session null ->
     // BEGINNER (weekId path, since Task always has exactly one of

@@ -674,3 +674,38 @@ export interface StudentProfileData {
 export type ProfileActionResult<K extends string = string> =
     | { success: true }
     | { success: false; error: string; fieldErrors?: Partial<Record<K, string>> };
+
+// ============================================
+// SESSION FEEDBACK & RATING (INTERMEDIATE track)
+// ============================================
+
+export interface SubmitSessionFeedbackInput {
+    sessionId: string;
+    rating: number; // 1 to 10 (mandatory)
+    comment?: string | null; // optional
+}
+
+export interface StudentSessionFeedbackView {
+    id: string;
+    rating: number;
+    comment: string | null;
+    createdAt: Date;
+}
+
+export interface SessionFeedbackDetail {
+    id: string;
+    studentId: string;
+    studentName: string;
+    studentEmail: string;
+    rating: number;
+    comment: string | null;
+    createdAt: Date;
+}
+
+export interface SessionFeedbackStats {
+    totalFeedbacks: number;
+    totalEligibleStudents: number;
+    averageRating: number | null; // rounded to 1 decimal place, e.g. 8.7
+    ratingDistribution: Record<number, number>; // counts for ratings 1-10
+}
+

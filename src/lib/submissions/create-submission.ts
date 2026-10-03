@@ -42,6 +42,7 @@ export async function createOrUpdateSubmission(
         where: { id: input.taskId },
         select: {
             id: true,
+            sessionId: true,
             type: true,
             deadline: true,
             allowedSubmissionMode: true,
@@ -50,6 +51,23 @@ export async function createOrUpdateSubmission(
 
     if (!task) {
         throw new Error("Task not found.");
+    }
+
+    if (task.sessionId) {
+        const feedback = await prisma.sessionFeedback.findUnique({
+            where: {
+                sessionId_studentId: {
+                    sessionId: task.sessionId,
+                    studentId: input.studentId,
+                },
+            },
+        });
+
+        if (!feedback) {
+            throw new Error(
+                "You must rate this session before submitting tasks."
+            );
+        }
     }
 
     if (task.type !== "INTERNAL") {

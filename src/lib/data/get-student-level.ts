@@ -26,7 +26,11 @@
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { computeSessionStatus, type SessionStatus } from "./get-my-groups";
-import type { TaskTypeCode, SubmissionModeCode } from "@/types/types";
+import type {
+    TaskTypeCode,
+    SubmissionModeCode,
+    StudentSessionFeedbackView,
+} from "@/types/types";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -72,6 +76,7 @@ export interface StudentSessionView {
     durationMinutes: number;
     recordingLink: string | null;
     status: SessionStatus;
+    feedback: StudentSessionFeedbackView | null;
     tasks: StudentTaskView[];
 }
 
@@ -115,6 +120,16 @@ async function fetchStudentLevelView(
                                     startTime: true,
                                     durationMinutes: true,
                                     recordingLink: true,
+                                    feedbacks: {
+                                        where: { studentId },
+                                        select: {
+                                            id: true,
+                                            rating: true,
+                                            comment: true,
+                                            createdAt: true,
+                                        },
+                                        take: 1,
+                                    },
                                     tasks: {
                                         select: {
                                             id: true,
@@ -188,6 +203,14 @@ async function fetchStudentLevelView(
                 session.durationMinutes,
                 now
             ),
+            feedback: session.feedbacks[0]
+                ? {
+                      id: session.feedbacks[0].id,
+                      rating: session.feedbacks[0].rating,
+                      comment: session.feedbacks[0].comment,
+                      createdAt: session.feedbacks[0].createdAt,
+                  }
+                : null,
             tasks: session.tasks.map((task) => {
                 const submission = task.submissions[0];
                 const isGraded = !!submission?.gradedAt;

@@ -1,4 +1,7 @@
+"use client";
+
 // src/app/student/sessions/[id]/session-detail-view.tsx
+import { useState } from "react";
 import Link from "next/link";
 import {
     ArrowLeft,
@@ -8,11 +11,13 @@ import {
     FileCheck,
     ListTodo,
     Sparkles,
+    Star,
     Video,
     ExternalLink,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { TaskPager } from "@/components/student/task-pager";
+import { SessionFeedbackGate } from "@/components/student/session-feedback-gate";
 import { computeTaskProgress } from "@/lib/task-progress";
 import type { StudentSessionView } from "@/lib/data/get-student-level";
 import type { SessionStatus } from "@/lib/data/get-my-groups";
@@ -45,6 +50,7 @@ export function SessionDetailView({
     session: StudentSessionView;
     isHistorical?: boolean;
 }) {
+    const [feedback, setFeedback] = useState(session.feedback);
     const statusStyle = STATUS_STYLES[session.status];
     const progress = computeTaskProgress(session.tasks);
     const progressPercent =
@@ -175,24 +181,66 @@ export function SessionDetailView({
                 </div>
             </div>
 
-            {/* Task Pager */}
-            <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                    <h2 className="font-display text-lg font-bold text-starlight-100 flex items-center gap-2">
-                        <ListTodo className="size-4 text-gold-400" />
-                        Session Tasks & Missions
-                    </h2>
-                    <span className="text-xs text-starlight-400">
-                        Solve tasks, unlock hints, and submit solutions
-                    </span>
-                </div>
-
-                <TaskPager
-                    studentId={studentId}
-                    tasks={session.tasks}
-                    isHistorical={isHistorical}
+            {/* Session Feedback & Rating Gate OR Tasks Section */}
+            {!feedback ? (
+                <SessionFeedbackGate
+                    sessionId={session.id}
+                    sessionTitle={session.title}
+                    onFeedbackSubmitted={setFeedback}
                 />
-            </div>
+            ) : (
+                <div className="space-y-4 animate-fade-in">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-space-900/60 border border-border/70 rounded-2xl p-4">
+                        <div className="flex items-center gap-3">
+                            <div className="flex size-10 items-center justify-center rounded-xl bg-gold-500/10 text-gold-400 border border-gold-500/25 shrink-0">
+                                <Star className="size-5 fill-gold-400" />
+                            </div>
+                            <div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs font-semibold text-starlight-200">
+                                        Session Evaluated
+                                    </span>
+                                    <span className="inline-flex items-center gap-1 rounded-md bg-gold-500/15 px-2 py-0.5 font-mono text-xs font-bold text-gold-300 border border-gold-500/30">
+                                        {feedback.rating} / 10
+                                    </span>
+                                </div>
+                                {feedback.comment ? (
+                                    <p className="text-xs text-starlight-400 mt-0.5 line-clamp-1">
+                                        &ldquo;{feedback.comment}&rdquo;
+                                    </p>
+                                ) : (
+                                    <p className="text-[11px] text-starlight-500 mt-0.5">
+                                        Missions unlocked successfully
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 text-xs text-emerald-400 shrink-0 self-end sm:self-center font-medium">
+                            <CheckCircle2 className="size-4" />
+                            <span>Missions Unlocked</span>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <h2 className="font-display text-lg font-bold text-starlight-100 flex items-center gap-2">
+                                <ListTodo className="size-4 text-gold-400" />
+                                Session Tasks & Missions
+                            </h2>
+                            <span className="text-xs text-starlight-400">
+                                Solve tasks, unlock hints, and submit solutions
+                            </span>
+                        </div>
+
+                        <TaskPager
+                            studentId={studentId}
+                            tasks={session.tasks}
+                            isHistorical={isHistorical}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

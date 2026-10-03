@@ -63,6 +63,7 @@ model Student {
   storeInventory          StudentInventory[]
   levelStBalances         LevelStBalance[] // INTERMEDIATE فقط
   weekResourceSubmissions WeekResourceSubmission[] // BEGINNER فقط
+  sessionFeedbacks        SessionFeedback[]
 
   @@map("students")
 }
@@ -296,9 +297,10 @@ model Session {
   updatedAt       DateTime @updatedAt
 
   // Relations
-  level      Level        @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  level      Level             @relation(fields: [levelId], references: [id], onDelete: Cascade)
   tasks      Task[]
   attendance Attendance[]
+  feedbacks  SessionFeedback[]
 
   @@map("sessions")
 }
@@ -607,6 +609,31 @@ model Attendance {
 
   @@unique([studentId, sessionId])
   @@map("attendance")
+}
+
+// ============================================
+// SESSION FEEDBACK (INTERMEDIATE track only)
+// ============================================
+// تقييم الجلسة الإجباري من الطالب قبل الدخول إلى الـ Tasks وحلها.
+// rating: إجباري من 1 إلى 10
+// comment: اختياري
+// الطالب يقيّم الجلسة مرة واحدة فقط ولا يمكن تعديله بعد الإرسال.
+
+model SessionFeedback {
+  id        String   @id @default(uuid())
+  sessionId String
+  studentId String
+  rating    Int      // 1 - 10
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, studentId])
+  @@map("session_feedbacks")
 }
 
 //--------------------------------------------------------------------------------

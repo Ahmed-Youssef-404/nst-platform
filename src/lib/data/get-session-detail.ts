@@ -8,7 +8,12 @@
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { computeSessionStatus, type SessionStatus } from "./get-my-groups";
-import type { TaskTypeCode, SubmissionModeCode } from "@/types/types";
+import type {
+    TaskTypeCode,
+    SubmissionModeCode,
+    SessionFeedbackDetail,
+    SessionFeedbackStats,
+} from "@/types/types";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -85,6 +90,8 @@ export interface SessionDetail {
     // Attendance/engagement roster - only meaningful once status is
     // "completed" (see comment in session-detail-view.tsx for why).
     roster: SessionDetailRosterEntry[];
+    feedbacks: SessionFeedbackDetail[];
+    feedbackStats: SessionFeedbackStats;
 }
 
 export async function getSessionDetail(
@@ -127,9 +134,9 @@ export async function getSessionDetail(
     });
 
     // Existing Attendance rows for this Session (one per student max,
-    // enforced by the unique constraint) and any SESSION_ENGAGEMENT
-    // transactions already recorded for it - both drive the roster below.
-    const [attendanceRows, engagementTransactions] = await Promise.all([
+    // enforced by the unique constraint), SESSION_ENGAGEMENT
+    // transactions already recorded for it, and all SessionFeedback rows.
+    const [attendanceRows, engagementTransactions, feedbackRows] = await Promise.all([
         prisma.attendance.findMany({
             where: { sessionId },
             select: { studentId: true, status: true },
@@ -138,6 +145,13 @@ export async function getSessionDetail(
             where: { reason: "SESSION_ENGAGEMENT", relatedEntityId: sessionId },
             select: { studentId: true },
         }),
+        prisma.sessionFeedback.findMany({
+            where: { sessionId },
+            include: {
+                student: { select: { id: true, name: true, email: true } },
+            },
+            orderBy: { createdAt: "desc" },
+        }),
     ]);
     const attendanceByStudent = new Map(
         attendanceRows.map((a) => [a.studentId, a.status])
@@ -145,6 +159,20 @@ export async function getSessionDetail(
     const engagedStudentIds = new Set(
         engagementTransactions.map((t) => t.studentId)
     );
+
+    const totalFeedbacks = feedbackRows.length;
+    const totalEligibleStudents = groupStudents.length;
+    const ratingSum = feedbackRows.reduce((acc, f) => acc + f.rating, 0);
+    const averageRating =
+        totalFeedbacks > 0 ? Math.round((ratingSum / totalFeedbacks) * 10) / 10 : null;
+
+    const ratingDistribution: Record<number, number> = {};
+    for (let r = 1; r <= 10; r++) {
+        ratingDistribution[r] = 0;
+    }
+    for (const f of feedbackRows) {
+        ratingDistribution[f.rating] = (ratingDistribution[f.rating] || 0) + 1;
+    }
 
     return {
         id: session.id,
@@ -163,6 +191,21 @@ export async function getSessionDetail(
             attendanceStatus: attendanceByStudent.get(student.id) ?? null,
             engagementGiven: engagedStudentIds.has(student.id),
         })),
+        feedbacks: feedbackRows.map((f) => ({
+            id: f.id,
+            studentId: f.studentId,
+            studentName: f.student.name,
+            studentEmail: f.student.email,
+            rating: f.rating,
+            comment: f.comment,
+            createdAt: f.createdAt,
+        })),
+        feedbackStats: {
+            totalFeedbacks,
+            totalEligibleStudents,
+            averageRating,
+            ratingDistribution,
+        },
         tasks: session.tasks.map((task) => ({
             id: task.id,
             title: task.title,

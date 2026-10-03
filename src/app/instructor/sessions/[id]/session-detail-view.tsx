@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Star, Search } from "lucide-react";
 import { updateSessionAction } from "@/lib/actions/session-management";
 import { SessionStatus } from "@/lib/data/get-my-groups";
 import {
@@ -33,6 +34,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { MarkdownEditor } from "@/components/ui/markdown-editor";
 import { MarkdownContent } from "@/components/markdown-content";
 import { formatDateTime } from "@/lib/format-date";
+import type {
+    SessionFeedbackDetail,
+    SessionFeedbackStats,
+} from "@/types/types";
 // import type { SessionDetail } from "@/lib/data/get-session-detail";
 // import type { SessionStatus } from "@/lib/data/get-my-groups";
 
@@ -129,6 +134,12 @@ export function SessionDetailView({
                     instructorId={instructorId}
                 />
             )}
+
+            {/* Student Ratings & Feedback Section */}
+            <SessionFeedbackSection
+                feedbacks={session.feedbacks}
+                stats={session.feedbackStats}
+            />
 
             <div className="space-y-4">
                 <h3 className="text-sm font-semibold">
@@ -776,5 +787,207 @@ function EditSessionForm({
                 </Button>
             </div>
         </form>
+    );
+}
+
+// ============================================
+// STUDENT FEEDBACK & RATINGS SECTION
+// ============================================
+
+function SessionFeedbackSection({
+    feedbacks,
+    stats,
+}: {
+    feedbacks: SessionFeedbackDetail[];
+    stats: SessionFeedbackStats;
+}) {
+    const [search, setSearch] = useState("");
+    const [filterWithCommentsOnly, setFilterWithCommentsOnly] = useState(false);
+    const [ratingFilter, setRatingFilter] = useState<"ALL" | "HIGH" | "LOW">("ALL");
+
+    const filtered = feedbacks.filter((f) => {
+        if (search) {
+            const query = search.toLowerCase();
+            const matchesName = f.studentName.toLowerCase().includes(query);
+            const matchesEmail = f.studentEmail.toLowerCase().includes(query);
+            const matchesComment = f.comment?.toLowerCase().includes(query) ?? false;
+            if (!matchesName && !matchesEmail && !matchesComment) return false;
+        }
+        if (filterWithCommentsOnly && !f.comment) {
+            return false;
+        }
+        if (ratingFilter === "HIGH" && f.rating < 8) return false;
+        if (ratingFilter === "LOW" && f.rating > 5) return false;
+        return true;
+    });
+
+    const participationPercent =
+        stats.totalEligibleStudents > 0
+            ? Math.round((stats.totalFeedbacks / stats.totalEligibleStudents) * 100)
+            : 0;
+
+    return (
+        <Card className="border-border/80 bg-space-900/60 shadow-xl overflow-hidden">
+            <CardHeader className="border-b border-border/60 pb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <CardTitle className="flex items-center gap-2 text-base font-bold text-starlight-100">
+                                <Star className="size-4 text-gold-400 fill-gold-400/20" />
+                                Student Ratings &amp; Feedback
+                            </CardTitle>
+                            <Badge variant="outline" className="font-mono text-xs">
+                                {stats.totalFeedbacks} Reviews
+                            </Badge>
+                        </div>
+                        <p className="text-xs text-starlight-400 mt-1">
+                            Individual ratings and remarks submitted by students before accessing session tasks.
+                        </p>
+                    </div>
+
+                    {/* Quick Stats Summary */}
+                    <div className="flex items-center gap-3 shrink-0">
+                        <div className="rounded-xl border border-gold-500/25 bg-gold-500/10 px-3.5 py-1.5 text-center">
+                            <span className="text-[10px] uppercase font-bold tracking-wider text-gold-400 block">
+                                Avg Score
+                            </span>
+                            <span className="font-mono text-base font-extrabold text-gold-300">
+                                {stats.averageRating !== null ? `${stats.averageRating} / 10` : "—"}
+                            </span>
+                        </div>
+
+                        <div className="rounded-xl border border-border/70 bg-space-950/70 px-3.5 py-1.5 text-center">
+                            <span className="text-[10px] uppercase font-medium tracking-wider text-starlight-400 block">
+                                Turnout
+                            </span>
+                            <span className="font-mono text-base font-bold text-starlight-200">
+                                {participationPercent}%
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </CardHeader>
+
+            <CardContent className="pt-4 space-y-4">
+                {/* Search & Filter Bar */}
+                {feedbacks.length > 0 && (
+                    <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center justify-between">
+                        <div className="relative flex-1 max-w-sm">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-starlight-400" />
+                            <Input
+                                placeholder="Search by student name or comment..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                className="pl-9 h-9 text-xs bg-space-950/60 border-border/70 rounded-xl placeholder:text-starlight-500"
+                            />
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                            <Button
+                                size="sm"
+                                variant={ratingFilter === "ALL" ? "secondary" : "outline"}
+                                onClick={() => setRatingFilter("ALL")}
+                                className="h-8 text-xs rounded-lg"
+                            >
+                                All ({feedbacks.length})
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant={ratingFilter === "HIGH" ? "secondary" : "outline"}
+                                onClick={() => setRatingFilter("HIGH")}
+                                className="h-8 text-xs rounded-lg text-emerald-400"
+                            >
+                                High (8-10)
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant={ratingFilter === "LOW" ? "secondary" : "outline"}
+                                onClick={() => setRatingFilter("LOW")}
+                                className="h-8 text-xs rounded-lg text-amber-400"
+                            >
+                                Low (1-5)
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant={filterWithCommentsOnly ? "secondary" : "outline"}
+                                onClick={() => setFilterWithCommentsOnly((v) => !v)}
+                                className="h-8 text-xs rounded-lg"
+                            >
+                                With Comments
+                            </Button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Feedback List */}
+                {feedbacks.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-border/70 bg-space-950/40 p-8 text-center space-y-2">
+                        <Star className="size-7 mx-auto text-starlight-500 opacity-60" />
+                        <p className="text-sm font-medium text-starlight-300">
+                            No Ratings Received Yet
+                        </p>
+                        <p className="text-xs text-starlight-400 max-w-sm mx-auto">
+                            Students will evaluate this session when they access it to begin their tasks.
+                        </p>
+                    </div>
+                ) : filtered.length === 0 ? (
+                    <div className="rounded-xl border border-border/60 bg-space-950/30 p-6 text-center text-xs text-starlight-400">
+                        No ratings match your filter criteria.
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {filtered.map((fb) => {
+                            const isHigh = fb.rating >= 8;
+                            const isMid = fb.rating >= 5 && fb.rating < 8;
+                            const badgeColor = isHigh
+                                ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                                : isMid
+                                ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
+                                : "bg-red-500/15 text-red-300 border-red-500/30";
+
+                            return (
+                                <div
+                                    key={fb.id}
+                                    className="flex flex-col justify-between rounded-xl border border-border/70 bg-space-950/60 p-4 space-y-3 hover:border-gold-500/30 transition-colors"
+                                >
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div>
+                                            <p className="text-xs font-bold text-starlight-100">
+                                                {fb.studentName}
+                                            </p>
+                                            <p className="text-[11px] text-starlight-400 font-mono">
+                                                {fb.studentEmail}
+                                            </p>
+                                        </div>
+
+                                        <span
+                                            className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 font-mono text-xs font-bold border shrink-0 ${badgeColor}`}
+                                        >
+                                            <Star className="size-3 fill-current" />
+                                            {fb.rating} / 10
+                                        </span>
+                                    </div>
+
+                                    {fb.comment ? (
+                                        <div className="rounded-lg bg-space-900/80 border border-border/50 p-2.5 text-xs text-starlight-200 leading-relaxed whitespace-pre-wrap">
+                                            &ldquo;{fb.comment}&rdquo;
+                                        </div>
+                                    ) : (
+                                        <p className="text-[11px] text-starlight-500 italic">
+                                            No written remarks provided
+                                        </p>
+                                    )}
+
+                                    <div className="pt-2 border-t border-border/40 text-[10px] text-starlight-500 flex items-center justify-between">
+                                        <span>Submitted</span>
+                                        <span>{formatDateTime(fb.createdAt)}</span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </CardContent>
+        </Card>
     );
 }
