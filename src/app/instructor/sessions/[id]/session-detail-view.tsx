@@ -162,7 +162,10 @@ export function SessionDetailView({
                                 </div>
                             </CardHeader>
                             <CardContent className="space-y-3 text-sm">
-                                <p className="whitespace-pre-wrap">{task.description}</p>
+                                <MarkdownContent
+                                    content={task.description}
+                                    className="text-starlight-200 text-sm leading-relaxed"
+                                />
                                 <p className="text-muted-foreground">
                                     Deadline:{" "}
                                     {formatDateTime(task.deadline)}
@@ -942,8 +945,8 @@ function SessionFeedbackSection({
                             const badgeColor = isHigh
                                 ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
                                 : isMid
-                                ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
-                                : "bg-red-500/15 text-red-300 border-red-500/30";
+                                    ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
+                                    : "bg-red-500/15 text-red-300 border-red-500/30";
 
                             return (
                                 <div
