@@ -263,7 +263,7 @@ function Sidebar({
           onClick={handleEmptyAreaClick}
           className={cn(
             "flex size-full flex-col bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:shadow-sm group-data-[variant=floating]:ring-1 group-data-[variant=floating]:ring-sidebar-border",
-            state === "collapsed" && "group-data-[collapsible=icon]:cursor-pointer [&_a]:cursor-pointer [&_button]:cursor-pointer"
+            state === "collapsed" && "group-data-[collapsible=icon]:cursor-w-resize [&_a]:cursor-pointer [&_button]:cursor-pointer"
           )}
         >
           {children}
