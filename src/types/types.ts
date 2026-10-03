@@ -622,3 +622,55 @@ export interface FinalizeWeekGradingResult {
     totalStDelta: number; // net ST change actually applied (post-halving)
     beginnerStBalance: number; // Student.beginnerSt after this finalize
 }
+
+// ---------------------------------------------------------------------------
+// My Profile feature (src/lib/data/get-profile.ts, src/lib/actions/profile.ts)
+// ---------------------------------------------------------------------------
+
+export type GroupTypeCode = "BEGINNER" | "INTERMEDIATE";
+
+export interface SuperAdminProfileData {
+    name: string;
+    email: string;
+    createdAt: Date;
+}
+
+export interface InstructorProfileGroup {
+    id: string;
+    name: string;
+    batchName: string;
+    type: GroupTypeCode;
+    studentCount: number;
+    // INTERMEDIATE groups: the currently active Level (null if none yet)
+    activeLevel: { name: string; levelNumber: number } | null;
+    // BEGINNER groups: the Week running right now (null if none)
+    ongoingWeek: { id: string; name: string } | null;
+}
+
+export interface InstructorProfileData {
+    name: string;
+    email: string;
+    createdAt: Date;
+    groups: InstructorProfileGroup[];
+}
+
+export interface StudentProfileData {
+    studentCode: string; // students.id, e.g. "NST-1001" - NOT the Auth UUID
+    name: string;
+    email: string;
+    createdAt: Date;
+    groupName: string;
+    batchName: string;
+    groupType: GroupTypeCode;
+    // INTERMEDIATE only
+    activeLevel: { name: string; levelNumber: number } | null;
+    levelSt: number | null; // current-Level balance; null when no active Level/balance row
+    avgSt: number;
+    // BEGINNER only
+    ongoingWeek: { id: string; name: string } | null;
+    beginnerSt: number;
+}
+
+export type ProfileActionResult<K extends string = string> =
+    | { success: true }
+    | { success: false; error: string; fieldErrors?: Partial<Record<K, string>> };

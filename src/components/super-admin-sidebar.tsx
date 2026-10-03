@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+    ChevronRight,
     Users,
     Layers,
     Sparkles,
@@ -28,8 +29,6 @@ import {
     Avatar,
     AvatarFallback,
 } from "@/components/ui/avatar";
-import { LogoutButton } from "@/components/logout-button";
-import { ThemeToggle } from "@/components/theme-toggle";
 
 const NAV_ITEMS = [
     {
@@ -69,6 +68,7 @@ export function SuperAdminSidebar({
     adminEmail: string;
 }) {
     const pathname = usePathname();
+    const isProfileActive = pathname === "/super-admin/profile";
 
     const initials =
         adminName
@@ -196,31 +196,36 @@ export function SuperAdminSidebar({
             </SidebarContent>
 
             {/* Footer */}
-            <SidebarFooter className="border-t border-border/70 p-3 bg-space-850/40 dark:bg-space-900/60">
-                <div className="flex items-center justify-between gap-2.5">
-                    <div className="flex min-w-0 items-center gap-2.5">
-                        <Avatar size="sm" className="shrink-0 border border-gold-500/30 bg-gold-500/10 text-gold-600 dark:text-gold-400 ring-1 ring-gold-500/20">
-                            <AvatarFallback className="font-bold text-xs text-gold-700 dark:text-gold-400 bg-gold-500/10 dark:bg-space-850">
-                                {initials}
-                            </AvatarFallback>
-                        </Avatar>
+            <SidebarFooter className="border-t border-border/70 p-2.5 bg-space-850/40 dark:bg-space-900/60">
+                <Link
+                    href="/super-admin/profile"
+                    aria-label="My Profile"
+                    title="My Profile"
+                    aria-current={isProfileActive ? "page" : undefined}
+                    className={`flex w-full items-center gap-2.5 rounded-xl p-2 transition-all duration-200 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-1.5 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500/40 ${
+                        isProfileActive
+                            ? "bg-gold-500/15 ring-1 ring-gold-500/35 font-semibold text-gold-700 dark:text-gold-300"
+                            : "hover:bg-space-850 text-starlight-300 hover:text-starlight-100"
+                    }`}
+                >
+                    <Avatar size="sm" className="shrink-0 border border-gold-500/30 bg-gold-500/10 text-gold-600 dark:text-gold-400 ring-1 ring-gold-500/20">
+                        <AvatarFallback className="font-bold text-xs text-gold-700 dark:text-gold-400 bg-gold-500/10 dark:bg-space-850">
+                            {initials}
+                        </AvatarFallback>
+                    </Avatar>
 
-                        <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-                            <p className="truncate text-xs font-semibold text-starlight-100 flex items-center gap-1">
-                                {adminName}
-                                <Shield className="size-2.5 text-gold-600 dark:text-gold-400 inline shrink-0" />
-                            </p>
-                            <p className="truncate text-[10px] text-starlight-400 font-mono">
-                                {adminEmail}
-                            </p>
-                        </div>
+                    <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden text-left">
+                        <p className="truncate text-xs font-semibold text-starlight-100 flex items-center gap-1">
+                            {adminName}
+                            <Shield className="size-2.5 text-gold-600 dark:text-gold-400 inline shrink-0" />
+                        </p>
+                        <p className="truncate text-[10px] text-starlight-400 font-mono">
+                            {adminEmail}
+                        </p>
                     </div>
 
-                    <div className="flex items-center gap-1 group-data-[collapsible=icon]:hidden shrink-0">
-                        <ThemeToggle />
-                        <LogoutButton />
-                    </div>
-                </div>
+                    <ChevronRight className="size-4 shrink-0 text-starlight-400 transition-transform group-hover:translate-x-0.5 group-data-[collapsible=icon]:hidden" />
+                </Link>
             </SidebarFooter>
         </Sidebar>
     );
