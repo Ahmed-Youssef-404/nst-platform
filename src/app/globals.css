@@ -260,6 +260,11 @@
 
 @theme inline {
   --font-display-family: var(--font-display);
+
+  /* Landing page type pairing: Manrope for headlines, Space Grotesk for
+     technical details (labels, numbers, node captions). */
+  --font-heading: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-technical: var(--font-display), ui-sans-serif, system-ui, sans-serif;
 }
 
 @layer base {
