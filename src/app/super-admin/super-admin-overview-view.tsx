@@ -1,7 +1,7 @@
 // src/app/super-admin/super-admin-overview-view.tsx
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
 import {
     Users,
@@ -49,6 +49,7 @@ import { showToast } from "@/components/ui/toast";
 
 export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData }) {
     const [activeTab, setActiveTab] = useState<"students" | "instructors" | "create">("students");
+    const [highlightTrigger, setHighlightTrigger] = useState(0);
     const [studentSearch, setStudentSearch] = useState("");
     const [studentTrackFilter, setStudentTrackFilter] = useState<"ALL" | "INTERMEDIATE" | "BEGINNER">("ALL");
     const [studentGroupFilter, setStudentGroupFilter] = useState<string>("ALL");
@@ -116,6 +117,7 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
                         size="sm"
                         onClick={() => {
                             setActiveTab("create");
+                            setHighlightTrigger((prev) => prev + 1);
                         }}
                         className="border-gold-500/40 text-gold-700 dark:text-gold-300 hover:bg-gold-500/10 hover:text-gold-800 dark:hover:text-gold-200"
                     >
@@ -566,7 +568,7 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
 
                 {/* TAB 3: ACCOUNT CREATION HUB */}
                 {activeTab === "create" && (
-                    <AccountCreationSection groups={groups} />
+                    <AccountCreationSection groups={groups} highlightTrigger={highlightTrigger} />
                 )}
             </div>
         </div>
@@ -645,8 +647,50 @@ function CopyableEmail({ email }: { email: string }) {
 // ACCOUNT CREATION SECTION (Student & Instructor)
 // ============================================
 
-function AccountCreationSection({ groups }: { groups: GroupOption[] }) {
+function AccountCreationSection({
+    groups,
+    highlightTrigger = 0,
+}: {
+    groups: GroupOption[];
+    highlightTrigger?: number;
+}) {
     const [accountType, setAccountType] = useState<"student" | "instructor">("student");
+    const [isHighlighted, setIsHighlighted] = useState(false);
+    const formBoxRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (highlightTrigger > 0) {
+            setIsHighlighted(true);
+
+            // Give the browser and React a tick to mount or switch before scrolling
+            const scrollTimer = setTimeout(() => {
+                if (formBoxRef.current) {
+                    formBoxRef.current.scrollIntoView({
+                        behavior: "smooth",
+                        block: "center",
+                    });
+
+                    // Focus the first available input field to streamline data entry
+                    const firstInput = formBoxRef.current.querySelector<HTMLInputElement>(
+                        "input:not([disabled]):not([type='hidden'])"
+                    );
+                    if (firstInput) {
+                        firstInput.focus({ preventScroll: true });
+                    }
+                }
+            }, 100);
+
+            // Keep the highlight striking for 3.5s then fade out smoothly
+            const highlightTimer = setTimeout(() => {
+                setIsHighlighted(false);
+            }, 3500);
+
+            return () => {
+                clearTimeout(scrollTimer);
+                clearTimeout(highlightTimer);
+            };
+        }
+    }, [highlightTrigger]);
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -730,7 +774,30 @@ function AccountCreationSection({ groups }: { groups: GroupOption[] }) {
                 </div>
             </div>
 
-            <div className="lg:col-span-8">
+            <div
+                ref={formBoxRef}
+                id="user-creation-form-box"
+                className={`
+                    lg:col-span-8 relative rounded-2xl transition-all duration-700 scroll-mt-24
+                    ${isHighlighted
+                        ? "ring-4 ring-gold-400/90 shadow-[0_0_50px_rgba(232,184,74,0.45)] scale-[1.01]"
+                        : ""
+                    }
+                `}
+            >
+                {/* Glowing cosmic backdrop when highlighted */}
+                {isHighlighted && (
+                    <div className="absolute -inset-1.5 rounded-3xl bg-gradient-to-r from-gold-500/40 via-amber-400/50 to-gold-500/40 blur-md -z-10 animate-pulse pointer-events-none" />
+                )}
+
+                {/* Prominent floating attention badge */}
+                {isHighlighted && (
+                    <div className="absolute -top-3.5 right-6 z-20 flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-gold-400 to-amber-500 text-space-950 font-bold text-xs shadow-gold animate-bounce">
+                        <Sparkles className="size-3.5 fill-current" />
+                        <span>Add New User Here</span>
+                    </div>
+                )}
+
                 {accountType === "student" ? (
                     <StudentCreationForm groups={groups} />
                 ) : (
@@ -925,7 +992,7 @@ function StudentCreationForm({ groups }: { groups: GroupOption[] }) {
                                 <Input
                                     id="student-name"
                                     type="text"
-                                    placeholder="e.g. Omar Tarek"
+                                    placeholder="e.g. Omar Youssef"
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
                                     required
