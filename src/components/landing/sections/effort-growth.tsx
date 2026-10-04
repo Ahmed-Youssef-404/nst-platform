@@ -24,7 +24,7 @@ export function EffortGrowth() {
                 <div className="h-2.5 overflow-hidden rounded-full bg-space-800">
                     <div
                         className="h-full rounded-full bg-starlight-400"
-                        style={{ width: inView ? "100%" : "0%", transition: "width 1400ms var(--ease-smooth, ease)" }}
+                        style={{ width: inView ? "100%" : "0%", transition: "width 1900ms var(--ease-smooth, ease)" }}
                     />
                 </div>
                 <p className="mt-3 flex items-center gap-2 font-technical text-sm text-starlight-300">
@@ -33,7 +33,7 @@ export function EffortGrowth() {
                 </p>
             </div>
 
-            <span className="font-heading text-4xl font-extrabold text-gold-500" aria-label="is not">≠</span>
+            <span className="mx-auto font-heading text-4xl font-extrabold text-gold-500" aria-label="is not">≠</span>
 
             {/* Growth */}
             <div>
