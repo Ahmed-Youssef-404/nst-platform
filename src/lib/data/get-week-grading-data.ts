@@ -43,6 +43,7 @@ export interface StudentTaskGradingData {
         fileUrl: string | null;
         externalLink: string | null;
         textContent: string | null;
+        instructorComment: string | null;
         status: "DRAFT" | "SUBMITTED";
         submittedAt: Date;
     } | null;
@@ -154,13 +155,23 @@ export async function getWeekGradingData(
         week.resourceSubmissions.map((r) => [r.studentId, r])
     );
 
+    const studentIds = week.group.students.map((s) => s.id);
+    const finalizedTransactions = await prisma.sTTransaction.findMany({
+        where: { weekId, studentId: { in: studentIds } },
+        select: { studentId: true },
+        distinct: ["studentId"],
+    });
+    const finalizedStudentIds = new Set(finalizedTransactions.map((t) => t.studentId));
+
     const students: StudentGradingRow[] = week.group.students.map((student) => {
         const resource = resourceMap.get(student.id) ?? null;
         const studentSubmissions = submissions.filter((s) => s.studentId === student.id);
 
-        const isFinalized = studentSubmissions.some(
-            (s) => s.taskGrade?.finalizedAt !== null && s.taskGrade?.finalizedAt !== undefined
-        );
+        const isFinalized =
+            finalizedStudentIds.has(student.id) ||
+            studentSubmissions.some(
+                (s) => s.taskGrade?.finalizedAt !== null && s.taskGrade?.finalizedAt !== undefined
+            );
 
         const tasksData: StudentTaskGradingData[] = week.tasks.map((task) => {
             const sub = studentSubmissions.find((s) => s.taskId === task.id) ?? null;
@@ -175,6 +186,7 @@ export async function getWeekGradingData(
                         fileUrl: sub.fileUrl,
                         externalLink: sub.externalLink,
                         textContent: sub.textContent,
+                        instructorComment: sub.instructorComment ?? null,
                         status: sub.status,
                         submittedAt: sub.submittedAt,
                     }

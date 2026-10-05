@@ -174,10 +174,19 @@ export async function saveDraftGrade(
 
     await assertInstructorAssignedToGroup(input.gradedBy, task.week!.groupId);
 
-    if (taskGrade?.finalizedAt) {
-        throw new Error(
-            "This student's Week has already been finalized. Grading can no longer be changed here - use a manual correction instead."
-        );
+    const studentSubmission = await prisma.submission.findUnique({
+        where: { id: submissionId },
+        select: { studentId: true },
+    });
+    if (studentSubmission && task.weekId) {
+        const finalizedTx = await prisma.sTTransaction.findFirst({
+            where: { studentId: studentSubmission.studentId, weekId: task.weekId },
+        });
+        if (finalizedTx || taskGrade?.finalizedAt) {
+            throw new Error(
+                "This student's Week has already been finalized. Grading can no longer be changed here - use a manual correction instead."
+            );
+        }
     }
 
     if (!input.markedInvalid) {
@@ -243,6 +252,15 @@ export async function saveDraftGrade(
             });
         }
 
+        if (input.instructorComment !== undefined) {
+            await tx.submission.update({
+                where: { id: submissionId },
+                data: {
+                    instructorComment: input.instructorComment ? input.instructorComment.trim() : null,
+                },
+            });
+        }
+
         return grade;
     });
 
@@ -253,6 +271,7 @@ export async function saveDraftGrade(
         finalizedAt: null,
         fieldScores: input.markedInvalid ? [] : input.fieldScores,
         markedInvalid: input.markedInvalid,
+        instructorComment: input.instructorComment ? input.instructorComment.trim() : null,
     };
 }
 
@@ -325,6 +344,8 @@ export async function finalizeWeekGrading(
                 select: {
                     id: true,
                     isBonus: true,
+                    type: true,
+                    allowedSubmissionMode: true,
                 },
             },
         },
@@ -340,7 +361,7 @@ export async function finalizeWeekGrading(
         where: {
             studentId_weekId: { studentId: input.studentId, weekId: week.id },
         },
-        select: { status: true },
+        select: { status: true, lockedAt: true },
     });
 
     // Any status other than ACCEPTED (PENDING, REJECTED, or no row/file at
@@ -370,7 +391,11 @@ export async function finalizeWeekGrading(
 
     const submissionByTask = new Map(submissions.map((s) => [s.taskId, s]));
 
-    if (submissions.some((s) => s.taskGrade?.finalizedAt)) {
+    const existingTransaction = await prisma.sTTransaction.findFirst({
+        where: { studentId: input.studentId, weekId: week.id },
+    });
+
+    if (existingTransaction || submissions.some((s) => s.taskGrade?.finalizedAt)) {
         throw new Error(
             "This student's Week grading has already been finalized."
         );
@@ -444,8 +469,41 @@ export async function finalizeWeekGrading(
     // sequence of independent applySTChange calls.
     await prisma.$transaction(async (tx) => {
         for (const task of week.tasks) {
-            const submission = submissionByTask.get(task.id);
-            if (!submission) continue;
+            let submission = submissionByTask.get(task.id);
+            if (!submission) {
+                const createdSub = await tx.submission.upsert({
+                    where: {
+                        studentId_taskId: {
+                            studentId: input.studentId,
+                            taskId: task.id,
+                        },
+                    },
+                    create: {
+                        studentId: input.studentId,
+                        taskId: task.id,
+                        mode: task.type === "EXTERNAL" ? "EXTERNAL" : (task.allowedSubmissionMode || "TEXT"),
+                        status: "SUBMITTED",
+                        isLocked: true,
+                    },
+                    update: {
+                        status: "SUBMITTED",
+                        isLocked: true,
+                    },
+                });
+                submission = {
+                    id: createdSub.id,
+                    taskId: task.id,
+                    taskGrade: null,
+                };
+            } else {
+                await tx.submission.update({
+                    where: { id: submission.id },
+                    data: {
+                        status: "SUBMITTED",
+                        isLocked: true,
+                    },
+                });
+            }
 
             const taskResult = taskResults.find((r) => r.taskId === task.id)!;
             const totalPoints =
@@ -462,13 +520,34 @@ export async function finalizeWeekGrading(
                     gradedBy: input.gradedBy,
                     totalPoints,
                     finalizedAt: now,
+                    markedInvalid: taskResult.rubricPoints === null,
                 },
                 update: {
                     totalPoints,
                     finalizedAt: now,
+                    markedInvalid: taskResult.rubricPoints === null,
                 },
             });
         }
+
+        // Lock student week deliverable permanently
+        await tx.weekResourceSubmission.upsert({
+            where: {
+                studentId_weekId: {
+                    studentId: input.studentId,
+                    weekId: week.id,
+                },
+            },
+            create: {
+                studentId: input.studentId,
+                weekId: week.id,
+                status: "REJECTED",
+                lockedAt: now,
+            },
+            update: {
+                lockedAt: resource?.lockedAt ?? now,
+            },
+        });
 
         // Each component gets its own STTransaction with a distinct
         // reason, per the agreed design. The per-component amounts here

@@ -182,10 +182,13 @@ export interface RecordAttendanceInput {
 
 export interface GradeSubmissionInput {
     submissionId: string;
-    understandingScore: number; // 0-2
-    approachScore: number; // 0-3
-    correctnessScore: number; // 0-3
-    implementationScore: number; // 0-2
+    fieldScores?: { rubricFieldId: string; awardedPoints: number }[];
+    markedInvalid?: boolean;
+    // Legacy fixed 4-score fields kept for backward compatibility
+    understandingScore?: number; // 0-2
+    approachScore?: number; // 0-3
+    correctnessScore?: number; // 0-3
+    implementationScore?: number; // 0-2
     instructorComment?: string;
     gradedBy: string; // instructorId
     isFirstSolver?: boolean; // instructor marks this explicitly at grading time
@@ -235,6 +238,7 @@ export interface CreateTaskInput {
     // null = الطالب يختار بحرّية. يجب أن يكون null دائمًا لو type = EXTERNAL.
     allowedSubmissionMode?: SubmissionModeCode | null;
     hints: [CreateHintInput, CreateHintInput, CreateHintInput]; // بالظبط 3
+    rubricFields?: TaskRubricFieldInput[]; // maxPoints must sum to 15
 }
 
 export interface CreateSessionInput {
@@ -568,6 +572,7 @@ export type SaveDraftGradeInput = {
     // fieldScores is ignored (no rubric points) and this Task counts
     // toward the -10 penalty at finalize time.
     markedInvalid: boolean;
+    instructorComment?: string;
 } & ({ submissionId: string } | { studentId: string; taskId: string });
 
 export interface DraftGradeResult {
@@ -577,6 +582,7 @@ export interface DraftGradeResult {
     finalizedAt: null;
     fieldScores: { rubricFieldId: string; awardedPoints: number }[];
     markedInvalid: boolean;
+    instructorComment?: string | null;
 }
 
 // Read-only suggestion, never auto-applied - the Instructor must

@@ -20,12 +20,11 @@ export default async function SessionDetailPage({
 
     if (!session) {
         return (
-            <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                    This Session doesn&apos;t exist, or you&apos;re not assigned to its
-                    Group.
+            <div className="max-w-xl mx-auto py-12 text-center space-y-3">
+                <p className="text-sm text-starlight-300">
+                    This Session doesn&apos;t exist, or you&apos;re not assigned to its Group.
                 </p>
-                <Link href="/instructor" className="text-sm text-primary hover:underline">
+                <Link href="/instructor" className="inline-block text-xs font-semibold text-gold-400 hover:text-gold-300 hover:underline">
                     ← Back to dashboard
                 </Link>
             </div>

@@ -26,12 +26,14 @@ export type SaveDraftGradeActionInput =
           submissionId: string;
           fieldScores: { rubricFieldId: string; awardedPoints: number }[];
           markedInvalid: boolean;
+          instructorComment?: string;
       }
     | {
           studentId: string;
           taskId: string;
           fieldScores: { rubricFieldId: string; awardedPoints: number }[];
           markedInvalid: boolean;
+          instructorComment?: string;
       };
 
 export async function saveDraftGradeAction(input: SaveDraftGradeActionInput) {
@@ -44,6 +46,7 @@ export async function saveDraftGradeAction(input: SaveDraftGradeActionInput) {
                       submissionId: input.submissionId,
                       fieldScores: input.fieldScores,
                       markedInvalid: input.markedInvalid,
+                      instructorComment: input.instructorComment,
                       gradedBy: user.id,
                   })
                 : await saveDraftGrade({
@@ -51,6 +54,7 @@ export async function saveDraftGradeAction(input: SaveDraftGradeActionInput) {
                       taskId: input.taskId,
                       fieldScores: input.fieldScores,
                       markedInvalid: input.markedInvalid,
+                      instructorComment: input.instructorComment,
                       gradedBy: user.id,
                   });
 

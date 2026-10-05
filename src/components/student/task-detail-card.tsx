@@ -20,6 +20,7 @@ import {
     Trophy,
     UploadCloud,
     MessageSquareQuote,
+    Layers,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -46,6 +47,7 @@ import { HintUnlockDialog, type HintToUnlock } from "@/components/student/hint-u
 import type { StudentTaskView, StudentHintView } from "@/lib/data/get-student-level";
 import type { SubmissionModeCode } from "@/types/types";
 import { formatDateTime } from "@/lib/format-date";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 
 // ============================================
 // TASK DETAIL (title/description/deadline + Hints + Submission)
@@ -94,7 +96,42 @@ export function TaskDetailCard({
                         {task.title}
                     </h2>
                 </div>
+
+                {task.rubricFields && task.rubricFields.length > 0 && (
+                    <div className="shrink-0 flex items-center gap-2 bg-space-900/90 border border-gold-500/20 px-3 py-1.5 rounded-xl">
+                        <Layers className="size-3.5 text-gold-400" />
+                        <span className="text-xs text-starlight-300 font-medium">
+                            Max Rubric:{" "}
+                            <span className="font-bold text-gold-400 font-mono">15 pts</span>
+                        </span>
+                    </div>
+                )}
             </div>
+
+            {/* Rubric Criteria Breakdown */}
+            {task.rubricFields && task.rubricFields.length > 0 && (
+                <div className="rounded-xl border border-border/60 bg-space-900/40 p-4 space-y-2.5">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-starlight-400 flex items-center gap-1.5">
+                        <Layers className="size-3 text-gold-400" />
+                        Grading Criteria (Rubric Breakdown)
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                        {task.rubricFields.map((field) => (
+                            <div
+                                key={field.id}
+                                className="flex items-center justify-between rounded-lg bg-space-850/80 px-3 py-2 border border-border/50 text-xs"
+                            >
+                                <span className="font-medium text-starlight-200 truncate pr-2">
+                                    {field.fieldName}
+                                </span>
+                                <span className="font-mono font-bold text-gold-400 shrink-0">
+                                    {field.maxPoints} pts
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Task Description (Markdown) */}
             <div className="rounded-xl border border-border/50 bg-space-950/40 p-5">
@@ -289,6 +326,15 @@ function SubmissionPanel({
     const [error, setError] = useState<string | null>(null);
     const [isDownloading, setIsDownloading] = useState(false);
 
+    const initialText = submission?.textContent ?? "";
+    const initialLink = submission?.externalLink ?? "";
+    const isDirty = canEdit && (
+        (textContent.trim() !== initialText.trim() && textContent.trim().length > 0) ||
+        (externalLink.trim() !== initialLink.trim() && externalLink.trim().length > 0) ||
+        file !== null
+    );
+    useUnsavedChanges(isDirty && !isSubmitting);
+
     async function handleDownload() {
         if (!submission?.fileUrl) return;
         setIsDownloading(true);
@@ -414,7 +460,7 @@ function SubmissionPanel({
 
                     {/* Graded Scorecard */}
                     {isGraded ? (
-                        <div className="mt-3 rounded-xl border border-gold-500/30 bg-gradient-to-br from-gold-500/10 via-space-900 to-space-950 p-4 space-y-2">
+                        <div className="mt-3 rounded-xl border border-gold-500/30 bg-gradient-to-br from-gold-500/10 via-space-900 to-space-950 p-4 space-y-3">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <Trophy className="size-4 text-gold-400" />
@@ -423,9 +469,34 @@ function SubmissionPanel({
                                     </span>
                                 </div>
                                 <span className="font-mono text-base font-extrabold text-gold-300">
-                                    {submission.totalScore} / 10
+                                    {submission.totalScore} / {submission.maxScore ?? 15}
                                 </span>
                             </div>
+
+                            {submission.markedInvalid && (
+                                <div className="rounded-lg bg-red-500/10 border border-red-500/30 p-2.5 text-xs text-red-300 flex items-center gap-2">
+                                    <AlertCircle className="size-4 shrink-0 text-red-400" />
+                                    <span>Marked Invalid or Incomplete by instructor (0 ST awarded).</span>
+                                </div>
+                            )}
+
+                            {submission.fieldScores && submission.fieldScores.length > 0 && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
+                                    {submission.fieldScores.map((score) => (
+                                        <div
+                                            key={score.rubricFieldId}
+                                            className="flex items-center justify-between bg-space-950/80 px-3 py-1.5 rounded-lg border border-border/50"
+                                        >
+                                            <span className="text-starlight-300 truncate pr-2">
+                                                {score.fieldName}
+                                            </span>
+                                            <span className="font-mono font-bold text-gold-400 shrink-0">
+                                                {score.awardedPoints} / {score.maxPoints} pts
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
 
                             {submission.instructorComment && (
                                 <div className="rounded-lg bg-space-950/70 p-3 border border-border/50 text-xs text-starlight-200 space-y-1">

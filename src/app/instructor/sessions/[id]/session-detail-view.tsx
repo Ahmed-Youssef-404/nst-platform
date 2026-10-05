@@ -9,15 +9,43 @@ import {
     CardContent,
     CardHeader,
     CardTitle,
+    CardDescription,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Star, Search } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { MarkdownEditor } from "@/components/ui/markdown-editor";
+import { MarkdownContent } from "@/components/markdown-content";
+import { formatDateTime } from "@/lib/format-date";
+import {
+    Star,
+    Search,
+    Calendar,
+    Clock,
+    Video,
+    ChevronLeft,
+    Sparkles,
+    CheckCircle2,
+    XCircle,
+    AlertCircle,
+    FileText,
+    ExternalLink,
+    Download,
+    Layers,
+    Trophy,
+    UserCheck,
+    Edit3,
+    ChevronDown,
+    ChevronUp,
+    MessageSquareQuote,
+    Award,
+    Loader2,
+} from "lucide-react";
 import { updateSessionAction } from "@/lib/actions/session-management";
 import { SessionStatus } from "@/lib/data/get-my-groups";
-import {
+import type {
     SessionDetail,
     SessionDetailTask,
     SessionDetailSubmission,
@@ -29,25 +57,30 @@ import {
     recordSessionEngagementAction,
 } from "@/lib/actions/st-economy";
 import { getSubmissionFileUrlAction } from "@/lib/actions/submission-management";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";
-import { MarkdownEditor } from "@/components/ui/markdown-editor";
-import { MarkdownContent } from "@/components/markdown-content";
-import { formatDateTime } from "@/lib/format-date";
 import type {
     SessionFeedbackDetail,
     SessionFeedbackStats,
 } from "@/types/types";
-// import type { SessionDetail } from "@/lib/data/get-session-detail";
-// import type { SessionStatus } from "@/lib/data/get-my-groups";
 
-const STATUS_STYLES: Record<
+const STATUS_CONFIG: Record<
     SessionStatus,
-    { label: string; variant: "outline" | "success" | "secondary" }
+    { label: string; badgeClass: string; desc: string }
 > = {
-    upcoming: { label: "Upcoming", variant: "outline" },
-    ongoing: { label: "Ongoing", variant: "success" },
-    completed: { label: "Completed", variant: "secondary" },
+    upcoming: {
+        label: "Upcoming",
+        badgeClass: "bg-blue-500/15 text-blue-300 border-blue-500/30",
+        desc: "Session has not started yet.",
+    },
+    ongoing: {
+        label: "Live / In Progress",
+        badgeClass: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30 animate-pulse",
+        desc: "Session is actively underway.",
+    },
+    completed: {
+        label: "Completed",
+        badgeClass: "bg-space-850 text-starlight-300 border-border/70",
+        desc: "Session finished. Ready for attendance & evaluation.",
+    },
 };
 
 function toDatetimeLocal(date: Date): string {
@@ -65,69 +98,147 @@ export function SessionDetailView({
     instructorId: string;
 }) {
     const [isEditing, setIsEditing] = useState(false);
-    const statusStyle = STATUS_STYLES[session.status];
+    const statusCfg = STATUS_CONFIG[session.status];
 
     return (
-        <div className="space-y-6">
-            <div>
-                <Link href="/instructor" className="text-sm text-primary hover:underline">
-                    ← {session.groupName}
-                </Link>
-                <div className="mt-1 flex items-center gap-2">
-                    <h2 className="text-xl font-semibold">{session.title}</h2>
-                    <Badge variant={statusStyle.variant}>{statusStyle.label}</Badge>
+        <div className="space-y-6 max-w-5xl mx-auto animate-fade-in pb-16">
+            {/* Header & Breadcrumb */}
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-border/60 pb-5">
+                <div>
+                    <Link
+                        href="/instructor"
+                        className="inline-flex items-center gap-1.5 text-xs text-starlight-400 hover:text-gold-300 transition-colors mb-2"
+                    >
+                        <ChevronLeft className="size-3.5" />
+                        Back to Instructor Dashboard
+                    </Link>
+                    <div className="flex flex-wrap items-center gap-2.5">
+                        <h1 className="font-display text-2xl font-bold tracking-tight text-starlight-100">
+                            {session.title}
+                        </h1>
+                        <span
+                            className={`inline-flex items-center gap-1 font-mono text-xs font-semibold px-2.5 py-0.5 rounded-full border ${statusCfg.badgeClass}`}
+                        >
+                            {statusCfg.label}
+                        </span>
+                    </div>
+                    <p className="mt-1 text-xs text-starlight-300 font-mono">
+                        {session.levelName} · {session.groupName} (Intermediate Track)
+                    </p>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                    {session.levelName} · {session.groupName}
-                </p>
+
+                {session.status === "upcoming" && !isEditing && (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setIsEditing(true)}
+                        className="border-border/80 bg-space-850 hover:bg-space-750 text-starlight-200 rounded-xl text-xs font-semibold self-start sm:self-auto flex items-center gap-1.5"
+                    >
+                        <Edit3 className="size-3.5 text-gold-400" />
+                        Edit Details
+                    </Button>
+                )}
             </div>
 
-            <Card>
-                <CardHeader className="flex-row items-center justify-between space-y-0">
-                    <CardTitle>Session details</CardTitle>
-                    {session.status === "upcoming" && !isEditing && (
-                        <Button size="sm" variant="outline" onClick={() => setIsEditing(true)}>
-                            Edit
-                        </Button>
-                    )}
+            {/* Quick Stat Tiles */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="rounded-xl border border-border/70 bg-space-900/60 p-3.5 space-y-1">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-starlight-400 flex items-center gap-1">
+                        <Calendar className="size-3 text-gold-400" />
+                        Schedule
+                    </span>
+                    <p className="font-mono text-xs font-semibold text-starlight-100 truncate">
+                        {formatDateTime(session.startTime)}
+                    </p>
+                </div>
+
+                <div className="rounded-xl border border-border/70 bg-space-900/60 p-3.5 space-y-1">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-starlight-400 flex items-center gap-1">
+                        <Clock className="size-3 text-gold-400" />
+                        Duration
+                    </span>
+                    <p className="font-mono text-xs font-semibold text-starlight-100">
+                        {session.durationMinutes} Minutes
+                    </p>
+                </div>
+
+                <div className="rounded-xl border border-border/70 bg-space-900/60 p-3.5 space-y-1">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-starlight-400 flex items-center gap-1">
+                        <Layers className="size-3 text-gold-400" />
+                        Tasks
+                    </span>
+                    <p className="font-mono text-xs font-semibold text-starlight-100">
+                        {session.tasks.length} Mission{session.tasks.length !== 1 ? "s" : ""}
+                    </p>
+                </div>
+
+                <div className="rounded-xl border border-border/70 bg-space-900/60 p-3.5 space-y-1">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-starlight-400 flex items-center gap-1">
+                        <Star className="size-3 text-gold-400" />
+                        Avg Rating
+                    </span>
+                    <p className="font-mono text-xs font-semibold text-gold-300">
+                        {session.feedbackStats.averageRating !== null
+                            ? `${session.feedbackStats.averageRating} / 10`
+                            : "No reviews yet"}
+                    </p>
+                </div>
+            </div>
+
+            {/* Session Details / Edit Form Card */}
+            <Card className="rounded-2xl border border-border/80 bg-space-900/80 shadow-2 backdrop-blur-md overflow-hidden">
+                <CardHeader className="p-5 border-b border-border/70 bg-space-950/40 flex-row items-center justify-between space-y-0">
+                    <div className="flex items-center gap-2">
+                        <Sparkles className="size-4 text-gold-400" />
+                        <CardTitle className="text-sm font-bold font-display text-starlight-100">
+                            Session Specifications
+                        </CardTitle>
+                    </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-5">
                     {isEditing ? (
                         <EditSessionForm
                             session={session}
                             onDone={() => setIsEditing(false)}
                         />
                     ) : (
-                        <div className="space-y-2 text-sm">
-                            <p>
-                                <span className="text-muted-foreground">Start: </span>
-                                {formatDateTime(session.startTime)}
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Duration: </span>
-                                {session.durationMinutes} minutes
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Recording: </span>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                            <div className="space-y-1">
+                                <span className="text-starlight-400 font-medium">Session Start:</span>
+                                <p className="font-mono text-starlight-200">
+                                    {formatDateTime(session.startTime)}
+                                </p>
+                            </div>
+                            <div className="space-y-1">
+                                <span className="text-starlight-400 font-medium">Planned Duration:</span>
+                                <p className="font-mono text-starlight-200">
+                                    {session.durationMinutes} Minutes
+                                </p>
+                            </div>
+                            <div className="space-y-1">
+                                <span className="text-starlight-400 font-medium">Session Recording:</span>
                                 {session.recordingLink ? (
                                     <a
                                         href={session.recordingLink}
                                         target="_blank"
                                         rel="noreferrer"
-                                        className="text-primary hover:underline"
+                                        className="text-gold-400 hover:text-gold-300 underline underline-offset-4 flex items-center gap-1 truncate"
                                     >
-                                        {session.recordingLink}
+                                        <Video className="size-3 shrink-0" />
+                                        <span>Watch Recording</span>
+                                        <ExternalLink className="size-3 shrink-0 ml-0.5" />
                                     </a>
                                 ) : (
-                                    "—"
+                                    <p className="text-starlight-500 italic">No recording linked</p>
                                 )}
-                            </p>
+                            </div>
                         </div>
                     )}
                 </CardContent>
             </Card>
 
-            {session.status === "completed" && (
+            {/* Attendance & Engagement Roster */}
+            {(session.status === "completed" || session.status === "ongoing") && (
                 <AttendanceRoster
                     sessionId={session.id}
                     roster={session.roster}
@@ -141,64 +252,158 @@ export function SessionDetailView({
                 stats={session.feedbackStats}
             />
 
+            {/* Tasks & Submissions Section */}
             <div className="space-y-4">
-                <h3 className="text-sm font-semibold">
-                    Tasks {session.tasks.length > 0 && `(${session.tasks.length})`}
-                </h3>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h3 className="font-display text-base font-bold text-starlight-100 flex items-center gap-2">
+                            <Layers className="size-4 text-gold-400" />
+                            Session Tasks &amp; Evaluation
+                            {session.tasks.length > 0 && (
+                                <span className="font-mono text-xs text-starlight-400">
+                                    ({session.tasks.length})
+                                </span>
+                            )}
+                        </h3>
+                        <p className="text-xs text-starlight-400 mt-0.5">
+                            Grade student solutions against the 15-point criteria rubric and leave constructive feedback.
+                        </p>
+                    </div>
+                </div>
+
                 {session.tasks.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                        No Tasks were created for this Session.
-                    </p>
+                    <div className="rounded-2xl border border-dashed border-border/80 bg-space-900/40 p-8 text-center space-y-2">
+                        <Layers className="size-8 mx-auto text-starlight-500 opacity-60" />
+                        <p className="text-sm font-semibold text-starlight-200">
+                            No Tasks Configured
+                        </p>
+                        <p className="text-xs text-starlight-400 max-w-sm mx-auto">
+                            No tasks or missions were assigned to this session.
+                        </p>
+                    </div>
                 ) : (
                     session.tasks.map((task, index) => (
-                        <Card key={task.id}>
-                            <CardHeader className="flex-row items-center justify-between space-y-0">
-                                <CardTitle>
-                                    Task {index + 1}: {task.title}
-                                </CardTitle>
-                                <div className="flex gap-2">
-                                    {task.isBonus && <Badge variant="warning">Bonus</Badge>}
-                                    <Badge variant="outline">{task.type}</Badge>
+                        <Card
+                            key={task.id}
+                            className="rounded-2xl border border-border/80 bg-space-900/80 shadow-2 backdrop-blur-md overflow-hidden"
+                        >
+                            <CardHeader className="p-5 border-b border-border/70 bg-space-950/40 flex-row items-center justify-between space-y-0">
+                                <div className="flex items-center gap-2.5">
+                                    <span className="flex size-6 items-center justify-center rounded-lg bg-gold-500/15 text-gold-400 font-mono text-xs font-bold border border-gold-500/25">
+                                        {index + 1}
+                                    </span>
+                                    <CardTitle className="text-sm font-bold font-display text-starlight-100">
+                                        {task.title}
+                                    </CardTitle>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    {task.isBonus && (
+                                        <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-300 border border-amber-500/30">
+                                            <Sparkles className="size-3 text-amber-400" />
+                                            Bonus Task
+                                        </span>
+                                    )}
+                                    <span className="rounded-md bg-space-850 px-2 py-0.5 font-mono text-[11px] font-semibold text-starlight-300 border border-border/70">
+                                        {task.type}
+                                    </span>
                                 </div>
                             </CardHeader>
-                            <CardContent className="space-y-3 text-sm">
-                                <MarkdownContent
-                                    content={task.description}
-                                    className="text-starlight-200 text-sm leading-relaxed"
-                                />
-                                <p className="text-muted-foreground">
-                                    Deadline:{" "}
-                                    {formatDateTime(task.deadline)}
-                                </p>
-                                {task.type === "INTERNAL" && (
-                                    <p className="text-muted-foreground">
-                                        Submission mode:{" "}
-                                        {task.allowedSubmissionMode ?? "Student chooses freely"}
-                                    </p>
-                                )}
-                                <div className="space-y-2.5 border-t border-border pt-3">
-                                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                                        Hints ({task.hints.length})
-                                    </p>
-                                    {task.hints.map((hint) => (
-                                        <div
-                                            key={hint.id}
-                                            className="flex flex-col gap-1.5 text-xs rounded-xl border border-border/60 bg-space-950/40 p-3"
-                                        >
-                                            <div className="flex items-center justify-between text-xs">
-                                                <span className="font-mono font-bold text-gold-400">
-                                                    Hint #{hint.order}
-                                                </span>
-                                                <span className="shrink-0 font-mono text-[11px] text-muted-foreground bg-space-850 px-2 py-0.5 rounded-md border border-border/60">
-                                                    {hint.cost} ST
-                                                </span>
-                                            </div>
-                                            <div className="text-xs text-starlight-200 pt-0.5">
-                                                <MarkdownContent content={hint.content} />
-                                            </div>
-                                        </div>
-                                    ))}
+
+                            <CardContent className="p-5 space-y-4 text-xs">
+                                {/* Mission Description */}
+                                <div className="rounded-xl border border-border/50 bg-space-950/40 p-4 space-y-2">
+                                    <div className="text-[11px] font-semibold uppercase tracking-wider text-starlight-400 flex items-center gap-1.5">
+                                        <FileText className="size-3 text-gold-400" />
+                                        Mission Briefing
+                                    </div>
+                                    <div className="prose prose-invert max-w-none text-xs text-starlight-200">
+                                        <MarkdownContent content={task.description} />
+                                    </div>
                                 </div>
+
+                                {/* Task Metadata & Rubric Criteria Preview */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-starlight-300">
+                                    <div className="space-y-1 rounded-lg bg-space-950/40 p-2.5 border border-border/50">
+                                        <span className="text-[11px] text-starlight-400 block font-medium">
+                                            Deadline:
+                                        </span>
+                                        <span className="font-mono text-starlight-200">
+                                            {formatDateTime(task.deadline)}
+                                        </span>
+                                    </div>
+
+                                    {task.type === "INTERNAL" && (
+                                        <div className="space-y-1 rounded-lg bg-space-950/40 p-2.5 border border-border/50">
+                                            <span className="text-[11px] text-starlight-400 block font-medium">
+                                                Accepted Format:
+                                            </span>
+                                            <span className="font-mono text-gold-400 font-semibold">
+                                                {task.allowedSubmissionMode ?? "Student chooses freely"}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Rubric Criteria Breakdown */}
+                                {task.rubricFields.length > 0 && (
+                                    <div className="space-y-2 rounded-xl border border-border/60 bg-space-950/40 p-3.5">
+                                        <div className="flex items-center justify-between border-b border-border/50 pb-2">
+                                            <div className="flex items-center gap-1.5 font-bold text-starlight-100 text-xs">
+                                                <Layers className="size-3.5 text-gold-400" />
+                                                Grading Rubric Criteria (15 Points Max)
+                                            </div>
+                                            <span className="font-mono text-[11px] text-gold-400">
+                                                {task.rubricFields.length} Criteria
+                                            </span>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                                            {task.rubricFields.map((rf) => (
+                                                <div
+                                                    key={rf.id}
+                                                    className="flex items-center justify-between rounded-lg bg-space-900/80 px-2.5 py-1.5 border border-border/50 text-[11px]"
+                                                >
+                                                    <span className="text-starlight-200 truncate pr-1">
+                                                        {rf.fieldName}
+                                                    </span>
+                                                    <span className="font-mono font-bold text-gold-400 shrink-0">
+                                                        {rf.maxPoints} pts
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Tactical Hints */}
+                                {task.hints.length > 0 && (
+                                    <div className="space-y-2 rounded-xl border border-border/60 bg-space-950/40 p-3.5">
+                                        <div className="text-[11px] font-bold uppercase tracking-wider text-starlight-400">
+                                            Tactical Hints ({task.hints.length})
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                            {task.hints.map((hint) => (
+                                                <div
+                                                    key={hint.id}
+                                                    className="flex flex-col justify-between rounded-lg bg-space-900/60 p-2.5 border border-border/50 space-y-1.5"
+                                                >
+                                                    <div className="flex items-center justify-between text-[11px]">
+                                                        <span className="font-mono font-bold text-gold-400">
+                                                            Hint #{hint.order}
+                                                        </span>
+                                                        <span className="font-mono text-[10px] text-starlight-400 bg-space-850 px-1.5 py-0.5 rounded border border-border/60">
+                                                            {hint.cost} ST
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-[11px] text-starlight-300 line-clamp-2">
+                                                        {hint.content}
+                                                    </p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Submissions Section (for INTERNAL tasks) */}
                                 {task.type === "INTERNAL" && (
                                     <SubmissionsSection
                                         task={task}
@@ -215,15 +420,8 @@ export function SessionDetailView({
 }
 
 // ============================================
-// ATTENDANCE / ENGAGEMENT ROSTER
+// ATTENDANCE & ENGAGEMENT ROSTER
 // ============================================
-// Only rendered once the Session is "completed" - an Instructor
-// shouldn't be marking attendance for a Session that's still upcoming or
-// in progress. Attendance can be set and later corrected (PRESENT <->
-// ABSENT) at any time after that, since recordAttendance reverses the
-// prior ST effect before applying the new one. Engagement is one-way:
-// once given it can't be un-given or re-given from this UI, matching
-// recordSessionEngagement throwing on a duplicate call.
 
 function AttendanceRoster({
     sessionId,
@@ -234,25 +432,57 @@ function AttendanceRoster({
     roster: SessionDetailRosterEntry[];
     instructorId: string;
 }) {
+    const presentCount = roster.filter((r) => r.attendanceStatus === "PRESENT").length;
+    const absentCount = roster.filter((r) => r.attendanceStatus === "ABSENT").length;
+    const pendingCount = roster.filter((r) => !r.attendanceStatus).length;
+
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Attendance &amp; engagement</CardTitle>
+        <Card className="rounded-2xl border border-border/80 bg-space-900/80 shadow-2 backdrop-blur-md overflow-hidden">
+            <CardHeader className="p-5 border-b border-border/70 bg-space-950/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                    <UserCheck className="size-4 text-gold-400" />
+                    <div>
+                        <CardTitle className="text-sm font-bold font-display text-starlight-100">
+                            Attendance &amp; Engagement Roster
+                        </CardTitle>
+                        <CardDescription className="text-xs text-starlight-400">
+                            Mark live session attendance and award +5 ST engagement rewards to standout participants.
+                        </CardDescription>
+                    </div>
+                </div>
+
+                {/* Counters */}
+                <div className="flex items-center gap-2 text-xs font-mono shrink-0">
+                    <span className="rounded-lg bg-emerald-500/10 px-2 py-0.5 text-emerald-300 border border-emerald-500/25">
+                        {presentCount} Present
+                    </span>
+                    <span className="rounded-lg bg-red-500/10 px-2 py-0.5 text-red-300 border border-red-500/25">
+                        {absentCount} Absent
+                    </span>
+                    {pendingCount > 0 && (
+                        <span className="rounded-lg bg-space-850 px-2 py-0.5 text-starlight-400 border border-border/60">
+                            {pendingCount} Unmarked
+                        </span>
+                    )}
+                </div>
             </CardHeader>
-            <CardContent className="space-y-2">
+
+            <CardContent className="p-5 space-y-2">
                 {roster.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                        No Students in this Group.
+                    <p className="text-xs text-starlight-400 text-center py-4">
+                        No Students enrolled in this Group.
                     </p>
                 ) : (
-                    roster.map((entry) => (
-                        <RosterRow
-                            key={entry.studentId}
-                            sessionId={sessionId}
-                            entry={entry}
-                            instructorId={instructorId}
-                        />
-                    ))
+                    <div className="grid grid-cols-1 gap-2">
+                        {roster.map((entry) => (
+                            <RosterRow
+                                key={entry.studentId}
+                                sessionId={sessionId}
+                                entry={entry}
+                                instructorId={instructorId}
+                            />
+                        ))}
+                    </div>
                 )}
             </CardContent>
         </Card>
@@ -310,30 +540,56 @@ function RosterRow({
     }
 
     return (
-        <div className="rounded-md border p-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-                <span className="text-sm font-medium">{entry.studentName}</span>
-                <div className="flex items-center gap-2">
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant={entry.attendanceStatus === "PRESENT" ? "default" : "outline"}
-                        disabled={isSavingAttendance}
-                        onClick={() => handleAttendance("PRESENT")}
-                    >
-                        Present
-                    </Button>
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant={entry.attendanceStatus === "ABSENT" ? "default" : "outline"}
-                        disabled={isSavingAttendance}
-                        onClick={() => handleAttendance("ABSENT")}
-                    >
-                        Absent
-                    </Button>
+        <div className="rounded-xl border border-border/60 bg-space-950/40 p-3 hover:border-gold-500/25 transition-all">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                    <div className="size-8 rounded-full bg-space-850 border border-border/80 flex items-center justify-center font-mono text-xs font-bold text-starlight-200 shrink-0">
+                        {entry.studentName.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                        <span className="text-xs font-bold text-starlight-100 block">
+                            {entry.studentName}
+                        </span>
+                    </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                    {/* Attendance Buttons */}
+                    <div className="inline-flex rounded-xl p-0.5 bg-space-900 border border-border/60">
+                        <button
+                            type="button"
+                            disabled={isSavingAttendance}
+                            onClick={() => handleAttendance("PRESENT")}
+                            className={`flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                                entry.attendanceStatus === "PRESENT"
+                                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-xs"
+                                    : "text-starlight-400 hover:text-starlight-200"
+                            }`}
+                        >
+                            <CheckCircle2 className="size-3" />
+                            Present
+                        </button>
+                        <button
+                            type="button"
+                            disabled={isSavingAttendance}
+                            onClick={() => handleAttendance("ABSENT")}
+                            className={`flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                                entry.attendanceStatus === "ABSENT"
+                                    ? "bg-red-500/20 text-red-300 border border-red-500/40 shadow-xs"
+                                    : "text-starlight-400 hover:text-starlight-200"
+                            }`}
+                        >
+                            <XCircle className="size-3" />
+                            Absent
+                        </button>
+                    </div>
+
+                    {/* Engagement Action */}
                     {entry.engagementGiven ? (
-                        <Badge variant="success">Engagement +5 given</Badge>
+                        <span className="inline-flex items-center gap-1 rounded-xl bg-gold-500/15 px-3 py-1 font-mono text-xs font-bold text-gold-300 border border-gold-500/30">
+                            <Sparkles className="size-3 text-gold-400" />
+                            Engagement +5 Given
+                        </span>
                     ) : (
                         <Button
                             type="button"
@@ -341,28 +597,56 @@ function RosterRow({
                             variant="outline"
                             disabled={isSavingEngagement}
                             onClick={handleEngagement}
+                            className="border-gold-500/30 text-gold-300 hover:bg-gold-500/10 rounded-xl text-xs h-7.5 px-3"
                         >
-                            {isSavingEngagement ? "Saving..." : "Give engagement (+5 ST)"}
+                            {isSavingEngagement ? (
+                                <>
+                                    <Loader2 className="size-3 mr-1 animate-spin" />
+                                    Saving...
+                                </>
+                            ) : (
+                                <>
+                                    <Sparkles className="size-3 mr-1 text-gold-400" />
+                                    Give Engagement (+5 ST)
+                                </>
+                            )}
                         </Button>
                     )}
                 </div>
             </div>
-            {error && <p className="mt-2 text-sm text-error">{error}</p>}
+            {error && (
+                <p className="mt-2 text-[11px] text-red-400 bg-red-500/10 p-2 rounded-lg border border-red-500/20">
+                    {error}
+                </p>
+            )}
         </div>
     );
 }
 
 // ============================================
-// SUBMISSIONS / GRADING
+// SUBMISSIONS SECTION
 // ============================================
 
-function submissionStatusLabel(row: SessionDetailSubmission): {
+function submissionStatusBadge(row: SessionDetailSubmission): {
     label: string;
-    variant: "outline" | "success" | "secondary" | "warning";
+    className: string;
 } {
-    if (!row.submission) return { label: "Not submitted", variant: "outline" };
-    if (row.submission.isGraded) return { label: "Graded", variant: "success" };
-    return { label: "Awaiting grading", variant: "warning" };
+    if (!row.submission) {
+        return {
+            label: "Not submitted",
+            className: "bg-space-850 text-starlight-400 border-border/70",
+        };
+    }
+    if (row.submission.isGraded) {
+        return {
+            label: "Graded",
+            className: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+        };
+    }
+    return {
+        label: "Awaiting Grading",
+        className: "bg-amber-500/15 text-amber-300 border-amber-500/30",
+    };
 }
 
 function SubmissionsSection({
@@ -373,40 +657,67 @@ function SubmissionsSection({
     instructorId: string;
 }) {
     const [openStudentId, setOpenStudentId] = useState<string | null>(null);
+    const submittedCount = task.submissions.filter((s) => s.submission).length;
+    const gradedCount = task.submissions.filter((s) => s.submission?.isGraded).length;
 
     return (
-        <div className="space-y-2 border-t border-border pt-3">
-            <p className="text-xs font-medium text-muted-foreground">
-                Submissions ({task.submissions.filter((s) => s.submission).length}/
-                {task.submissions.length})
-            </p>
+        <div className="space-y-3 border-t border-border/60 pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-starlight-100">
+                        Student Submissions
+                    </span>
+                    <span className="font-mono text-[11px] text-starlight-400">
+                        ({submittedCount} / {task.submissions.length} Handed In · {gradedCount} Graded)
+                    </span>
+                </div>
+            </div>
+
             <div className="space-y-2">
                 {task.submissions.map((row) => {
-                    const status = submissionStatusLabel(row);
+                    const badge = submissionStatusBadge(row);
                     const isOpen = openStudentId === row.studentId;
+
                     return (
-                        <div key={row.studentId} className="rounded-md border">
+                        <div
+                            key={row.studentId}
+                            className="rounded-xl border border-border/70 bg-space-950/60 overflow-hidden"
+                        >
                             <button
                                 type="button"
-                                className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm"
+                                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-space-900/60 transition-colors"
                                 onClick={() =>
                                     setOpenStudentId(isOpen ? null : row.studentId)
                                 }
                                 disabled={!row.submission}
                             >
-                                <span>{row.studentName}</span>
-                                <span className="flex items-center gap-2">
-                                    <Badge variant={status.variant}>{status.label}</Badge>
+                                <div className="flex items-center gap-2.5">
+                                    <span className="text-xs font-semibold text-starlight-100">
+                                        {row.studentName}
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span
+                                        className={`font-mono text-[11px] px-2.5 py-0.5 rounded-full border font-semibold ${badge.className}`}
+                                    >
+                                        {badge.label}
+                                    </span>
                                     {row.submission && (
-                                        <span className="text-muted-foreground">
-                                            {isOpen ? "▲" : "▼"}
+                                        <span className="text-starlight-400 text-xs">
+                                            {isOpen ? (
+                                                <ChevronUp className="size-3.5" />
+                                            ) : (
+                                                <ChevronDown className="size-3.5" />
+                                            )}
                                         </span>
                                     )}
-                                </span>
+                                </div>
                             </button>
+
                             {isOpen && row.submission && (
-                                <div className="border-t border-border p-3">
+                                <div className="border-t border-border/60 p-4 bg-space-900/40">
                                     <SubmissionDetail
+                                        task={task}
                                         studentId={row.studentId}
                                         submission={row.submission}
                                         instructorId={instructorId}
@@ -422,10 +733,12 @@ function SubmissionsSection({
 }
 
 function SubmissionDetail({
+    task,
     studentId,
     submission,
     instructorId,
 }: {
+    task: SessionDetailTask;
     studentId: string;
     submission: NonNullable<SessionDetailSubmission["submission"]>;
     instructorId: string;
@@ -448,69 +761,137 @@ function SubmissionDetail({
     }
 
     return (
-        <div className="space-y-3 text-sm">
-            <p className="text-xs text-muted-foreground">
-                Submitted{" "}
-                {formatDateTime(submission.submittedAt)}{" "}
-                · {submission.mode}
-            </p>
+        <div className="space-y-4 text-xs">
+            {/* Metadata Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2 text-starlight-400">
+                <span>
+                    Submitted on <span className="font-mono text-starlight-200">{formatDateTime(submission.submittedAt)}</span>
+                </span>
+                <span className="font-mono rounded-md bg-space-850 px-2 py-0.5 text-[11px] text-starlight-300 border border-border/60">
+                    Format: {submission.mode}
+                </span>
+            </div>
 
+            {/* Submission Content */}
             {submission.mode === "TEXT" && (
-                <p className="whitespace-pre-wrap rounded-md bg-muted/50 p-3">
-                    {submission.textContent}
-                </p>
+                <div className="rounded-xl bg-space-950 p-3.5 border border-border/60">
+                    <pre className="whitespace-pre-wrap font-mono text-xs text-starlight-200 leading-relaxed max-h-60 overflow-y-auto">
+                        {submission.textContent}
+                    </pre>
+                </div>
             )}
+
             {submission.mode === "LINK" && (
-                <a
-                    href={submission.externalLink ?? "#"}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-primary hover:underline"
-                >
-                    {submission.externalLink}
-                </a>
+                <div className="flex items-center justify-between gap-3 rounded-xl bg-space-950 p-3 border border-border/60">
+                    <a
+                        href={submission.externalLink ?? "#"}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="truncate text-xs font-mono text-gold-400 hover:text-gold-300 underline underline-offset-4 flex items-center gap-1.5"
+                    >
+                        <ExternalLink className="size-3.5 shrink-0" />
+                        {submission.externalLink}
+                    </a>
+                </div>
             )}
+
             {submission.mode === "FILE" && (
-                <div className="space-y-1">
+                <div className="flex items-center justify-between gap-3 rounded-xl bg-space-950 p-3 border border-border/60">
+                    <div className="flex items-center gap-2 text-starlight-200">
+                        <FileText className="size-4 text-gold-400" />
+                        <span>Attached Solution File</span>
+                    </div>
                     <Button
                         type="button"
                         size="sm"
                         variant="outline"
                         onClick={handleDownload}
                         disabled={isDownloading}
+                        className="h-8 text-xs border-border/80 hover:bg-space-850 text-starlight-200"
                     >
-                        {isDownloading ? "Opening..." : "View submitted file"}
+                        <Download className="size-3.5 mr-1 text-gold-400" />
+                        {isDownloading ? "Opening..." : "Download / View File"}
                     </Button>
                     {downloadError && (
-                        <p className="text-xs text-error">{downloadError}</p>
+                        <p className="text-xs text-red-400">{downloadError}</p>
                     )}
                 </div>
             )}
 
+            {/* Graded Scorecard OR Dynamic Grading Form */}
             {submission.isGraded ? (
-                <div className="rounded-md bg-muted/50 p-3">
-                    <p className="font-medium">
-                        Score:{" "}
-                        {(submission.understandingScore ?? 0) +
-                            (submission.approachScore ?? 0) +
-                            (submission.correctnessScore ?? 0) +
-                            (submission.implementationScore ?? 0)}{" "}
-                        / 10
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                        Understanding {submission.understandingScore}/2 · Approach{" "}
-                        {submission.approachScore}/3 · Correctness{" "}
-                        {submission.correctnessScore}/3 · Implementation{" "}
-                        {submission.implementationScore}/2
-                    </p>
-                    {submission.instructorComment && (
-                        <p className="mt-2 text-muted-foreground">
-                            {submission.instructorComment}
+                <div className="rounded-xl border border-gold-500/30 bg-gradient-to-br from-gold-500/10 via-space-900 to-space-950 p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Trophy className="size-4 text-gold-400" />
+                            <span className="text-xs font-bold uppercase tracking-wider text-gold-400">
+                                Evaluated Rubric Grade
+                            </span>
+                        </div>
+                        <span className="font-mono text-base font-extrabold text-gold-300">
+                            {submission.taskGrade?.totalPoints ?? (
+                                (submission.understandingScore ?? 0) +
+                                (submission.approachScore ?? 0) +
+                                (submission.correctnessScore ?? 0) +
+                                (submission.implementationScore ?? 0)
+                            )}{" "}
+                            / 15 ST
+                        </span>
+                    </div>
+
+                    {submission.taskGrade?.markedInvalid && (
+                        <div className="rounded-lg bg-red-500/10 border border-red-500/30 p-2.5 text-xs text-red-300 flex items-center gap-2">
+                            <AlertCircle className="size-4 shrink-0 text-red-400" />
+                            <span>Marked Invalid or Incomplete by instructor (0 ST awarded).</span>
+                        </div>
+                    )}
+
+                    {/* Criteria Breakdown */}
+                    {submission.taskGrade?.fieldScores && submission.taskGrade.fieldScores.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
+                            {submission.taskGrade.fieldScores.map((score) => {
+                                const rubricField = task.rubricFields.find(
+                                    (rf) => rf.id === score.rubricFieldId
+                                );
+                                return (
+                                    <div
+                                        key={score.rubricFieldId}
+                                        className="flex items-center justify-between bg-space-950/80 px-3 py-1.5 rounded-lg border border-border/50"
+                                    >
+                                        <span className="text-starlight-300 truncate pr-2">
+                                            {rubricField?.fieldName ?? "Criterion"}
+                                        </span>
+                                        <span className="font-mono font-bold text-gold-400 shrink-0">
+                                            {score.awardedPoints} / {rubricField?.maxPoints ?? 5} pts
+                                        </span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <p className="text-[11px] text-starlight-400 font-mono">
+                            Understanding {submission.understandingScore}/2 · Approach{" "}
+                            {submission.approachScore}/3 · Correctness{" "}
+                            {submission.correctnessScore}/3 · Implementation{" "}
+                            {submission.implementationScore}/2
                         </p>
+                    )}
+
+                    {submission.instructorComment && (
+                        <div className="rounded-lg bg-space-950/70 p-3 border border-border/50 text-xs text-starlight-200 space-y-1">
+                            <div className="flex items-center gap-1.5 text-starlight-400 font-medium">
+                                <MessageSquareQuote className="size-3.5 text-gold-400" />
+                                Instructor Feedback
+                            </div>
+                            <p className="italic text-starlight-300 whitespace-pre-wrap">
+                                &ldquo;{submission.instructorComment}&rdquo;
+                            </p>
+                        </div>
                     )}
                 </div>
             ) : (
-                <GradingForm
+                <DynamicGradingForm
+                    task={task}
                     submissionId={submission.id}
                     instructorId={instructorId}
                 />
@@ -519,58 +900,58 @@ function SubmissionDetail({
     );
 }
 
-function GradingForm({
+// ============================================
+// DYNAMIC RUBRIC GRADING FORM (15 PTS)
+// ============================================
+
+function DynamicGradingForm({
+    task,
     submissionId,
     instructorId,
 }: {
+    task: SessionDetailTask;
     submissionId: string;
     instructorId: string;
 }) {
     const router = useRouter();
-    const [understandingScore, setUnderstandingScore] = useState("");
-    const [approachScore, setApproachScore] = useState("");
-    const [correctnessScore, setCorrectnessScore] = useState("");
-    const [implementationScore, setImplementationScore] = useState("");
-    const [instructorComment, setInstructorComment] = useState("");
+
+    // Map rubric fields to state
+    const [fieldScores, setFieldScores] = useState<Record<string, number>>(() => {
+        const initial: Record<string, number> = {};
+        for (const rf of task.rubricFields) {
+            initial[rf.id] = rf.maxPoints; // default to full score
+        }
+        return initial;
+    });
+
+    const [markedInvalid, setMarkedInvalid] = useState(false);
     const [isFirstSolver, setIsFirstSolver] = useState(false);
+    const [instructorComment, setInstructorComment] = useState("");
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    function parseScore(value: string, max: number): number | null {
-        if (value.trim() === "") return null;
-        const n = Number(value);
-        if (!Number.isInteger(n) || n < 0 || n > max) return null;
-        return n;
+    // Calculate live score
+    const totalScore = markedInvalid
+        ? 0
+        : task.rubricFields.reduce((sum, rf) => sum + (fieldScores[rf.id] ?? 0), 0);
+
+    function updateScore(fieldId: string, val: number, max: number) {
+        const clamped = Math.max(0, Math.min(max, val));
+        setFieldScores((prev) => ({ ...prev, [fieldId]: clamped }));
     }
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         setError(null);
 
-        const understanding = parseScore(understandingScore, 2);
-        const approach = parseScore(approachScore, 3);
-        const correctness = parseScore(correctnessScore, 3);
-        const implementation = parseScore(implementationScore, 2);
-
-        if (
-            understanding === null ||
-            approach === null ||
-            correctness === null ||
-            implementation === null
-        ) {
-            setError(
-                "Enter each score within its range: Understanding 0-2, Approach 0-3, Correctness 0-3, Implementation 0-2."
-            );
-            return;
-        }
-
         setIsSubmitting(true);
         const result = await gradeSubmissionAction({
             submissionId,
-            understandingScore: understanding,
-            approachScore: approach,
-            correctnessScore: correctness,
-            implementationScore: implementation,
+            fieldScores: task.rubricFields.map((rf) => ({
+                rubricFieldId: rf.id,
+                awardedPoints: markedInvalid ? 0 : (fieldScores[rf.id] ?? 0),
+            })),
+            markedInvalid,
             instructorComment: instructorComment.trim() || undefined,
             gradedBy: instructorId,
             isFirstSolver,
@@ -585,76 +966,129 @@ function GradingForm({
     }
 
     return (
-        <form onSubmit={handleSubmit} className="mt-3 space-y-3 border-t border-border pt-3">
-            <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                    <Label htmlFor={`understanding-${submissionId}`}>
-                        Understanding (0-2)
-                    </Label>
-                    <Input
-                        id={`understanding-${submissionId}`}
-                        type="number"
-                        min={0}
-                        max={2}
-                        value={understandingScore}
-                        onChange={(e) => setUnderstandingScore(e.target.value)}
-                        required
-                    />
+        <form
+            onSubmit={handleSubmit}
+            className="space-y-4 rounded-xl border border-gold-500/30 bg-space-950/70 p-4 animate-fade-in"
+        >
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-3">
+                <div className="flex items-center gap-2">
+                    <Award className="size-4 text-gold-400" />
+                    <div>
+                        <h4 className="text-xs font-bold text-starlight-100 block">
+                            Rubric Grading &amp; Feedback
+                        </h4>
+                        <p className="text-[11px] text-starlight-400">
+                            Evaluate each criterion. Total score awards up to 15 ST.
+                        </p>
+                    </div>
                 </div>
-                <div className="space-y-1">
-                    <Label htmlFor={`approach-${submissionId}`}>Approach (0-3)</Label>
-                    <Input
-                        id={`approach-${submissionId}`}
-                        type="number"
-                        min={0}
-                        max={3}
-                        value={approachScore}
-                        onChange={(e) => setApproachScore(e.target.value)}
-                        required
-                    />
-                </div>
-                <div className="space-y-1">
-                    <Label htmlFor={`correctness-${submissionId}`}>
-                        Correctness (0-3)
-                    </Label>
-                    <Input
-                        id={`correctness-${submissionId}`}
-                        type="number"
-                        min={0}
-                        max={3}
-                        value={correctnessScore}
-                        onChange={(e) => setCorrectnessScore(e.target.value)}
-                        required
-                    />
-                </div>
-                <div className="space-y-1">
-                    <Label htmlFor={`implementation-${submissionId}`}>
-                        Implementation (0-2)
-                    </Label>
-                    <Input
-                        id={`implementation-${submissionId}`}
-                        type="number"
-                        min={0}
-                        max={2}
-                        value={implementationScore}
-                        onChange={(e) => setImplementationScore(e.target.value)}
-                        required
-                    />
+
+                <div className="flex items-center gap-2">
+                    <span
+                        className={`font-mono text-xs font-bold px-3 py-1 rounded-full border ${
+                            markedInvalid
+                                ? "bg-red-500/15 text-red-400 border-red-500/30"
+                                : "bg-gold-500/15 text-gold-300 border-gold-500/30"
+                        }`}
+                    >
+                        Score: {totalScore} / 15 ST
+                    </span>
                 </div>
             </div>
 
-            <div className="space-y-1">
+            {/* Invalid Submission Toggle */}
+            <div className="flex items-center gap-2 bg-red-500/10 p-2.5 rounded-xl border border-red-500/20">
+                <Checkbox
+                    id={`invalid-${submissionId}`}
+                    checked={markedInvalid}
+                    onCheckedChange={(checked) => setMarkedInvalid(checked === true)}
+                />
+                <Label
+                    htmlFor={`invalid-${submissionId}`}
+                    className="text-xs text-red-300 font-semibold cursor-pointer"
+                >
+                    Mark submission as Invalid / Incomplete (Awards 0 ST)
+                </Label>
+            </div>
+
+            {/* Dynamic Rubric Fields (Disabled if markedInvalid) */}
+            {!markedInvalid && task.rubricFields.length > 0 && (
+                <div className="space-y-2.5 pt-1">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-starlight-400 block">
+                        Criteria Evaluation
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {task.rubricFields.map((field) => (
+                            <div
+                                key={field.id}
+                                className="space-y-1.5 rounded-xl bg-space-900/80 p-3 border border-border/60"
+                            >
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className="font-semibold text-starlight-200 truncate pr-2">
+                                        {field.fieldName}
+                                    </span>
+                                    <span className="font-mono text-gold-400 font-bold shrink-0">
+                                        {fieldScores[field.id] ?? 0} / {field.maxPoints} pts
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="range"
+                                        min={0}
+                                        max={field.maxPoints}
+                                        value={fieldScores[field.id] ?? 0}
+                                        onChange={(e) =>
+                                            updateScore(
+                                                field.id,
+                                                Number(e.target.value),
+                                                field.maxPoints
+                                            )
+                                        }
+                                        className="w-full accent-gold-400 cursor-pointer h-1.5 bg-space-800 rounded-lg"
+                                    />
+                                    <Input
+                                        type="number"
+                                        min={0}
+                                        max={field.maxPoints}
+                                        value={fieldScores[field.id] ?? 0}
+                                        onChange={(e) =>
+                                            updateScore(
+                                                field.id,
+                                                Number(e.target.value),
+                                                field.maxPoints
+                                            )
+                                        }
+                                        className="w-14 h-7 text-xs font-mono text-center bg-space-850 border-border/70 text-starlight-100 rounded-lg"
+                                        required
+                                    />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Instructor Comment */}
+            <div className="space-y-1.5 pt-1">
+                <Label
+                    htmlFor={`comment-${submissionId}`}
+                    className="text-xs font-semibold text-starlight-200 flex items-center gap-1.5"
+                >
+                    <MessageSquareQuote className="size-3.5 text-gold-400" />
+                    Instructor Feedback &amp; Suggestions (Visible to Student)
+                </Label>
                 <MarkdownEditor
                     id={`comment-${submissionId}`}
-                    label="Comment (optional)"
+                    label=""
                     value={instructorComment}
                     onChange={(val) => setInstructorComment(val)}
-                    placeholder="Feedback for the student in Markdown (code, bullet points, suggestions)..."
-                    rows={4}
+                    placeholder="Constructive feedback, code review remarks, or praise..."
+                    rows={3}
                 />
             </div>
 
-            <div className="flex items-center gap-2">
+            {/* First Solver Bonus */}
+            <div className="flex items-center gap-2 pt-1">
                 <Checkbox
                     id={`first-solver-${submissionId}`}
                     checked={isFirstSolver}
@@ -662,20 +1096,36 @@ function GradingForm({
                 />
                 <Label
                     htmlFor={`first-solver-${submissionId}`}
-                    className="text-sm font-normal"
+                    className="text-xs text-starlight-300 font-normal cursor-pointer flex items-center gap-1"
                 >
-                    First solver in group (+5 ST)
+                    <Trophy className="size-3 text-gold-400" />
+                    First solver in group (+5 ST bonus)
                 </Label>
             </div>
 
             {error && (
-                <p className="rounded-md bg-error-bg px-3 py-2 text-sm text-error">
+                <p className="rounded-xl bg-red-500/10 p-2.5 text-xs text-red-300 border border-red-500/20">
                     {error}
                 </p>
             )}
 
-            <Button type="submit" size="sm" disabled={isSubmitting}>
-                {isSubmitting ? "Grading..." : "Submit grade"}
+            <Button
+                type="submit"
+                size="sm"
+                disabled={isSubmitting}
+                className="bg-gold-500 hover:bg-gold-450 text-space-950 font-bold rounded-xl text-xs h-8 px-4"
+            >
+                {isSubmitting ? (
+                    <>
+                        <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+                        Submitting Grade...
+                    </>
+                ) : (
+                    <>
+                        <CheckCircle2 className="size-3.5 mr-1.5" />
+                        Confirm &amp; Award {totalScore} ST
+                    </>
+                )}
             </Button>
         </form>
     );
@@ -715,7 +1165,7 @@ function EditSessionForm({
         setIsSubmitting(true);
         const result = await updateSessionAction({
             sessionId: session.id,
-            title,
+            title: title.trim(),
             startTime: new Date(startTime),
             durationMinutes: durationValue,
             recordingLink: recordingLink.trim() ? recordingLink.trim() : null,
@@ -731,61 +1181,84 @@ function EditSessionForm({
     }
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-                <Label htmlFor="edit-title">Title</Label>
+        <form onSubmit={handleSubmit} className="space-y-4 animate-fade-in">
+            <div className="space-y-1.5">
+                <Label htmlFor="edit-title" className="text-xs font-semibold text-starlight-200">
+                    Session Title
+                </Label>
                 <Input
                     id="edit-title"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
+                    className="bg-space-850/80 border-border/80 text-starlight-100 rounded-xl text-xs"
                     required
                 />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                    <Label htmlFor="edit-start">Start time</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                    <Label htmlFor="edit-start" className="text-xs font-semibold text-starlight-200">
+                        Start Time
+                    </Label>
                     <Input
                         id="edit-start"
                         type="datetime-local"
                         value={startTime}
                         onChange={(e) => setStartTime(e.target.value)}
+                        className="bg-space-850/80 border-border/80 text-starlight-100 rounded-xl text-xs"
                         required
                     />
                 </div>
-                <div className="space-y-2">
-                    <Label htmlFor="edit-duration">Duration (minutes)</Label>
+                <div className="space-y-1.5">
+                    <Label htmlFor="edit-duration" className="text-xs font-semibold text-starlight-200">
+                        Duration (Minutes)
+                    </Label>
                     <Input
                         id="edit-duration"
                         type="number"
                         min={1}
                         value={durationMinutes}
                         onChange={(e) => setDurationMinutes(e.target.value)}
+                        className="bg-space-850/80 border-border/80 text-starlight-100 rounded-xl text-xs"
                         required
                     />
                 </div>
             </div>
-            <div className="space-y-2">
-                <Label htmlFor="edit-recording">Recording link (optional)</Label>
+            <div className="space-y-1.5">
+                <Label htmlFor="edit-recording" className="text-xs font-semibold text-starlight-200">
+                    Recording Link (Optional)
+                </Label>
                 <Input
                     id="edit-recording"
                     type="url"
                     placeholder="https://..."
                     value={recordingLink}
                     onChange={(e) => setRecordingLink(e.target.value)}
+                    className="bg-space-850/80 border-border/80 text-starlight-100 rounded-xl text-xs"
                 />
             </div>
 
             {error && (
-                <p className="rounded-md bg-error-bg px-3 py-2 text-sm text-error">
+                <p className="rounded-xl bg-red-500/10 p-2.5 text-xs text-red-300 border border-red-500/20">
                     {error}
                 </p>
             )}
 
-            <div className="flex items-center gap-3">
-                <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? "Saving..." : "Save changes"}
+            <div className="flex items-center gap-2 pt-1">
+                <Button
+                    type="submit"
+                    size="sm"
+                    disabled={isSubmitting}
+                    className="bg-gold-500 hover:bg-gold-450 text-space-950 font-bold rounded-xl text-xs"
+                >
+                    {isSubmitting ? "Saving..." : "Save Changes"}
                 </Button>
-                <Button type="button" variant="ghost" onClick={onDone}>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={onDone}
+                    className="text-starlight-400 hover:text-starlight-200 rounded-xl text-xs"
+                >
                     Cancel
                 </Button>
             </div>
@@ -830,12 +1303,12 @@ function SessionFeedbackSection({
             : 0;
 
     return (
-        <Card className="border-border/80 bg-space-900/60 shadow-xl overflow-hidden">
-            <CardHeader className="border-b border-border/60 pb-4">
+        <Card className="rounded-2xl border border-border/80 bg-space-900/80 shadow-2 backdrop-blur-md overflow-hidden">
+            <CardHeader className="p-5 border-b border-border/70 bg-space-950/40">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
                         <div className="flex items-center gap-2">
-                            <CardTitle className="flex items-center gap-2 text-base font-bold text-starlight-100">
+                            <CardTitle className="flex items-center gap-2 text-sm font-bold font-display text-starlight-100">
                                 <Star className="size-4 text-gold-400 fill-gold-400/20" />
                                 Student Ratings &amp; Feedback
                             </CardTitle>
@@ -844,15 +1317,14 @@ function SessionFeedbackSection({
                             </Badge>
                         </div>
                         <p className="text-xs text-starlight-400 mt-1">
-                            Individual ratings and remarks submitted by students before accessing session tasks.
+                            Ratings and remarks submitted by students before accessing session tasks.
                         </p>
                     </div>
 
-                    {/* Quick Stats Summary */}
                     <div className="flex items-center gap-3 shrink-0">
                         <div className="rounded-xl border border-gold-500/25 bg-gold-500/10 px-3.5 py-1.5 text-center">
                             <span className="text-[10px] uppercase font-bold tracking-wider text-gold-400 block">
-                                Avg Score
+                                Avg Rating
                             </span>
                             <span className="font-mono text-base font-extrabold text-gold-300">
                                 {stats.averageRating !== null ? `${stats.averageRating} / 10` : "—"}
@@ -871,8 +1343,7 @@ function SessionFeedbackSection({
                 </div>
             </CardHeader>
 
-            <CardContent className="pt-4 space-y-4">
-                {/* Search & Filter Bar */}
+            <CardContent className="p-5 space-y-4">
                 {feedbacks.length > 0 && (
                     <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center justify-between">
                         <div className="relative flex-1 max-w-sm">
@@ -881,7 +1352,7 @@ function SessionFeedbackSection({
                                 placeholder="Search by student name or comment..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                className="pl-9 h-9 text-xs bg-space-950/60 border-border/70 rounded-xl placeholder:text-starlight-500"
+                                className="pl-9 h-9 text-xs bg-space-950/60 border-border/70 rounded-xl placeholder:text-starlight-500 text-starlight-100"
                             />
                         </div>
 
@@ -890,7 +1361,7 @@ function SessionFeedbackSection({
                                 size="sm"
                                 variant={ratingFilter === "ALL" ? "secondary" : "outline"}
                                 onClick={() => setRatingFilter("ALL")}
-                                className="h-8 text-xs rounded-lg"
+                                className="h-8 text-xs rounded-xl"
                             >
                                 All ({feedbacks.length})
                             </Button>
@@ -898,7 +1369,7 @@ function SessionFeedbackSection({
                                 size="sm"
                                 variant={ratingFilter === "HIGH" ? "secondary" : "outline"}
                                 onClick={() => setRatingFilter("HIGH")}
-                                className="h-8 text-xs rounded-lg text-emerald-400"
+                                className="h-8 text-xs rounded-xl text-emerald-400"
                             >
                                 High (8-10)
                             </Button>
@@ -906,7 +1377,7 @@ function SessionFeedbackSection({
                                 size="sm"
                                 variant={ratingFilter === "LOW" ? "secondary" : "outline"}
                                 onClick={() => setRatingFilter("LOW")}
-                                className="h-8 text-xs rounded-lg text-amber-400"
+                                className="h-8 text-xs rounded-xl text-amber-400"
                             >
                                 Low (1-5)
                             </Button>
@@ -914,7 +1385,7 @@ function SessionFeedbackSection({
                                 size="sm"
                                 variant={filterWithCommentsOnly ? "secondary" : "outline"}
                                 onClick={() => setFilterWithCommentsOnly((v) => !v)}
-                                className="h-8 text-xs rounded-lg"
+                                className="h-8 text-xs rounded-xl"
                             >
                                 With Comments
                             </Button>
@@ -922,7 +1393,6 @@ function SessionFeedbackSection({
                     </div>
                 )}
 
-                {/* Feedback List */}
                 {feedbacks.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-border/70 bg-space-950/40 p-8 text-center space-y-2">
                         <Star className="size-7 mx-auto text-starlight-500 opacity-60" />

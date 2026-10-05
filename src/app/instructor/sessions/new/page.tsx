@@ -23,11 +23,11 @@ export default async function NewSessionPage({
 
     if (!levelId) {
         return (
-            <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
+            <div className="max-w-xl mx-auto py-12 text-center space-y-3">
+                <p className="text-sm text-starlight-300">
                     No Level specified. Start from your dashboard instead.
                 </p>
-                <Link href="/instructor" className="text-sm text-primary hover:underline">
+                <Link href="/instructor" className="inline-block text-xs font-semibold text-gold-400 hover:text-gold-300 hover:underline">
                     ← Back to dashboard
                 </Link>
             </div>
@@ -38,12 +38,11 @@ export default async function NewSessionPage({
 
     if (!level) {
         return (
-            <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                    This Level doesn&apos;t exist, isn&apos;t active, or you&apos;re not
-                    assigned to it.
+            <div className="max-w-xl mx-auto py-12 text-center space-y-3">
+                <p className="text-sm text-starlight-300">
+                    This Level doesn&apos;t exist, isn&apos;t active, or you&apos;re not assigned to it.
                 </p>
-                <Link href="/instructor" className="text-sm text-primary hover:underline">
+                <Link href="/instructor" className="inline-block text-xs font-semibold text-gold-400 hover:text-gold-300 hover:underline">
                     ← Back to dashboard
                 </Link>
             </div>

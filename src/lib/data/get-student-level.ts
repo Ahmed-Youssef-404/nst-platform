@@ -52,8 +52,16 @@ export interface StudentSubmissionView {
     submittedAt: Date;
     isLocked: boolean;
     isGraded: boolean;
-    totalScore: number | null; // sum of the 4 rubric scores, once graded
+    totalScore: number | null; // out of maxScore (15 for dynamic rubric)
+    maxScore: number;
+    markedInvalid: boolean;
     instructorComment: string | null;
+    fieldScores?: {
+        rubricFieldId: string;
+        fieldName: string;
+        awardedPoints: number;
+        maxPoints: number;
+    }[];
 }
 
 export interface StudentTaskView {
@@ -66,6 +74,12 @@ export interface StudentTaskView {
     allowedSubmissionMode: SubmissionModeCode | null;
     isDeadlinePassed: boolean;
     hints: StudentHintView[];
+    rubricFields?: {
+        id: string;
+        fieldName: string;
+        maxPoints: number;
+        order: number;
+    }[];
     submission: StudentSubmissionView | null; // only meaningful for INTERNAL
 }
 
@@ -139,6 +153,15 @@ async function fetchStudentLevelView(
                                             deadline: true,
                                             isBonus: true,
                                             allowedSubmissionMode: true,
+                                            rubricFields: {
+                                                orderBy: { order: "asc" },
+                                                select: {
+                                                    id: true,
+                                                    fieldName: true,
+                                                    maxPoints: true,
+                                                    order: true,
+                                                },
+                                            },
                                             hints: {
                                                 orderBy: { order: "asc" },
                                                 select: {
@@ -168,6 +191,24 @@ async function fetchStudentLevelView(
                                                     correctnessScore: true,
                                                     implementationScore: true,
                                                     instructorComment: true,
+                                                    taskGrade: {
+                                                        select: {
+                                                            totalPoints: true,
+                                                            markedInvalid: true,
+                                                            fieldScores: {
+                                                                select: {
+                                                                    rubricFieldId: true,
+                                                                    awardedPoints: true,
+                                                                    rubricField: {
+                                                                        select: {
+                                                                            fieldName: true,
+                                                                            maxPoints: true,
+                                                                        },
+                                                                    },
+                                                                },
+                                                            },
+                                                        },
+                                                    },
                                                 },
                                             },
                                         },
@@ -214,6 +255,9 @@ async function fetchStudentLevelView(
             tasks: session.tasks.map((task) => {
                 const submission = task.submissions[0];
                 const isGraded = !!submission?.gradedAt;
+                const hasTaskGrade = !!submission?.taskGrade;
+                const rubricSum = task.rubricFields.reduce((sum, rf) => sum + rf.maxPoints, 0);
+                const maxScore = rubricSum > 0 ? rubricSum : 10;
 
                 return {
                     id: task.id,
@@ -225,6 +269,12 @@ async function fetchStudentLevelView(
                     allowedSubmissionMode:
                         task.allowedSubmissionMode as SubmissionModeCode | null,
                     isDeadlinePassed: task.deadline <= now,
+                    rubricFields: task.rubricFields.map((rf) => ({
+                        id: rf.id,
+                        fieldName: rf.fieldName,
+                        maxPoints: rf.maxPoints,
+                        order: rf.order,
+                    })),
                     hints: task.hints.map((hint) => {
                         const isUnlocked = hint.hintUnlocks.length > 0;
                         // Historical (non-active) Levels: every Hint reads as
@@ -251,12 +301,22 @@ async function fetchStudentLevelView(
                             isLocked: submission.isLocked,
                             isGraded,
                             totalScore: isGraded
-                                ? (submission.understandingScore ?? 0) +
-                                  (submission.approachScore ?? 0) +
-                                  (submission.correctnessScore ?? 0) +
-                                  (submission.implementationScore ?? 0)
+                                ? hasTaskGrade
+                                    ? submission.taskGrade!.totalPoints
+                                    : (submission.understandingScore ?? 0) +
+                                      (submission.approachScore ?? 0) +
+                                      (submission.correctnessScore ?? 0) +
+                                      (submission.implementationScore ?? 0)
                                 : null,
+                            maxScore,
+                            markedInvalid: submission.taskGrade?.markedInvalid ?? false,
                             instructorComment: submission.instructorComment,
+                            fieldScores: submission.taskGrade?.fieldScores.map((fs) => ({
+                                rubricFieldId: fs.rubricFieldId,
+                                fieldName: fs.rubricField.fieldName,
+                                awardedPoints: fs.awardedPoints,
+                                maxPoints: fs.rubricField.maxPoints,
+                            })),
                         }
                         : null,
                 };

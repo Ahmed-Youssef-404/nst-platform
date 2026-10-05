@@ -166,12 +166,22 @@ export async function getWeekDetail(
         week.resourceSubmissions.map((res) => [res.studentId, res])
     );
 
+    const studentIds = week.group.students.map((s) => s.id);
+    const finalizedTransactions = await prisma.sTTransaction.findMany({
+        where: { weekId, studentId: { in: studentIds } },
+        select: { studentId: true },
+        distinct: ["studentId"],
+    });
+    const finalizedStudentIds = new Set(finalizedTransactions.map((t) => t.studentId));
+
     const students: WeekStudentRosterEntry[] = week.group.students.map((student) => {
         const resource = resourceMap.get(student.id) ?? null;
         const studentSubmissions = submissions.filter((s) => s.studentId === student.id);
-        const hasFinalizedGrade = studentSubmissions.some(
-            (s) => s.taskGrade?.finalizedAt !== null && s.taskGrade?.finalizedAt !== undefined
-        );
+        const hasFinalizedGrade =
+            finalizedStudentIds.has(student.id) ||
+            studentSubmissions.some(
+                (s) => s.taskGrade?.finalizedAt !== null && s.taskGrade?.finalizedAt !== undefined
+            );
 
         const totalPointsSum = studentSubmissions.reduce((acc, s) => {
             if (s.taskGrade?.totalPoints) {

@@ -141,20 +141,17 @@ export async function recordSessionEngagement(
 // existing resubmission rule.
 // ------------------------------------------------------------------
 export async function gradeSubmission(input: GradeSubmissionInput) {
-    const scoreSum =
-        input.understandingScore +
-        input.approachScore +
-        input.correctnessScore +
-        input.implementationScore;
-
-    if (scoreSum < 0 || scoreSum > 10) {
-        throw new Error("Rubric total must be between 0 and 10.");
-    }
-
     const submission = await prisma.submission.findUniqueOrThrow({
         where: { id: input.submissionId },
         include: {
-            task: { select: { id: true, isBonus: true, session: { select: { levelId: true } } } },
+            task: {
+                select: {
+                    id: true,
+                    isBonus: true,
+                    session: { select: { levelId: true } },
+                    rubricFields: { select: { id: true, maxPoints: true } },
+                },
+            },
         },
     });
 
@@ -164,11 +161,7 @@ export async function gradeSubmission(input: GradeSubmissionInput) {
         );
     }
 
-    // This is the INTERMEDIATE-only fixed 4-field rubric grading path.
-    // BEGINNER tasks (session: null, weekId set instead) go through the
-    // separate free-form TaskGrade/finalizeWeekGrading flow and should
-    // never reach this function - but guard explicitly since Task.session
-    // is now optional at the schema level.
+    // Guard explicitly since Task.session is optional at the schema level.
     if (!submission.task.session) {
         throw new Error(
             "gradeSubmission is for INTERMEDIATE tasks only. This task has no Session (likely a BEGINNER-track task) - use the Week grading flow instead."
@@ -176,24 +169,91 @@ export async function gradeSubmission(input: GradeSubmissionInput) {
     }
 
     const levelId = submission.task.session.levelId;
+    const now = new Date();
+    const markedInvalid = input.markedInvalid ?? false;
 
-    const updatedSubmission = await prisma.submission.update({
-        where: { id: input.submissionId },
-        data: {
-            understandingScore: input.understandingScore,
-            approachScore: input.approachScore,
-            correctnessScore: input.correctnessScore,
-            implementationScore: input.implementationScore,
-            instructorComment: input.instructorComment,
-            gradedAt: new Date(),
-            gradedBy: input.gradedBy,
-            isLocked: true,
-        },
+    let scoreSum = 0;
+    const isDynamicRubric = input.fieldScores !== undefined && input.fieldScores.length > 0;
+
+    if (isDynamicRubric) {
+        if (!markedInvalid) {
+            const fieldsById = new Map(submission.task.rubricFields.map((f) => [f.id, f.maxPoints]));
+            for (const s of input.fieldScores!) {
+                const max = fieldsById.get(s.rubricFieldId);
+                if (max === undefined) {
+                    throw new Error(`Rubric field ${s.rubricFieldId} does not belong to this Task.`);
+                }
+                if (!Number.isInteger(s.awardedPoints) || s.awardedPoints < 0 || s.awardedPoints > max) {
+                    throw new Error(`Awarded points for rubric field must be between 0 and ${max}.`);
+                }
+                scoreSum += s.awardedPoints;
+            }
+        }
+    } else {
+        // Fallback to legacy fixed 4-fields if provided
+        const under = input.understandingScore ?? 0;
+        const app = input.approachScore ?? 0;
+        const corr = input.correctnessScore ?? 0;
+        const impl = input.implementationScore ?? 0;
+        scoreSum = under + app + corr + impl;
+    }
+
+    if (scoreSum < 0 || scoreSum > 15) {
+        throw new Error("Rubric total must be between 0 and 15.");
+    }
+
+    const updatedSubmission = await prisma.$transaction(async (tx) => {
+        const sub = await tx.submission.update({
+            where: { id: input.submissionId },
+            data: {
+                understandingScore: input.understandingScore ?? null,
+                approachScore: input.approachScore ?? null,
+                correctnessScore: input.correctnessScore ?? null,
+                implementationScore: input.implementationScore ?? null,
+                instructorComment: input.instructorComment ? input.instructorComment.trim() : null,
+                gradedAt: now,
+                gradedBy: input.gradedBy,
+                isLocked: true,
+            },
+        });
+
+        // Upsert TaskGrade & TaskGradeField for dynamic rubric breakdown
+        const grade = await tx.taskGrade.upsert({
+            where: { submissionId: input.submissionId },
+            create: {
+                submissionId: input.submissionId,
+                gradedBy: input.gradedBy,
+                totalPoints: scoreSum,
+                finalizedAt: now,
+                markedInvalid,
+            },
+            update: {
+                gradedBy: input.gradedBy,
+                totalPoints: scoreSum,
+                finalizedAt: now,
+                markedInvalid,
+            },
+        });
+
+        await tx.taskGradeField.deleteMany({
+            where: { taskGradeId: grade.id },
+        });
+
+        if (!markedInvalid && input.fieldScores && input.fieldScores.length > 0) {
+            await tx.taskGradeField.createMany({
+                data: input.fieldScores.map((score) => ({
+                    taskGradeId: grade.id,
+                    rubricFieldId: score.rubricFieldId,
+                    awardedPoints: score.awardedPoints,
+                })),
+            });
+        }
+
+        return sub;
     });
 
-    // Rubric reward (0-10). Only create a transaction if > 0 - a 0-score
-    // grading is still a valid grade, just carries no ST reward.
-    if (scoreSum > 0) {
+    // Rubric reward (0-15).
+    if (scoreSum > 0 && !markedInvalid) {
         await applySTChangeOnce({
             studentId: submission.studentId,
             track: "INTERMEDIATE",
@@ -205,10 +265,8 @@ export async function gradeSubmission(input: GradeSubmissionInput) {
         });
     }
 
-    // Bonus task solved: +10, only if this task isBonus and the grade
-    // counts as "solved". We treat any graded submission with a nonzero
-    // correctness score as solved for bonus-reward purposes.
-    if (submission.task.isBonus && input.correctnessScore > 0) {
+    // Bonus task solved: +10, only if this task isBonus and not marked invalid and scoreSum > 0
+    if (submission.task.isBonus && !markedInvalid && scoreSum > 0) {
         await applySTChangeOnce({
             studentId: submission.studentId,
             track: "INTERMEDIATE",
@@ -221,8 +279,7 @@ export async function gradeSubmission(input: GradeSubmissionInput) {
     }
 
     // First solver: instructor explicitly flags this at grading time
-    // (after reviewing submissions for this task sorted by submittedAt ASC).
-    if (input.isFirstSolver) {
+    if (input.isFirstSolver && !markedInvalid && scoreSum > 0) {
         await applySTChangeOnce({
             studentId: submission.studentId,
             track: "INTERMEDIATE",

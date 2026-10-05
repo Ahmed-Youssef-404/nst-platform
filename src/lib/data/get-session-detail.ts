@@ -59,7 +59,23 @@ export interface SessionDetailSubmission {
         correctnessScore: number | null;
         implementationScore: number | null;
         instructorComment: string | null;
+        taskGrade: {
+            id: string;
+            totalPoints: number | null;
+            markedInvalid: boolean;
+            fieldScores: {
+                rubricFieldId: string;
+                awardedPoints: number;
+            }[];
+        } | null;
     } | null;
+}
+
+export interface SessionDetailRubricField {
+    id: string;
+    fieldName: string;
+    maxPoints: number;
+    order: number;
 }
 
 export interface SessionDetailTask {
@@ -71,6 +87,7 @@ export interface SessionDetailTask {
     isBonus: boolean;
     allowedSubmissionMode: SubmissionModeCode | null;
     hints: SessionDetailHint[];
+    rubricFields: SessionDetailRubricField[];
     // Only populated for INTERNAL tasks - EXTERNAL tasks have no submissions.
     submissions: SessionDetailSubmission[];
 }
@@ -105,7 +122,21 @@ export async function getSessionDetail(
             tasks: {
                 include: {
                     hints: { orderBy: { order: "asc" } },
-                    submissions: true,
+                    rubricFields: { orderBy: { order: "asc" } },
+                    submissions: {
+                        include: {
+                            taskGrade: {
+                                include: {
+                                    fieldScores: {
+                                        select: {
+                                            rubricFieldId: true,
+                                            awardedPoints: true,
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
                 },
             },
         },
@@ -220,6 +251,12 @@ export async function getSessionDetail(
                 content: hint.content,
                 cost: hint.cost,
             })),
+            rubricFields: task.rubricFields.map((rf) => ({
+                id: rf.id,
+                fieldName: rf.fieldName,
+                maxPoints: rf.maxPoints,
+                order: rf.order,
+            })),
             submissions:
                 task.type === "INTERNAL"
                     ? groupStudents.map((student) => {
@@ -244,6 +281,14 @@ export async function getSessionDetail(
                                     correctnessScore: submission.correctnessScore,
                                     implementationScore: submission.implementationScore,
                                     instructorComment: submission.instructorComment,
+                                    taskGrade: submission.taskGrade
+                                        ? {
+                                            id: submission.taskGrade.id,
+                                            totalPoints: submission.taskGrade.totalPoints,
+                                            markedInvalid: submission.taskGrade.markedInvalid,
+                                            fieldScores: submission.taskGrade.fieldScores,
+                                        }
+                                        : null,
                                 }
                                 : null,
                         };

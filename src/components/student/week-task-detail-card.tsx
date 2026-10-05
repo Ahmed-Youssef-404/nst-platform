@@ -43,6 +43,7 @@ import { MarkdownContent } from "@/components/markdown-content";
 import type { StudentWeekDetailTask } from "@/lib/data/get-student-weeks";
 import type { SubmissionModeCode } from "@/types/types";
 import { formatDateTime } from "@/lib/format-date";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 
 export function WeekTaskDetailCard({
     studentId,
@@ -78,6 +79,15 @@ export function WeekTaskDetailCard({
     const [isSavingDraft, setIsSavingDraft] = useState(false);
     const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
     const [saveErrorMsg, setSaveErrorMsg] = useState<string | null>(null);
+
+    const initialText = task.submission?.mode === "TEXT" ? task.submission.textContent ?? "" : "";
+    const initialLink = task.submission?.mode === "LINK" ? task.submission.externalLink ?? "" : "";
+    const isDirty = canWrite && (
+        (textInput.trim() !== initialText.trim() && textInput.trim().length > 0) ||
+        (linkInput.trim() !== initialLink.trim() && linkInput.trim().length > 0) ||
+        selectedFile !== null
+    );
+    useUnsavedChanges(isDirty && !isSavingDraft);
 
     // Download state
     const [isDownloading, setIsDownloading] = useState(false);

@@ -40,7 +40,9 @@ import {
     Search,
     Download,
     Check,
+    MessageSquareQuote,
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { formatDateTime } from "@/lib/format-date";
 import { getSubmissionFileUrlAction } from "@/lib/actions/submission-management";
 import { showToast } from "@/components/ui/toast";
@@ -62,15 +64,22 @@ export function WeekGradingView({ data }: { data: WeekGradingViewData }) {
         data.students[0]?.studentId ?? ""
     );
     const [searchQuery, setSearchQuery] = useState("");
+    const [filterStatus, setFilterStatus] = useState<"all" | "pending" | "finalized">("all");
     const [finalizeModalOpen, setFinalizeModalOpen] = useState(false);
 
     const activeStudent = data.students.find(
         (s) => s.studentId === selectedStudentId
     );
 
-    const filteredStudents = data.students.filter((s) =>
-        s.studentName.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredStudents = data.students
+        .filter((s) => {
+            if (filterStatus === "pending") return !s.isFinalized;
+            if (filterStatus === "finalized") return s.isFinalized;
+            return true;
+        })
+        .filter((s) =>
+            s.studentName.toLowerCase().includes(searchQuery.toLowerCase())
+        );
 
     const finalizedCount = data.students.filter((s) => s.isFinalized).length;
 
@@ -110,6 +119,43 @@ export function WeekGradingView({ data }: { data: WeekGradingViewData }) {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                 {/* Left Roster: Students List */}
                 <div className="lg:col-span-4 space-y-3">
+                    {/* Filter Pills */}
+                    <div className="flex items-center gap-1.5 p-1 bg-space-900 border border-border/70 rounded-xl text-xs font-mono">
+                        <button
+                            type="button"
+                            onClick={() => setFilterStatus("all")}
+                            className={`flex-1 py-1 px-2 rounded-lg text-center transition-all ${
+                                filterStatus === "all"
+                                    ? "bg-gold-500/20 text-gold-300 font-bold border border-gold-500/40"
+                                    : "text-starlight-400 hover:text-starlight-200"
+                            }`}
+                        >
+                            All ({data.students.length})
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setFilterStatus("pending")}
+                            className={`flex-1 py-1 px-2 rounded-lg text-center transition-all ${
+                                filterStatus === "pending"
+                                    ? "bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40"
+                                    : "text-starlight-400 hover:text-starlight-200"
+                            }`}
+                        >
+                            Pending ({data.students.length - finalizedCount})
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setFilterStatus("finalized")}
+                            className={`flex-1 py-1 px-2 rounded-lg text-center transition-all ${
+                                filterStatus === "finalized"
+                                    ? "bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40"
+                                    : "text-starlight-400 hover:text-starlight-200"
+                            }`}
+                        >
+                            Done ({finalizedCount})
+                        </button>
+                    </div>
+
                     <div className="relative">
                         <Search className="size-3.5 text-starlight-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                         <Input
@@ -230,6 +276,11 @@ export function WeekGradingView({ data }: { data: WeekGradingViewData }) {
                     onClose={() => setFinalizeModalOpen(false)}
                     onSuccess={() => {
                         setFinalizeModalOpen(false);
+                        showToast({
+                            title: "Grading Finalized",
+                            description: `Grading for ${activeStudent.studentName} has been permanently finalized and recorded.`,
+                            type: "success",
+                        });
                         router.refresh();
                     }}
                 />
@@ -552,6 +603,10 @@ function TaskGradingCard({
         return scores;
     });
 
+    const [instructorComment, setInstructorComment] = useState(
+        submission?.instructorComment ?? ""
+    );
+
     const [isSaving, setIsSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -570,6 +625,7 @@ function TaskGradingCard({
                           awardedPoints: fieldScores[rf.id] ?? 0,
                       })),
                       markedInvalid,
+                      instructorComment: instructorComment.trim() || undefined,
                   }
                 : {
                       studentId,
@@ -579,6 +635,7 @@ function TaskGradingCard({
                           awardedPoints: fieldScores[rf.id] ?? 0,
                       })),
                       markedInvalid,
+                      instructorComment: instructorComment.trim() || undefined,
                   };
 
             const res = await saveDraftGradeAction(payload);
@@ -784,6 +841,33 @@ function TaskGradingCard({
                         {error}
                     </p>
                 )}
+
+                {/* Instructor Feedback Comment */}
+                <div className="space-y-1.5 pt-3 border-t border-border/70">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-starlight-200">
+                        <MessageSquareQuote className="size-3.5 text-gold-400" />
+                        <span>Instructor Feedback & Comment</span>
+                        <span className="text-[11px] font-normal text-starlight-400 font-mono">(Visible to student)</span>
+                    </div>
+                    {isFinalized ? (
+                        instructorComment ? (
+                            <div className="p-3 rounded-xl border border-border/70 bg-space-950/60 text-xs text-starlight-200 leading-relaxed whitespace-pre-wrap">
+                                {instructorComment}
+                            </div>
+                        ) : (
+                            <p className="text-xs text-starlight-400 italic">No feedback comment provided for this task.</p>
+                        )
+                    ) : (
+                        <Textarea
+                            value={instructorComment}
+                            onChange={(e) => setInstructorComment(e.target.value)}
+                            placeholder="Write constructive feedback or guidance for the student (will be displayed on their task scorecard)..."
+                            rows={2}
+                            disabled={isSaving}
+                            className="text-xs bg-space-950/70 border-border/80 text-starlight-100 placeholder:text-starlight-400/50 rounded-xl focus-visible:border-gold-500 resize-y"
+                        />
+                    )}
+                </div>
 
                 {/* Save Draft Action */}
                 {!isFinalized && (

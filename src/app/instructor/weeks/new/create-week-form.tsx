@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { createWeekAction } from "@/lib/actions/week-management";
 import type { GroupForWeekCreation } from "@/lib/data/get-week-detail";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 
 export function CreateWeekForm({ group }: { group: GroupForWeekCreation }) {
     const router = useRouter();
@@ -36,6 +37,14 @@ export function CreateWeekForm({ group }: { group: GroupForWeekCreation }) {
     const [requiredFileLabel, setRequiredFileLabel] = useState("");
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const isDirty =
+        name.trim().length > 0 ||
+        startDate.length > 0 ||
+        endDate.length > 0 ||
+        playlistUrl.trim().length > 0 ||
+        requiredFileLabel.trim().length > 0;
+    useUnsavedChanges(isDirty && !isSubmitting);
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();

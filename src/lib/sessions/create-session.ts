@@ -120,6 +120,22 @@ export async function createSession(
                 );
             }
         }
+
+        if (task.rubricFields && task.rubricFields.length > 0) {
+            let sum = 0;
+            for (const [rfIndex, rf] of task.rubricFields.entries()) {
+                if (!rf.fieldName.trim()) {
+                    throw new Error(`${taskLabel}: rubric criterion #${rfIndex + 1} name cannot be empty.`);
+                }
+                if (!Number.isInteger(rf.maxPoints) || rf.maxPoints <= 0) {
+                    throw new Error(`${taskLabel}: rubric criterion #${rfIndex + 1} max points must be a positive integer.`);
+                }
+                sum += rf.maxPoints;
+            }
+            if (sum !== 15) {
+                throw new Error(`${taskLabel}: rubric criteria max points must sum to exactly 15 (currently ${sum}).`);
+            }
+        }
     }
 
     // ---- 5. Create everything atomically ----
@@ -135,6 +151,14 @@ export async function createSession(
         });
 
         for (const task of input.tasks) {
+            const rubricData = task.rubricFields && task.rubricFields.length > 0
+                ? task.rubricFields
+                : [
+                      { fieldName: "Approach & Understanding", maxPoints: 5 },
+                      { fieldName: "Correctness", maxPoints: 5 },
+                      { fieldName: "Implementation & Quality", maxPoints: 5 },
+                  ];
+
             await tx.task.create({
                 data: {
                     sessionId: session.id,
@@ -149,6 +173,13 @@ export async function createSession(
                             order: i + 1,
                             content: hint.content,
                             cost: hint.cost,
+                        })),
+                    },
+                    rubricFields: {
+                        create: rubricData.map((rf, i) => ({
+                            order: i + 1,
+                            fieldName: rf.fieldName.trim(),
+                            maxPoints: rf.maxPoints,
                         })),
                     },
                 },

@@ -34,6 +34,7 @@ import { showToast } from "@/components/ui/toast";
 import { addTaskToWeekAction } from "@/lib/actions/week-management";
 import type { TaskTypeCode, SubmissionModeCode } from "@/types/types";
 import type { WeekDetailForInstructor } from "@/lib/data/get-week-detail";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 
 export function TaskCreateView({ week }: { week: WeekDetailForInstructor }) {
     const router = useRouter();
@@ -58,6 +59,12 @@ export function TaskCreateView({ week }: { week: WeekDetailForInstructor }) {
 
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const isDirty =
+        title.trim().length > 0 ||
+        description.trim().length > 0 ||
+        hints.length > 0;
+    useUnsavedChanges(isDirty && !isSubmitting);
 
     const rubricSum = rubricFields.reduce((acc, f) => acc + (Number(f.maxPoints) || 0), 0);
     const isRubricValid = rubricSum === 15;

@@ -12,6 +12,7 @@ import { InstructorSidebar } from "@/components/instructor-sidebar";
 import StarsBackground from "@/components/StarsBackground";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LogoutButton } from "@/components/logout-button";
+import { InstructorNavbarClock } from "@/components/instructor/instructor-navbar-clock";
 import { Sparkles } from "lucide-react";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
@@ -66,6 +67,8 @@ export default async function InstructorLayout({
                         </div>
 
                         <div className="flex items-center gap-3">
+                            <InstructorNavbarClock />
+                            <div className="h-4 w-px bg-border/80 hidden sm:block" />
                             <div className="hidden md:flex flex-col text-right">
                                 <span className="text-xs font-semibold text-starlight-100">
                                     {instructorName}
