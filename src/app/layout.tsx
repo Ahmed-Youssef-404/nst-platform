@@ -1,8 +1,7 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter, Manrope, Space_Grotesk } from "next/font/google";
-import "./globals.css";
-import "./nst-design-v1.0.css";
+import "./styles.css";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/theme-provider";
 import { RouteProgressBar } from "@/components/route-progress-bar";
