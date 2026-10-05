@@ -34,6 +34,14 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import {
     createInstructorAction,
     createStudentAction,
@@ -57,6 +65,26 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
 
     // Quick Stats
     const { stats, students, instructors, groups } = data;
+
+    const trackFilterItems = useMemo(
+        () => [
+            { value: "ALL", label: "All Tracks" },
+            { value: "INTERMEDIATE", label: "Intermediate Only" },
+            { value: "BEGINNER", label: "Beginner Only" },
+        ],
+        []
+    );
+
+    const groupFilterItems = useMemo(
+        () => [
+            { value: "ALL", label: "All Groups" },
+            ...groups.map((g) => ({
+                value: g.id,
+                label: `${g.batchName} — ${g.name}`,
+            })),
+        ],
+        [groups]
+    );
 
     // Filtered Students
     const filteredStudents = useMemo(() => {
@@ -87,6 +115,14 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
             );
         });
     }, [instructors, instructorSearch]);
+
+
+    const longestGroupLabel =
+        groupFilterItems.reduce(
+            (longest, item) =>
+                item.label.length > longest.length ? item.label : longest,
+            ""
+        );
 
     return (
         <div className="space-y-8 animate-fade-in pb-12">
@@ -138,7 +174,7 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
             {/* Metrics Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Total Students */}
-                <div className="rounded-2xl border border-border/80 bg-space-900/70 p-5 backdrop-blur-md shadow-2 hover:border-gold-500/30 transition-all duration-300">
+                <div className="rounded-2xl border border-border/80 bg-space-900/70 p-5 backdrop-blur-md shadow-2 hover:border-gold-500/60 transition-all duration-300">
                     <div className="flex items-center justify-between">
                         <span className="text-xs font-semibold uppercase tracking-wider text-starlight-400">
                             Enrolled Students
@@ -164,7 +200,7 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
                 </div>
 
                 {/* Total Instructors */}
-                <div className="rounded-2xl border border-border/80 bg-space-900/70 p-5 backdrop-blur-md shadow-2 hover:border-gold-500/30 transition-all duration-300">
+                <div className="rounded-2xl border border-border/80 bg-space-900/70 p-5 backdrop-blur-md shadow-2 hover:border-violet-500/60 transition-all duration-300">
                     <div className="flex items-center justify-between">
                         <span className="text-xs font-semibold uppercase tracking-wider text-starlight-400">
                             Active Instructors
@@ -184,7 +220,7 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
                 </div>
 
                 {/* Batches & Groups */}
-                <div className="rounded-2xl border border-border/80 bg-space-900/70 p-5 backdrop-blur-md shadow-2 hover:border-gold-500/30 transition-all duration-300">
+                <div className="rounded-2xl border border-border/80 bg-space-900/70 p-5 backdrop-blur-md shadow-2 hover:border-amber-500/60 transition-all duration-300">
                     <div className="flex items-center justify-between">
                         <span className="text-xs font-semibold uppercase tracking-wider text-starlight-400">
                             Batches & Groups
@@ -209,7 +245,7 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
                 </div>
 
                 {/* Active Levels */}
-                <div className="rounded-2xl border border-border/80 bg-space-900/70 p-5 backdrop-blur-md shadow-2 hover:border-gold-500/30 transition-all duration-300">
+                <div className="rounded-2xl border border-border/80 bg-space-900/70 p-5 backdrop-blur-md shadow-2 hover:border-success-500/60 transition-all duration-300">
                     <div className="flex items-center justify-between">
                         <span className="text-xs font-semibold uppercase tracking-wider text-starlight-400">
                             Active Levels
@@ -284,7 +320,10 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
 
                         <button
                             type="button"
-                            onClick={() => setActiveTab("create")}
+                            onClick={() => {
+                                setActiveTab("create")
+                                setHighlightTrigger((prev) => prev + 1);
+                            }}
                             className={`
                                 relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200
                                 ${activeTab === "create"
@@ -315,32 +354,78 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
                             </div>
 
                             <div className="flex items-center gap-2 shrink-0">
-                                <select
+                                <Select
+                                    items={trackFilterItems}
                                     value={studentTrackFilter}
-                                    onChange={(e) =>
+                                    onValueChange={(val) =>
                                         setStudentTrackFilter(
-                                            e.target.value as "ALL" | "INTERMEDIATE" | "BEGINNER"
+                                            (val ?? "ALL") as "ALL" | "INTERMEDIATE" | "BEGINNER"
                                         )
                                     }
-                                    className="h-10 rounded-xl border border-border/80 bg-space-900/90 px-3 text-xs font-medium text-starlight-200 focus:outline-hidden focus:border-gold-500/50"
                                 >
-                                    <option value="ALL">All Tracks</option>
-                                    <option value="INTERMEDIATE">Intermediate Only</option>
-                                    <option value="BEGINNER">Beginner Only</option>
-                                </select>
+                                    <SelectTrigger
+                                        className={cn(
+                                            "h-10 min-w-[130px] rounded-xl px-3 text-xs font-medium transition-all duration-200 focus-visible:border-gold-500/50",
+                                            studentTrackFilter !== "ALL"
+                                                ? "border-gold-500/60 bg-gold-500/15 text-gold-700 dark:text-gold-300 shadow-gold font-semibold ring-1 ring-gold-500/30 [&_svg]:text-gold-400"
+                                                : "border-border/80 bg-space-900/90 text-starlight-200 hover:border-border"
+                                        )}
+                                    >
+                                        <div className="flex items-center gap-1.5">
+                                            {studentTrackFilter !== "ALL" && (
+                                                <span className="size-1.5 rounded-full bg-gold-400 shrink-0 shadow-xs" />
+                                            )}
+                                            <SelectValue placeholder="All Tracks" />
+                                        </div>
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-space-900 border-border/80 text-starlight-100">
+                                        {trackFilterItems.map((item) => (
+                                            <SelectItem key={item.value} value={item.value}>
+                                                {item.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
 
-                                <select
-                                    value={studentGroupFilter}
-                                    onChange={(e) => setStudentGroupFilter(e.target.value)}
-                                    className="h-10 max-w-[200px] truncate rounded-xl border border-border/80 bg-space-900/90 px-3 text-xs font-medium text-starlight-200 focus:outline-hidden focus:border-gold-500/50"
+                                <Select
+                                    items={groupFilterItems}
+                                    value={studentGroupFilter ?? "ALL"}
+                                    onValueChange={(val) => setStudentGroupFilter(val ?? "ALL")}
                                 >
-                                    <option value="ALL">All Groups</option>
-                                    {groups.map((g) => (
-                                        <option key={g.id} value={g.id}>
-                                            {g.batchName} — {g.name}
-                                        </option>
-                                    ))}
-                                </select>
+                                    <SelectTrigger
+                                        className={cn(
+                                            "h-10 min-w-[140px] rounded-xl px-3 text-xs font-medium transition-all duration-200 focus-visible:border-gold-500/50",
+                                            studentGroupFilter !== "ALL"
+                                                ? "border-gold-500/60 bg-gold-500/15 text-gold-700 dark:text-gold-300 shadow-gold font-semibold ring-1 ring-gold-500/30 [&_svg]:text-gold-400"
+                                                : "border-border/80 bg-space-900/90 text-starlight-200 hover:border-border"
+                                        )}
+                                    >
+                                        <div className="flex items-center gap-1.5">
+                                            {studentGroupFilter !== "ALL" && (
+                                                <span className="size-1.5 rounded-full bg-gold-400 shrink-0 shadow-xs" />
+                                            )}
+                                            <div className="relative">
+                                                {/* Determines the width */}
+                                                <span className="invisible whitespace-nowrap">
+                                                    {longestGroupLabel}
+                                                </span>
+
+                                                {/* Actual selected value */}
+                                                <span className="absolute inset-0 flex items-center">
+                                                    <SelectValue placeholder="All Groups" />
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </SelectTrigger>
+
+                                    <SelectContent className="bg-space-900 border-border/80 text-starlight-100">
+                                        {groupFilterItems.map((item) => (
+                                            <SelectItem key={item.value} value={item.value}>
+                                                {item.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
 
@@ -461,7 +546,7 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
                 {activeTab === "instructors" && (
                     <div className="space-y-4">
                         {/* Search */}
-                        <div className="relative max-w-md">
+                        <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-starlight-400" />
                             <Input
                                 placeholder="Search instructor by name or email..."
@@ -813,6 +898,15 @@ function AccountCreationSection({
 // ============================================
 
 function StudentCreationForm({ groups }: { groups: GroupOption[] }) {
+    const groupSelectItems = useMemo(
+        () =>
+            groups.map((group) => ({
+                value: group.id,
+                label: `${group.batchName} — ${group.name} [${group.type ?? "INTERMEDIATE"}]`,
+            })),
+        [groups]
+    );
+
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [id, setId] = useState("");
@@ -1048,19 +1142,26 @@ function StudentCreationForm({ groups }: { groups: GroupOption[] }) {
                             <Label htmlFor="student-group" className="text-xs text-foreground/90 font-medium">
                                 Assigned Group & Cohort
                             </Label>
-                            <select
-                                id="student-group"
+                            <Select
+                                items={groupSelectItems}
                                 value={groupId}
-                                onChange={(e) => setGroupId(e.target.value)}
-                                required
-                                className="flex h-10 w-full rounded-xl border border-border bg-background dark:bg-space-950/90 px-3 py-2 text-xs font-medium text-foreground dark:text-starlight-200 outline-none focus-visible:border-gold-500/50 shadow-xs"
+                                onValueChange={(val) => setGroupId(val ?? "")}
+                                disabled={isSubmitting}
                             >
-                                {groups.map((group) => (
-                                    <option key={group.id} value={group.id}>
-                                        {group.batchName} — {group.name} [{group.type ?? "INTERMEDIATE"}]
-                                    </option>
-                                ))}
-                            </select>
+                                <SelectTrigger
+                                    id="student-group"
+                                    className="flex h-10 w-full rounded-xl border-border bg-background dark:bg-space-950/90 px-3 py-2 text-xs font-medium text-foreground dark:text-starlight-200 focus-visible:border-gold-500/50 shadow-xs"
+                                >
+                                    <SelectValue placeholder="Select group & cohort" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-popover border-border text-popover-foreground">
+                                    {groupSelectItems.map((item) => (
+                                        <SelectItem key={item.value} value={item.value}>
+                                            {item.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
 

@@ -8,6 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import {
     createInstructorAction,
     createStudentAction,
 } from "@/lib/actions/user-management";
@@ -207,19 +214,31 @@ function StudentForm({ groups }: { groups: GroupOption[] }) {
             </div>
             <div className="space-y-2">
                 <Label htmlFor="student-group">Group</Label>
-                <select
-                    id="student-group"
-                    value={groupId}
-                    onChange={(e) => setGroupId(e.target.value)}
-                    required
-                    className="border-input flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-                >
-                    {groups.map((group) => (
-                        <option key={group.id} value={group.id}>
-                            {group.batchName} — {group.name}
-                        </option>
-                    ))}
-                </select>
+                {(() => {
+                    const groupSelectItems = groups.map((group) => ({
+                        value: group.id,
+                        label: `${group.batchName} — ${group.name}`,
+                    }));
+                    return (
+                        <Select
+                            items={groupSelectItems}
+                            value={groupId}
+                            onValueChange={(val) => setGroupId(val ?? "")}
+                            disabled={isSubmitting}
+                        >
+                            <SelectTrigger id="student-group" className="w-full">
+                                <SelectValue placeholder="Select group" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {groupSelectItems.map((group) => (
+                                    <SelectItem key={group.value} value={group.value}>
+                                        {group.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    );
+                })()}
             </div>
             {error && <p className="text-sm text-error">{error}</p>}
             {successMessage && (

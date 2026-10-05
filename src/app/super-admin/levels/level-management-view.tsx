@@ -151,7 +151,7 @@ export function LevelManagementView({
 
             {/* CREATE LEVEL MODAL (Requirement 16) */}
             <Dialog open={showCreateLevel} onOpenChange={setShowCreateLevel}>
-                <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+                <DialogContent className="max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
                         <div className="flex items-center gap-2.5">
                             <div className="size-8 rounded-lg bg-gold-500/10 text-gold-500 dark:text-gold-400 flex items-center justify-center border border-gold-500/25">
@@ -176,7 +176,7 @@ export function LevelManagementView({
             </Dialog>
 
             {/* Search Filter */}
-            <div className="relative max-w-md">
+            <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-starlight-400" />
                 <Input
                     placeholder="Search cohorts, groups, or levels..."
@@ -248,7 +248,7 @@ export function LevelManagementView({
                                                             {group.name}
                                                         </span>
                                                         {isBeginner ? (
-                                                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-violet-500/15 text-violet-300 border border-violet-500/30">
+                                                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-violet-500/15 text-violet-500 border border-violet-500/30">
                                                                 Beginner Track
                                                             </span>
                                                         ) : (
@@ -401,9 +401,8 @@ function CreateLevelForm({
         if (result.success && result.data) {
             showToast({
                 title: "Level Created & Launched",
-                description: `Level "${name.trim()}" successfully activated for ${result.data.length} Group${
-                    result.data.length === 1 ? "" : "s"
-                }.`,
+                description: `Level "${name.trim()}" successfully activated for ${result.data.length} Group${result.data.length === 1 ? "" : "s"
+                    }.`,
                 type: "success",
             });
             setName("");
@@ -512,10 +511,9 @@ function CreateLevelForm({
                                                 onClick={() => toggleGroup(group.id)}
                                                 className={`
                                                     flex items-center justify-between p-2.5 rounded-lg border text-xs cursor-pointer transition-all
-                                                    ${
-                                                        isSelected
-                                                            ? "bg-gold-500/10 border-gold-500/35 text-foreground dark:text-starlight-100"
-                                                            : "bg-background/80 dark:bg-space-900/40 border-border/60 text-muted-foreground hover:border-border"
+                                                    ${isSelected
+                                                        ? "bg-gold-500/10 border-gold-500/35 text-foreground dark:text-starlight-100"
+                                                        : "bg-background/80 dark:bg-space-900/40 border-border/60 text-muted-foreground hover:border-border"
                                                     }
                                                 `}
                                             >

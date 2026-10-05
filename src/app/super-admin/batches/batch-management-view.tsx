@@ -27,6 +27,14 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import {
     createBatchAction,
     updateBatchAction,
@@ -146,7 +154,7 @@ export function BatchManagementView({
             </Dialog>
 
             {/* Search Filter */}
-            <div className="relative max-w-md">
+            <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-starlight-400" />
                 <Input
                     placeholder="Search batches or groups by name..."
@@ -521,14 +529,31 @@ function CreateGroupForm({
                 <Label className="text-xs font-semibold text-foreground/90">
                     Curriculum Track
                 </Label>
-                <select
-                    value={type}
-                    onChange={(e) => setType(e.target.value as "INTERMEDIATE" | "BEGINNER")}
-                    className="flex h-10 w-full rounded-xl border border-border bg-background dark:bg-space-950/90 px-3 py-2 text-xs font-medium text-foreground dark:text-starlight-200 outline-none focus-visible:border-gold-500/50 shadow-xs"
-                >
-                    <option value="INTERMEDIATE">Intermediate (Levels & Sessions)</option>
-                    <option value="BEGINNER">Beginner (Weekly Missions & Videos)</option>
-                </select>
+                {(() => {
+                    const trackItems = [
+                        { value: "INTERMEDIATE", label: "Intermediate (Levels & Sessions)" },
+                        { value: "BEGINNER", label: "Beginner (Weekly Missions & Videos)" },
+                    ];
+                    return (
+                        <Select
+                            items={trackItems}
+                            value={type}
+                            onValueChange={(val) => setType((val ?? "INTERMEDIATE") as "INTERMEDIATE" | "BEGINNER")}
+                            disabled={isSubmitting}
+                        >
+                            <SelectTrigger className="flex h-10 w-full rounded-xl border-border bg-background dark:bg-space-950/90 px-3 py-2 text-xs font-medium text-foreground dark:text-starlight-200 focus-visible:border-gold-500/50 shadow-xs">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-popover border-border text-popover-foreground">
+                                {trackItems.map((item) => (
+                                    <SelectItem key={item.value} value={item.value}>
+                                        {item.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    );
+                })()}
                 <p className="text-[11px] text-muted-foreground pt-1">
                     {type === "INTERMEDIATE"
                         ? "Intermediate groups follow Level progression and session tasks."
@@ -630,11 +655,10 @@ function GroupRow({
                         variant={isManagingInstructors ? "secondary" : "outline"}
                         size="sm"
                         onClick={() => setIsManagingInstructors(!isManagingInstructors)}
-                        className={`h-7 text-xs ${
-                            isManagingInstructors
-                                ? "bg-gold-500/20 text-gold-300 border-gold-500/40"
-                                : "border-border/80 text-starlight-300"
-                        }`}
+                        className={`h-7 text-xs ${isManagingInstructors
+                            ? "bg-gold-500/20 text-gold-300 border-gold-500/40"
+                            : "border-border/80 text-starlight-300"
+                            }`}
                     >
                         <GraduationCap className="size-3 mr-1 text-gold-400" />
                         <span>Instructors ({group.instructors.length})</span>
@@ -830,18 +854,43 @@ function InstructorAssignment({
             {/* Add Available Instructor */}
             {availableInstructors.length > 0 ? (
                 <div className="flex flex-col sm:flex-row items-center gap-2 pt-1">
-                    <select
-                        value={selectedInstructorId}
-                        onChange={(e) => setSelectedInstructorId(e.target.value)}
-                        className="flex h-9 flex-1 w-full rounded-xl border border-border bg-background dark:bg-space-900 px-3 text-xs text-foreground dark:text-starlight-200 outline-none focus-visible:border-gold-500/50 shadow-xs"
-                    >
-                        <option value="">Select an available instructor to assign...</option>
-                        {availableInstructors.map((instructor) => (
-                            <option key={instructor.id} value={instructor.id}>
-                                {instructor.name} ({instructor.email})
-                            </option>
-                        ))}
-                    </select>
+                    {(() => {
+                        const instructorItems = availableInstructors.map((instructor) => ({
+                            value: instructor.id,
+                            label: `${instructor.name} (${instructor.email})`,
+                        }));
+                        return (
+                            <Select
+                                items={instructorItems}
+                                value={selectedInstructorId || null}
+                                onValueChange={(val) => setSelectedInstructorId(val ?? "")}
+                                disabled={isSubmitting}
+                            >
+                                <SelectTrigger
+                                    className={cn(
+                                        "flex h-9 flex-1 w-full rounded-xl px-3 text-xs transition-all duration-200 focus-visible:border-gold-500/50 shadow-xs",
+                                        selectedInstructorId
+                                            ? "border-gold-500/60 bg-gold-500/15 text-gold-700 dark:text-gold-300 shadow-gold font-semibold ring-1 ring-gold-500/30 [&_svg]:text-gold-400"
+                                            : "border-border bg-background dark:bg-space-900 text-foreground dark:text-starlight-200"
+                                    )}
+                                >
+                                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                        {Boolean(selectedInstructorId) && (
+                                            <span className="size-1.5 rounded-full bg-gold-400 shrink-0 shadow-xs" />
+                                        )}
+                                        <SelectValue placeholder="Select an available instructor to assign..." />
+                                    </div>
+                                </SelectTrigger>
+                                <SelectContent className="bg-popover border-border text-popover-foreground">
+                                    {instructorItems.map((item) => (
+                                        <SelectItem key={item.value} value={item.value}>
+                                            {item.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        );
+                    })()}
                     <Button
                         size="sm"
                         onClick={handleAssign}
