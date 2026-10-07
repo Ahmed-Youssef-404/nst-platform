@@ -4,11 +4,13 @@ import { InitialLoadingScreen } from "./initial-loading-screen";
 
 /**
  * Runs synchronously while the HTML is still being parsed, before first paint.
- * The loader is only armed for the first entry to "/" in a browser session, so
- * returning visitors and every other route never see it (and never flash it).
- * If this script is blocked, the overlay simply stays hidden (CSS default).
+ * The loader is armed for every full document entry to "/" — including refreshes
+ * and reopening the site — regardless of authentication/session state.
+ *
+ * Client-side navigation does not re-run this script, so navigating around the
+ * app will not replay the boot experience.
  */
-const ARM_SCRIPT = `(function(){try{if(location.pathname==="/"&&!sessionStorage.getItem("nst-boot")){document.documentElement.setAttribute("data-nst-boot","active")}}catch(e){}})();`;
+const ARM_SCRIPT = `(function(){try{if(location.pathname==="/"){document.documentElement.setAttribute("data-nst-boot","active")}}catch(e){}})();`;
 
 export function BootGate() {
     return (

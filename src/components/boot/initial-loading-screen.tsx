@@ -36,11 +36,6 @@ export function InitialLoadingScreen() {
 
     useEffect(() => {
         if (!armed) return;
-        try {
-            sessionStorage.setItem("nst-boot", "1");
-        } catch {
-            /* private mode — loader just replays next visit */
-        }
 
         const minMs = reduced ? MIN_MS_REDUCED : MIN_MS;
         const exitMs = reduced ? EXIT_MS_REDUCED : EXIT_MS;
