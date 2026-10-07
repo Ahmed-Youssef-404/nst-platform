@@ -93,7 +93,7 @@ function PodiumCard({
     const { cardRef, onPointerMove, onPointerLeave } = useCardTilt(interactive);
 
     // Stagger delay based on rank
-    const delayMs = isFirst ? 450 : isSecond ? 250 : 100;
+    const delayMs = isFirst ? 0 : isSecond ? 0 : 0;
 
     return (
         <li
@@ -515,7 +515,7 @@ export function RankingChamber() {
         <section
             id="ranking"
             ref={pointerRef}
-            className="relative mx-auto max-w-7xl scroll-mt-12 px-5 !pt-0 py-24 sm:px-8 sm:py-32 overflow-hidden"
+            className="relative mx-auto scroll-mt-12 px-5 !pt-0 py-24 sm:px-8 sm:py-32 overflow-hidden"
             aria-label="NST Cosmic Leaderboard"
         >
             <div className="nl-hairline mx-auto mb-20 h-px max-w-4xl" aria-hidden="true" />
