@@ -10,7 +10,7 @@ function Avatar({
   size = "default",
   ...props
 }: AvatarPrimitive.Root.Props & {
-  size?: "default" | "sm" | "lg"
+  size?: "default" | "xl" | "md" | "sm" | "lg"
 }) {
   return (
     <AvatarPrimitive.Root

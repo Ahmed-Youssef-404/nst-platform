@@ -114,6 +114,16 @@ html:not(.dark) .nl-gold-text {
   100% { transform: translateX(220%); }
 }
 
+@keyframes nl-aurora {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50%      { opacity: 0.8; transform: scale(1.06); }
+}
+
+@keyframes nl-glow-breathe {
+  0%, 100% { filter: drop-shadow(0 0 16px rgba(var(--nl-gold-rgb) / 0.35)); }
+  50%      { filter: drop-shadow(0 0 32px rgba(var(--nl-gold-rgb) / 0.65)); }
+}
+
 .nl-spin          { animation: nl-spin 60s linear infinite; transform-origin: center; transform-box: fill-box; }
 .nl-spin-slow     { animation: nl-spin 110s linear infinite; transform-origin: center; transform-box: fill-box; }
 .nl-spin-reverse  { animation: nl-spin-reverse 80s linear infinite; transform-origin: center; transform-box: fill-box; }
@@ -121,6 +131,8 @@ html:not(.dark) .nl-gold-text {
 .nl-float         { animation: nl-float 6s ease-in-out infinite; }
 .nl-twinkle       { animation: nl-twinkle 3.2s ease-in-out infinite; }
 .nl-pulse-ring    { animation: nl-pulse-ring 3.6s ease-out infinite; transform-origin: center; transform-box: fill-box; }
+.nl-aurora        { animation: nl-aurora 7s ease-in-out infinite; }
+.nl-glow-breathe  { animation: nl-glow-breathe 4s ease-in-out infinite; }
 
 /* ---------- Reduced motion: keep layout and state, drop the movement ---------- */
 

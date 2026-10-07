@@ -217,22 +217,170 @@ export interface TopStudent {
     st: number | null;
 }
 
+export interface RankedCadet {
+    rank: number;
+    name: string;
+    // handle: string;
+    st: number;
+    // track: "beginner" | "intermediate";
+    // trackLabel: string;
+    // orbit: string;
+    // trend: "up" | "stable" | "down";
+    // trendDelta?: number;
+    // streakDays: number;
+    // tasksSolved: number;
+    // celestialRole: string; // e.g. "Polaris · Zenith", "Vega · Orbit IV", etc.
+    // badge?: string;
+    // specialty?: string;
+}
+
 export const RANKING_COPY = {
-    kicker: "Achievement chamber",
-    headline: "People actually grow here.",
-    caption: "Top 3 · previous batch · ranked by ST",
+    kicker: "NST Cosmic Ranking",
+    headline: "The Stars Who Lead the Way",
+    support: "The brightest stars are not just the ones who shine, they are the ones who keep moving forward.",
+    caption: "Live Batch Leaderboard · Ranked by Space Tokens (ST)",
+    ctaHeadline: "Your place among the stars is waiting.",
+    ctaSupport: "Every leading cadet started with a blank editor and a desire to learn. Step into orbit, build the mindset of a programmer, and make your progress shine.",
+    ctaButton: "Start your journey",
 } as const;
 
-/**
- * PLACEHOLDER: replace with the real top 3 of the previous batch.
- * Names are intentionally not invented; the layout renders identically with
- * real data (name + ST).
- */
-export const TOP_STUDENTS: readonly TopStudent[] = [
-    { rank: 1, name: "To be announced", st: null },
-    { rank: 2, name: "To be announced", st: null },
-    { rank: 3, name: "To be announced", st: null },
+export const RANKED_CADETS: readonly RankedCadet[] = [
+    {
+        rank: 1,
+        name: "Youssef Ibrahim",
+        // handle: "youssef.dev",
+        st: 2840,
+        // track: "intermediate",
+        // trackLabel: "Intermediate",
+        // orbit: "Orbit V · Problem Solving",
+        // trend: "up",
+        // trendDelta: 2,
+        // streakDays: 48,
+        // tasksSolved: 56,
+        // celestialRole: "Polaris · Zenith Star",
+        // badge: "Zenith Master",
+        // specialty: "Graph Theory & System Flow",
+    },
+    {
+        rank: 2,
+        name: "Kareem Tarek",
+        // handle: "kareem.code",
+        st: 2490,
+        // track: "intermediate",
+        // trackLabel: "Intermediate",
+        // orbit: "Orbit IV · Logic & Structures",
+        // trend: "up",
+        // trendDelta: 1,
+        // streakDays: 36,
+        // tasksSolved: 52,
+        // celestialRole: "Vega · Flank Star",
+        // badge: "Nova Luminary",
+        // specialty: "Dynamic Programming & Optimization",
+    },
+    {
+        rank: 3,
+        name: "Mariam Hassan",
+        // handle: "mariam.dev",
+        st: 2280,
+        // track: "beginner",
+        // trackLabel: "Beginner",
+        // orbit: "Orbit IV · Foundations",
+        // trend: "up",
+        // trendDelta: 3,
+        // streakDays: 42,
+        // tasksSolved: 48,
+        // celestialRole: "Altair · Rising Star",
+        // badge: "Rising Pulsar",
+        // specialty: "Clean Code & Recursive Logic",
+    },
+    {
+        rank: 4,
+        name: "Omar Farouk",
+        // handle: "omar.algos",
+        st: 1940,
+        // track: "intermediate",
+        // trackLabel: "Intermediate",
+        // orbit: "Orbit III · Problem Solving",
+        // trend: "stable",
+        // streakDays: 28,
+        // tasksSolved: 44,
+        // celestialRole: "Capella · Orbit III",
+        // badge: "Core Pathfinder",
+        // specialty: "Tree Traversals & Flow",
+    },
+    {
+        rank: 5,
+        name: "Ziad Mahmoud",
+        // handle: "ziad.tech",
+        st: 1820,
+        // track: "beginner",
+        // trackLabel: "Beginner",
+        // orbit: "Orbit III · Foundations",
+        // trend: "up",
+        // trendDelta: 2,
+        // streakDays: 31,
+        // tasksSolved: 41,
+        // celestialRole: "Rigel · Orbit III",
+        // badge: "Constellation Runner",
+        // specialty: "Algorithmic Thinking",
+    },
+    {
+        rank: 6,
+        name: "Nour El-Din",
+        // handle: "nour.craft",
+        st: 1690,
+        // track: "beginner",
+        // trackLabel: "Beginner",
+        // orbit: "Orbit II · Foundations",
+        // trend: "up",
+        // trendDelta: 1,
+        // streakDays: 22,
+        // tasksSolved: 38,
+        // celestialRole: "Deneb · Orbit II",
+        // badge: "Ascending Node",
+        // specialty: "Data Structures & Flow",
+    },
+    {
+        rank: 7,
+        name: "Sara Mostafa",
+        // handle: "sara.systems",
+        st: 1580,
+        // track: "intermediate",
+        // trackLabel: "Intermediate",
+        // orbit: "Orbit II · Logic & Structures",
+        // trend: "stable",
+        // streakDays: 19,
+        // tasksSolved: 36,
+        // celestialRole: "Sirius · Orbit II",
+        // badge: "Logic Navigator",
+        // specialty: "State Machines & Arrays",
+    },
+    {
+        rank: 8,
+        name: "Ahmed Radi",
+        // handle: "ahmed.radi",
+        st: 1470,
+        // track: "beginner",
+        // trackLabel: "Beginner",
+        // orbit: "Orbit II · Foundations",
+        // trend: "up",
+        // trendDelta: 2,
+        // streakDays: 24,
+        // tasksSolved: 34,
+        // celestialRole: "Spica · Orbit II",
+        // badge: "Keystone Cadet",
+        // specialty: "Problem Decomposition",
+    },
 ];
+
+/**
+ * Top 3 cadets for compact views.
+ */
+export const TOP_STUDENTS: readonly TopStudent[] = RANKED_CADETS.slice(0, 3).map((c) => ({
+    rank: c.rank as 1 | 2 | 3,
+    name: c.name,
+    st: c.st,
+}));
 
 // --------------------------------------------------------------- Voices ---
 
