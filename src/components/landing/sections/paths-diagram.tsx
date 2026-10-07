@@ -96,7 +96,7 @@ export function PathsDiagram({ layout, selected, onSelect, className }: PathsDia
                             className={cn(
                                 "block rounded-2xl border px-4 py-3 transition-all duration-300 sm:px-6 sm:py-4",
                                 isSelected
-                                    ? "scale-105 border-gold-500 bg-gold-500/10 shadow-[var(--border-glow-gold)]"
+                                    ? "scale-105 border-gold-500 bg-card-background shadow-[var(--border-glow-gold)]"
                                     : "border-[color:var(--border-default)] bg-space-900/70 group-hover:border-gold-500/60"
                             )}
                         >
