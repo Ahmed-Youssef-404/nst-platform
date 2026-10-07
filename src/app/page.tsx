@@ -29,7 +29,7 @@ export default async function Home() {
   }
 
   if (user?.role === "super_admin") {
-    redirect("/super_admin");
+    redirect("/super-admin");
   }
 
   const stats = buildStats(await getLandingStats());
