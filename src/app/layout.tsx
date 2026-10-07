@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/theme-provider";
 import { RouteProgressBar } from "@/components/route-progress-bar";
 import { Toaster } from "@/components/ui/toast";
+import { BootGate } from "@/components/boot/boot-gate";
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
@@ -52,6 +53,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
+        <BootGate />
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
