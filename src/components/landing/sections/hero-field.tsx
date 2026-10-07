@@ -135,7 +135,7 @@ export function HeroField({ className }: { className?: string }) {
                     ? 1.0 + Math.random() * 1.0      // كان 2.2 + 1.2
                     : isGold
                         ? 0.7 + Math.random() * 0.8      // كان 1.5 + 1.0
-                        : 0.2 + depth * 1.1;
+                        : 0.2 + depth * 0.6;
 
                 return {
                     x: Math.random(),
