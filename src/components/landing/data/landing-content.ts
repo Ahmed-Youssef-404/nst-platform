@@ -477,10 +477,10 @@ export const SOCIAL_LINKS: readonly SocialLink[] = [
 
 export const NAV_LINKS = [
     { id: "philosophy", label: "Philosophy" },
-    { id: "method", label: "Method" },
+    { id: "principles", label: "Principles" },
     { id: "paths", label: "Paths" },
     { id: "ranking", label: "Ranking" },
-    { id: "contact", label: "Contact" },
+    { id: "feedback", label: "Feedback" },
 ] as const;
 
 export const FOOTER_COPY = {

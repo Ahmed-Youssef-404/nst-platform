@@ -21,7 +21,7 @@ const START = 0.08;
 /** The things NST wants every student to say, appearing one by one and forming the NST "N". */
 export function StudentVoices() {
     return (
-        <ScrollStage length={300}>
+        <ScrollStage id="voices" length={300}>
             <div className="mx-auto grid h-full max-w-6xl items-center gap-8 px-6 py-20 md:grid-cols-[1.2fr_0.8fr] md:gap-16">
                 <div>
                     <p className="font-technical text-xs font-medium tracking-[0.22em] text-gold-500 uppercase">

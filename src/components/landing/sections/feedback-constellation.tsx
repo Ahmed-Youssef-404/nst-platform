@@ -159,7 +159,7 @@ export function FeedbackConstellation() {
     }, []);
 
     return (
-        <section className="relative py-24 sm:py-32 overflow-hidden" aria-label="Student feedback">
+        <section id="feedback" className="relative py-24 sm:py-32 overflow-hidden scroll-mt-16" aria-label="Student feedback">
             {/* Ambient background glow behind the section */}
             <div className="pointer-events-none absolute inset-0 -z-10 flex items-center justify-center">
                 <div className="size-[42rem] rounded-full bg-gold-500/5 blur-[120px]" />
