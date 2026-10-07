@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { FOUNDATION_LAYERS } from "../data/landing-content";
 import { useInView } from "../hooks/use-in-view";
@@ -19,57 +18,123 @@ function slab(y: number) {
     return { top, left, right };
 }
 
-/** Isometric layers built bottom → top. Hover or focus a layer to lift it. */
-export function FoundationStack() {
-    const [hovered, setHovered] = useState<number | null>(null);
-    const { ref, inView } = useInView<HTMLDivElement>({ threshold: 0.35, once: true });
+interface FoundationStackProps {
+    /** Controlled active layer index (0-3), driven by scroll progression. */
+    activeLayer?: number;
+}
+
+/** Isometric layers built bottom → top: Fundamentals → Logic → Thinking → Projects, driven by scroll. */
+export function FoundationStack({ activeLayer = 0 }: FoundationStackProps) {
+    const { ref, inView } = useInView<HTMLDivElement>({ threshold: 0.2, once: true });
+    const active = Math.max(0, Math.min(FOUNDATION_LAYERS.length - 1, activeLayer));
 
     return (
-        <div ref={ref} className="grid items-center gap-6 sm:grid-cols-[1fr_auto]">
-            <svg viewBox="0 0 320 300" className="mx-auto h-auto w-full max-w-xs overflow-visible" role="img" aria-label="Four stacked layers: fundamentals, logic, thinking, projects">
+        <div ref={ref} className="grid items-center gap-8 sm:grid-cols-[1fr_auto]">
+            {/* Isometric 3D Layer Slabs */}
+            <svg
+                viewBox="0 0 320 300"
+                className="mx-auto h-auto w-full max-w-xs overflow-visible"
+                role="img"
+                aria-label="Four stacked layers: fundamentals, logic, thinking, projects"
+            >
                 {FOUNDATION_LAYERS.map((layer, i) => {
                     const { top, left, right } = slab(BASE_Y - i * PITCH);
                     const tint = 12 + i * 20;
-                    const lifted = hovered === i;
+                    const lifted = active === i;
+
                     return (
                         <g
                             key={layer.id}
                             style={{
-                                transform: `translateY(${!inView ? -40 : lifted ? -10 : 0}px)`,
+                                transform: `translateY(${!inView ? -40 : lifted ? -14 : 0}px)`,
                                 opacity: inView ? 1 : 0,
-                                transition: `transform 600ms var(--ease-spring, ease) ${inView ? i * 140 : 0}ms, opacity 500ms ${i * 140}ms`,
+                                transition: "transform 450ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 500ms",
+                                filter: lifted ? "drop-shadow(0 6px 16px rgba(var(--nl-gold-rgb) / 0.35))" : "none",
                             }}
                         >
-                            <polygon points={left} fill={`color-mix(in oklab, var(--space-800), var(--gold-700) ${tint}%)`} stroke="var(--gold-500)" strokeOpacity={lifted ? 0.9 : 0.35} />
-                            <polygon points={right} fill={`color-mix(in oklab, var(--space-850), var(--gold-800) ${tint}%)`} stroke="var(--gold-500)" strokeOpacity={lifted ? 0.9 : 0.35} />
-                            <polygon points={top} fill={`color-mix(in oklab, var(--space-750), var(--gold-500) ${tint}%)`} stroke="var(--gold-500)" strokeOpacity={lifted ? 1 : 0.5} />
+                            {/* Left facet */}
+                            <polygon
+                                points={left}
+                                fill={`color-mix(in oklab, var(--space-800), var(--gold-700) ${lifted ? tint + 25 : tint}%)`}
+                                stroke="var(--gold-500)"
+                                strokeOpacity={lifted ? 0.95 : 0.35}
+                                strokeWidth={lifted ? 1.5 : 1}
+                                style={{ transition: "all 350ms" }}
+                            />
+                            {/* Right facet */}
+                            <polygon
+                                points={right}
+                                fill={`color-mix(in oklab, var(--space-850), var(--gold-800) ${lifted ? tint + 25 : tint}%)`}
+                                stroke="var(--gold-500)"
+                                strokeOpacity={lifted ? 0.95 : 0.35}
+                                strokeWidth={lifted ? 1.5 : 1}
+                                style={{ transition: "all 350ms" }}
+                            />
+                            {/* Top face */}
+                            <polygon
+                                points={top}
+                                fill={
+                                    lifted
+                                        ? "color-mix(in oklab, var(--gold-500), var(--gold-400) 45%)"
+                                        : `color-mix(in oklab, var(--space-750), var(--gold-500) ${tint}%)`
+                                }
+                                stroke="var(--gold-500)"
+                                strokeOpacity={lifted ? 1 : 0.45}
+                                strokeWidth={lifted ? 2 : 1}
+                                style={{ transition: "all 350ms" }}
+                            />
                         </g>
                     );
                 })}
             </svg>
 
-            <ul className="flex flex-col-reverse gap-2">
-                {FOUNDATION_LAYERS.map((layer, i) => (
-                    <li key={layer.id}>
-                        <button
-                            type="button"
-                            onPointerEnter={() => setHovered(i)}
-                            onPointerLeave={() => setHovered(null)}
-                            onFocus={() => setHovered(i)}
-                            onBlur={() => setHovered(null)}
-                            className={cn(
-                                "w-full rounded-lg border border-transparent px-3 py-2 text-left transition-colors outline-none focus-visible:border-gold-500",
-                                hovered === i && "bg-gold-500/10"
-                            )}
-                        >
-                            <span className="font-technical text-[0.68rem] tracking-[0.2em] text-gold-500 uppercase">
-                                {String(i + 1).padStart(2, "0")}
-                            </span>
-                            <span className="block font-heading text-base font-bold text-starlight-100">{layer.label}</span>
-                            <span className="block text-sm text-starlight-300">{layer.line}</span>
-                        </button>
-                    </li>
-                ))}
+            {/* Layer Details List (Stacked bottom to top) */}
+            <ul className="flex flex-col-reverse gap-2.5">
+                {FOUNDATION_LAYERS.map((layer, i) => {
+                    const isActive = active === i;
+                    return (
+                        <li key={layer.id}>
+                            <div
+                                className={cn(
+                                    "w-full rounded-xl border px-4 py-2.5 text-left transition-all duration-300",
+                                    isActive
+                                        ? "border-gold-500/80 bg-gold-500/15 shadow-[var(--border-glow-gold)] translate-x-1.5"
+                                        : "border-transparent bg-transparent opacity-50"
+                                )}
+                            >
+                                <div className="flex items-center gap-2">
+                                    <span
+                                        className={cn(
+                                            "font-technical text-[0.68rem] tracking-[0.2em] uppercase transition-colors",
+                                            isActive ? "text-gold-400 font-bold" : "text-starlight-400"
+                                        )}
+                                    >
+                                        {String(i + 1).padStart(2, "0")}
+                                    </span>
+                                    {isActive && (
+                                        <span className="size-1.5 rounded-full bg-gold-500 shadow-[0_0_6px_var(--gold-500)] animate-pulse" />
+                                    )}
+                                </div>
+                                <span
+                                    className={cn(
+                                        "block font-heading text-base font-bold transition-colors",
+                                        isActive ? "text-gold-300" : "text-starlight-100"
+                                    )}
+                                >
+                                    {layer.label}
+                                </span>
+                                <span
+                                    className={cn(
+                                        "block text-sm transition-colors",
+                                        isActive ? "text-starlight-200" : "text-starlight-400"
+                                    )}
+                                >
+                                    {layer.line}
+                                </span>
+                            </div>
+                        </li>
+                    );
+                })}
             </ul>
         </div>
     );
