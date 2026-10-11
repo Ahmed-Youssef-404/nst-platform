@@ -51,9 +51,10 @@ export function ProfilePreferencesSection() {
         setIsLoggingOut(true);
         try {
             await logoutAction();
-        } catch {
-            // Next.js redirect naturally redirects; reset only if failed before navigation
-            setIsLoggingOut(false);
+        } catch (err) {
+            console.error("Logout error:", err);
+        } finally {
+            window.location.href = "/";
         }
     };
 
