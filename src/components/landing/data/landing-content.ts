@@ -13,7 +13,7 @@ export interface LandingStat {
     id: string;
     label: string;
     value: number;
-    /** Prefix shown before the number, e.g. "+" for rounded/approximate figures. */
+    /** Prefix displayed before the number, e.g. "+" */
     prefix?: string;
 }
 
@@ -24,28 +24,38 @@ export interface LandingLiveCounts {
     submissions: number;
 }
 
-/** Number of learning paths NST runs (Beginner + Intermediate). */
-const LEARNING_PATH_COUNT = 2;
 
 /**
- * Builds the hero statistics. Live counts are used when available; otherwise
- * only the figures that were already published on the previous landing page
- * are shown, so nothing is ever invented.
+ * All landing hero statistics are hard-coded.
+ * No API, database, or external data source is used.
  */
-export function buildStats(live: LandingLiveCounts | null): LandingStat[] {
-    if (!live) {
-        return [
-            { id: "students", label: "Students", value: 30, prefix: "+" },
-            { id: "paths", label: "Learning paths", value: LEARNING_PATH_COUNT },
-        ];
+
+export const HERO_STATS: LandingStat[] = [
+    {
+        id: "students",
+        label: "Students",
+        value: 30,
+        prefix: "+",
+    },
+    {
+        id: "paths",
+        label: "Batches",
+        value: 2,
+        prefix: "+",
+    },
+    {
+        id: "problems",
+        label: "Solved Problems",
+        value: 122,
+        prefix: "+",
     }
-    return [
-        { id: "students", label: "Students", value: live.students },
-        { id: "paths", label: "Learning paths", value: LEARNING_PATH_COUNT },
-        { id: "tasks", label: "Challenges", value: live.tasks },
-        { id: "submissions", label: "Tasks submitted", value: live.submissions },
-    ];
+];
+
+/** Returns the fixed hero statistics. */
+export function buildStats(): LandingStat[] {
+    return HERO_STATS.map((stat) => ({ ...stat }));
 }
+
 
 // ---------------------------------------------------------------- Hero ----
 
@@ -403,7 +413,7 @@ export interface FeedbackItem {
     id: string;
     quote: string;
     author: string;
-    context: string;
+    // context: string;
 }
 
 export const FEEDBACK_COPY = {
@@ -420,31 +430,31 @@ export const FEEDBACK_ITEMS: readonly FeedbackItem[] = [
         id: "f1",
         quote: "I stopped asking which language to learn and started asking how to solve things.",
         author: "NST student",
-        context: "Previous batch",
+        // context: "Previous batch",
     },
     {
         id: "f2",
         quote: "Someone actually followed my progress. That changed how seriously I took it.",
         author: "NST student",
-        context: "Previous batch",
+        // context: "Previous batch",
     },
     {
         id: "f3",
         quote: "The tasks felt hard at first. Then a new problem stopped feeling scary.",
         author: "NST student",
-        context: "Previous batch",
+        // context: "Previous batch",
     },
     {
         id: "f4",
         quote: "I finally knew what to learn next, and why.",
         author: "NST student",
-        context: "Previous batch",
+        // context: "Previous batch",
     },
     {
         id: "f5",
         quote: "The community made it feel like a team, not a course.",
         author: "NST student",
-        context: "Previous batch",
+        // context: "Previous batch",
     },
 ];
 

@@ -2,7 +2,7 @@
 import "./landing.css";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
-import { getLandingStats } from "@/lib/data/get-landing-stats";
+// import { getLandingStats } from "@/lib/data/get-landing-stats";
 import { buildStats } from "@/components/landing/data/landing-content";
 import { JourneyBackdrop } from "@/components/landing/primitives/journey-backdrop";
 import { Navbar } from "@/components/landing/navbar";
@@ -32,7 +32,7 @@ export default async function Home() {
     redirect("/super-admin");
   }
 
-  const stats = buildStats(await getLandingStats());
+  const stats = buildStats();
 
   return (
     <div className="nst-landing relative flex min-h-full flex-1 flex-col">

@@ -284,7 +284,7 @@ export function FeedbackConstellation() {
 
                                     {/* Footer: Author / Context */}
                                     <div className="mt-4 flex items-center justify-between border-t border-[color:var(--border-default)]/60 pt-2.5">
-                                        <span className="font-technical text-[0.68rem] tracking-wider text-starlight-400 uppercase">
+                                        {/* <span className="font-technical text-[0.68rem] tracking-wider text-starlight-400 uppercase">
                                             {item.context}
                                         </span>
                                         {isHovered && (
@@ -292,7 +292,7 @@ export function FeedbackConstellation() {
                                                 <Sparkles className="size-3" />
                                                 Verified
                                             </span>
-                                        )}
+                                        )} */}
                                     </div>
                                 </div>
                             </div>
@@ -323,10 +323,10 @@ export function FeedbackConstellation() {
                                     "{item.quote}"
                                 </p>
                                 <div className="mt-4 flex items-center justify-between border-t border-[color:var(--border-default)]/60 pt-2.5">
-                                    <span className="font-technical text-[0.68rem] tracking-wider text-starlight-400 uppercase">
+                                    {/* <span className="font-technical text-[0.68rem] tracking-wider text-starlight-400 uppercase">
                                         {item.context}
-                                    </span>
-                                    <span className="font-technical text-[0.65rem] text-gold-400">0{i + 1} / 05</span>
+                                    </span> */}
+                                    <span className="font-technical text-[0.65rem] text-gold-400">0{i + 1} / {FEEDBACK_ITEMS.length}</span>
                                 </div>
                             </div>
                         ))}
