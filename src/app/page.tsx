@@ -38,7 +38,7 @@ export default async function Home() {
     <div className="nst-landing relative flex min-h-full flex-1 flex-col">
       <JourneyBackdrop />
       <Navbar />
-      <main className="relative z-10 flex-1">
+      <main className="relative z-10 flex-1 selection:bg-gold-500/25 selection:text-gold-300">
         <Hero stats={stats} />
         <Philosophy />
         <MindsetPipeline />
