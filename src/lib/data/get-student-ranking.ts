@@ -24,6 +24,7 @@
 
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import type { StudentAvatarConfig } from "@/types/avatar";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -34,6 +35,7 @@ export interface RankedStudentByLevel {
     levelSt: number;
     rank: number; // dense rank, 1-based
     isCurrentStudent: boolean;
+    avatarConfig: StudentAvatarConfig | null;
 }
 
 export interface RankedStudentByAvg {
@@ -42,6 +44,7 @@ export interface RankedStudentByAvg {
     avgSt: number;
     rank: number; // dense rank, 1-based
     isCurrentStudent: boolean;
+    avatarConfig: StudentAvatarConfig | null;
 }
 
 export interface LevelRankingTab {
@@ -103,7 +106,13 @@ export async function getStudentRanking(
                             levelStBalances: {
                                 select: {
                                     balance: true,
-                                    student: { select: { id: true, name: true } },
+                                    student: {
+                                        select: {
+                                            id: true,
+                                            name: true,
+                                            avatarConfig: true,
+                                        },
+                                    },
                                 },
                             },
                         },
@@ -128,6 +137,7 @@ export async function getStudentRanking(
             levelSt: item.balance,
             rank,
             isCurrentStudent: item.student.id === studentId,
+            avatarConfig: (item.student.avatarConfig as unknown as StudentAvatarConfig) ?? null,
         }));
 
         const currentStudentRank =
@@ -146,7 +156,12 @@ export async function getStudentRanking(
     // --- Overall (avgSt) tab ---
     const groupmates = await prisma.student.findMany({
         where: { groupId: student.groupId },
-        select: { id: true, name: true, avgSt: true },
+        select: {
+            id: true,
+            name: true,
+            avgSt: true,
+            avatarConfig: true,
+        },
     });
 
     const rankedOverall = denseRank(groupmates, (s) => s.avgSt);
@@ -158,6 +173,7 @@ export async function getStudentRanking(
             avgSt: item.avgSt,
             rank,
             isCurrentStudent: item.id === studentId,
+            avatarConfig: (item.avatarConfig as unknown as StudentAvatarConfig) ?? null,
         })
     );
 

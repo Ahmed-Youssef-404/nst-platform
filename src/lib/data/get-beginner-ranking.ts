@@ -18,6 +18,7 @@
 
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import type { StudentAvatarConfig } from "@/types/avatar";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -28,6 +29,7 @@ export interface RankedBeginnerStudent {
     beginnerSt: number;
     rank: number; // dense rank, 1-based
     isCurrentStudent: boolean;
+    avatarConfig: StudentAvatarConfig | null;
 }
 
 export interface BeginnerStudentRankingView {
@@ -68,7 +70,12 @@ export async function getBeginnerStudentRanking(
 
     const groupmates = await prisma.student.findMany({
         where: { groupId: student.groupId },
-        select: { id: true, name: true, beginnerSt: true },
+        select: {
+            id: true,
+            name: true,
+            beginnerSt: true,
+            avatarConfig: true,
+        },
     });
 
     // beginnerSt is nullable in the schema (null for INTERMEDIATE
@@ -83,6 +90,7 @@ export async function getBeginnerStudentRanking(
         beginnerSt: item.beginnerSt ?? 0,
         rank,
         isCurrentStudent: item.id === studentId,
+        avatarConfig: (item.avatarConfig as unknown as StudentAvatarConfig) ?? null,
     }));
 
     const currentStudentRank =

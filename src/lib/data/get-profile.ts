@@ -101,6 +101,7 @@ export async function getStudentProfileData(
             createdAt: true,
             avgSt: true,
             beginnerSt: true,
+            avatarConfig: true,
             group: {
                 select: {
                     name: true,
@@ -154,5 +155,6 @@ export async function getStudentProfileData(
         ongoingWeek: isBeginner ? (student.group.weeks[0] ?? null) : null,
         // Same fallback getStudentBalance() uses for a BEGINNER student
         beginnerSt: student.beginnerSt ?? 0,
+        avatarConfig: (student.avatarConfig as unknown as StudentProfileData["avatarConfig"]) ?? null,
     };
 }

@@ -4,6 +4,8 @@
 
 import type { LucideIcon } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { StudentAvatar } from "@/components/avatar/student-avatar";
+import type { StudentAvatarConfig } from "@/types/avatar";
 import { getInitials } from "@/lib/profile/initials";
 
 export interface ProfileChip {
@@ -20,6 +22,8 @@ export function ProfileHeader({
     description,
     initialsFallback,
     chips = [],
+    avatarConfig,
+    action,
 }: {
     name: string;
     roleLabel: string;
@@ -27,6 +31,8 @@ export function ProfileHeader({
     description: string;
     initialsFallback: string;
     chips?: ProfileChip[];
+    avatarConfig?: StudentAvatarConfig | null;
+    action?: React.ReactNode;
 }) {
     return (
         <header className="relative overflow-hidden rounded-2xl border border-gold-500/25 bg-card p-6 shadow-md dark:bg-space-900/80 md:p-8">
@@ -36,17 +42,29 @@ export function ProfileHeader({
             />
 
             <div className="relative flex flex-col items-start gap-5 sm:flex-row sm:items-center">
-                <Avatar className="size-20 shrink-0 border border-gold-500/35 bg-gold-500/10 ring-4 ring-gold-500/10 sm:size-24">
-                    <AvatarFallback className="bg-gold-500/10 font-display text-2xl font-bold text-gold-700 dark:bg-space-850 dark:text-gold-300 sm:text-3xl">
-                        {getInitials(name, initialsFallback)}
-                    </AvatarFallback>
-                </Avatar>
+                {avatarConfig !== undefined ? (
+                    <StudentAvatar
+                        avatarConfig={avatarConfig}
+                        name={name}
+                        fallbackInitials={initialsFallback}
+                        className="size-20 shrink-0 sm:size-24 border-2 border-gold-500/40 ring-4 ring-gold-500/15 shadow-gold"
+                    />
+                ) : (
+                    <Avatar className="size-20 shrink-0 border border-gold-500/35 bg-gold-500/10 ring-4 ring-gold-500/10 sm:size-24">
+                        <AvatarFallback className="bg-gold-500/10 font-display text-2xl font-bold text-gold-700 dark:bg-space-850 dark:text-gold-300 sm:text-3xl">
+                            {getInitials(name, initialsFallback)}
+                        </AvatarFallback>
+                    </Avatar>
+                )}
 
                 <div className="min-w-0 flex-1 space-y-2">
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-gold-500/25 bg-gold-500/10 px-2.5 py-0.5 text-xs font-semibold text-gold-700 dark:text-gold-400">
-                        <RoleIcon className="size-3" aria-hidden="true" />
-                        {roleLabel}
-                    </span>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-gold-500/25 bg-gold-500/10 px-2.5 py-0.5 text-xs font-semibold text-gold-700 dark:text-gold-400">
+                            <RoleIcon className="size-3" aria-hidden="true" />
+                            {roleLabel}
+                        </span>
+                        {action && <div className="shrink-0">{action}</div>}
+                    </div>
 
                     <h1 className="break-words font-display text-2xl font-bold tracking-tight text-starlight-100 sm:text-3xl">
                         {name}

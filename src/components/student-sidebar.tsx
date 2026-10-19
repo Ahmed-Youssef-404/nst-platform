@@ -28,10 +28,8 @@ import {
     SidebarMenuSubItem,
     SidebarTrigger,
 } from "@/components/ui/sidebar";
-import {
-    Avatar,
-    AvatarFallback,
-} from "@/components/ui/avatar";
+import { StudentAvatar } from "@/components/avatar/student-avatar";
+import type { StudentAvatarConfig } from "@/types/avatar";
 
 function getStudentSubLinks(itemHref: string, pathname: string) {
     const cleanPath = pathname.split("?")[0].split("#")[0];
@@ -98,9 +96,11 @@ function getStudentSubLinks(itemHref: string, pathname: string) {
 export function StudentSidebar({
     studentName,
     groupType = "INTERMEDIATE",
+    avatarConfig,
 }: {
     studentName: string;
     groupType?: "BEGINNER" | "INTERMEDIATE";
+    avatarConfig?: StudentAvatarConfig | null;
 }) {
     const pathname = usePathname();
     const isProfileActive = pathname === "/student/profile";
@@ -143,13 +143,6 @@ export function StudentSidebar({
             description: "Share your voice with team",
         },
     ];
-
-    const initials = studentName
-        .trim()
-        .split(/\s+/)
-        .slice(0, 2)
-        .map((part) => part[0]?.toUpperCase())
-        .join("") || "ST";
 
     return (
         <Sidebar
@@ -288,11 +281,12 @@ export function StudentSidebar({
                             : "hover:bg-space-850 text-starlight-300 hover:text-starlight-100"
                     }`}
                 >
-                    <Avatar size="sm" className="shrink-0 border border-gold-500/30 bg-gold-500/10 text-gold-600 dark:text-gold-400 ring-1 ring-gold-500/20">
-                        <AvatarFallback className="font-bold text-xs text-gold-700 dark:text-gold-400 bg-gold-500/10 dark:bg-space-850">
-                            {initials}
-                        </AvatarFallback>
-                    </Avatar>
+                    <StudentAvatar
+                        avatarConfig={avatarConfig}
+                        name={studentName}
+                        size="sm"
+                        className="shrink-0 border border-gold-500/30 bg-gold-500/10 text-gold-600 dark:text-gold-400 ring-1 ring-gold-500/20"
+                    />
 
                     <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden text-left">
                         <p className="truncate text-xs font-semibold text-starlight-100">

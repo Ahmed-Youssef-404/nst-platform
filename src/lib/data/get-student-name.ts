@@ -6,6 +6,7 @@
 
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import type { StudentAvatarConfig } from "@/types/avatar";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -13,6 +14,7 @@ const prisma = new PrismaClient({ adapter });
 export interface StudentProfile {
     name: string;
     groupType: "BEGINNER" | "INTERMEDIATE";
+    avatarConfig: StudentAvatarConfig | null;
 }
 
 export async function getStudentProfile(studentId: string): Promise<StudentProfile> {
@@ -20,6 +22,7 @@ export async function getStudentProfile(studentId: string): Promise<StudentProfi
         where: { id: studentId },
         select: {
             name: true,
+            avatarConfig: true,
             group: {
                 select: {
                     type: true,
@@ -31,6 +34,7 @@ export async function getStudentProfile(studentId: string): Promise<StudentProfi
     return {
         name: student.name,
         groupType: student.group.type,
+        avatarConfig: (student.avatarConfig as unknown as StudentAvatarConfig) ?? null,
     };
 }
 

@@ -32,6 +32,7 @@ import { ShortcutList, type Shortcut } from "@/components/profile/shortcut-list"
 import { StudentSecurityNotice } from "@/components/profile/student-security-notice";
 import { ProfilePreferencesSection } from "@/components/profile/profile-preferences-section";
 import { ProfileUnavailable } from "@/components/profile/profile-unavailable";
+import { StudentAvatarSection } from "@/components/profile/student-avatar-section";
 
 export const metadata: Metadata = { title: "My Profile — NST Platform" };
 
@@ -88,10 +89,16 @@ export default async function StudentProfilePage() {
                 roleIcon={Sparkles}
                 initialsFallback="ST"
                 description="Your place in the NST learning journey."
+                avatarConfig={profile.avatarConfig}
                 chips={[
                     { icon: Hash, label: "Student code", value: profile.studentCode, mono: true },
                     { icon: Mail, label: "Email", value: profile.email },
                 ]}
+            />
+
+            <StudentAvatarSection
+                initialConfig={profile.avatarConfig}
+                studentName={profile.name}
             />
 
             <ProfileSection

@@ -5,21 +5,10 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Crown, Trophy, Sparkles, Medal, Award, Flame, User } from "lucide-react";
+import { Crown, Trophy, Sparkles } from "lucide-react";
 import confetti from "canvas-confetti";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { StudentAvatar } from "@/components/avatar/student-avatar";
 import type { BeginnerStudentRankingView } from "@/lib/data/get-beginner-ranking";
-
-function getInitials(name: string): string {
-    return (
-        name
-            .trim()
-            .split(/\s+/)
-            .slice(0, 2)
-            .map((part) => part[0]?.toUpperCase())
-            .join("") || "S"
-    );
-}
 
 // Visual left-to-right order on the podium: 2nd (left), 1st (center), 3rd (right)
 const PODIUM_DISPLAY_ORDER = [2, 1, 3] as const;
@@ -237,23 +226,17 @@ function BeginnerPodiumSpot({
 
             {/* Avatar */}
             <div className="relative mb-2">
-                <Avatar
+                <StudentAvatar
+                    avatarConfig={student.avatarConfig}
+                    name={student.name}
                     className={`
                         ${config.avatarSize === "lg" ? "size-16 sm:size-20" : "size-12 sm:size-14"}
                         border-2 border-space-900 bg-space-850 ${config.ringClassName}
                     `}
-                >
-                    <AvatarFallback
-                        className={`font-display font-bold ${
-                            config.avatarSize === "lg" ? "text-base sm:text-lg" : "text-xs sm:text-sm"
-                        } text-starlight-100 bg-space-800`}
-                    >
-                        {getInitials(student.name)}
-                    </AvatarFallback>
-                </Avatar>
+                />
 
                 {isCurrentStudent && (
-                    <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full bg-gold-500 px-1.5 py-0.2 text-[9px] font-bold text-space-950 uppercase tracking-wider">
+                    <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full bg-gold-500 px-1.5 py-0.2 text-[9px] font-bold text-space-950 uppercase tracking-wider z-10">
                         You
                     </span>
                 )}
@@ -323,11 +306,12 @@ function BeginnerRankingRow({
                     #{student.rank}
                 </span>
 
-                <Avatar className="size-8 bg-space-800 border border-border/60 shrink-0">
-                    <AvatarFallback className="text-[11px] font-bold text-starlight-200 bg-space-850">
-                        {getInitials(student.name)}
-                    </AvatarFallback>
-                </Avatar>
+                <StudentAvatar
+                    avatarConfig={student.avatarConfig}
+                    name={student.name}
+                    size="sm"
+                    className="size-8 bg-space-800 border border-border/60 shrink-0"
+                />
 
                 <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
