@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export function ProfileSkeleton() {
     return (
         <div
-            className="mx-auto max-w-4xl space-y-6 animate-fade-in"
+            className="mx-auto max-w-7xl space-y-6 animate-fade-in"
             aria-busy="true"
             aria-label="Loading profile"
         >

@@ -28,6 +28,8 @@ export const ALLOWED_HAIR_COLORS = [
 export type HairColor = (typeof ALLOWED_HAIR_COLORS)[number];
 
 export const ALLOWED_TOPS = [
+    // Bald / Minimal
+    "none",
     // Clean & Short
     "shortRound",
     "shortFlat",
@@ -56,6 +58,7 @@ export const ALLOWED_TOPS = [
     "straight02",
     "straightAndStrand",
     "bigHair",
+    "frida",
     // Headwear & Wraps
     "hat",
     "hijab",
@@ -79,6 +82,21 @@ export const ALLOWED_CLOTHING = [
     "overall",
 ] as const;
 export type Clothing = (typeof ALLOWED_CLOTHING)[number];
+
+export const ALLOWED_CLOTHING_GRAPHICS = [
+    "none",
+    "bat",
+    "bear",
+    "cumbia",
+    "deer",
+    "diamond",
+    "hola",
+    "pizza",
+    "resist",
+    "skull",
+    "skullOutline",
+] as const;
+export type ClothingGraphic = (typeof ALLOWED_CLOTHING_GRAPHICS)[number];
 
 export const ALLOWED_CLOTHES_COLORS = [
     "262e33",
@@ -189,18 +207,20 @@ export const ALLOWED_FACIAL_HAIR = [
 export type FacialHair = (typeof ALLOWED_FACIAL_HAIR)[number];
 
 export interface StudentAvatarConfig {
-    skinColor: SkinColor;
-    hairColor: HairColor;
+    skinColor: string;
+    hairColor: string;
     top: Top;
+    hatColor?: string;
     clothing: Clothing;
-    clothesColor: ClothesColor;
+    clothesColor: string;
+    clothingGraphic?: ClothingGraphic;
     eyes: Eyes;
     eyebrows: Eyebrows;
     mouth: Mouth;
     accessories: Accessory;
-    accessoriesColor: AccessoriesColor;
+    accessoriesColor: string;
     facialHair: FacialHair;
-    facialHairColor: HairColor;
+    facialHairColor: string;
 }
 
 // Clean, gender-neutral default cadet avatar
@@ -208,8 +228,10 @@ export const DEFAULT_AVATAR_CONFIG: StudentAvatarConfig = {
     skinColor: "edb98a",
     hairColor: "2c1b18",
     top: "shortRound",
+    hatColor: "262e33",
     clothing: "hoodie",
     clothesColor: "262e33",
+    clothingGraphic: "none",
     eyes: "default",
     eyebrows: "defaultNatural",
     mouth: "smile",
@@ -221,6 +243,26 @@ export const DEFAULT_AVATAR_CONFIG: StudentAvatarConfig = {
 
 export function isValidValue<T extends string>(value: unknown, allowedList: readonly T[]): value is T {
     return typeof value === "string" && allowedList.includes(value as T);
+}
+
+/**
+ * Normalizes a hex color string:
+ * - Strips leading '#'
+ * - Converts to lower-case
+ * - Validates 6-character hex format
+ * Returns normalized string or null if invalid.
+ */
+export function normalizeHexColor(input: unknown): string | null {
+    if (typeof input !== "string") return null;
+    const clean = input.trim().replace(/^#/, "").toLowerCase();
+    return /^[0-9a-f]{6}$/.test(clean) ? clean : null;
+}
+
+export function isValidColor(value: unknown, allowedPresets: readonly string[]): boolean {
+    if (typeof value !== "string") return false;
+    const normalized = normalizeHexColor(value);
+    if (!normalized) return false;
+    return allowedPresets.includes(normalized) || /^[0-9a-f]{6}$/.test(normalized);
 }
 
 export function validateAvatarConfig(input: unknown): {
@@ -236,59 +278,94 @@ export function validateAvatarConfig(input: unknown): {
 
     const obj = input as Record<string, unknown>;
 
-    // Validate each required field against its allowlist
-    if (!isValidValue(obj.skinColor, ALLOWED_SKIN_COLORS)) {
+    // Validate skinColor (preset or valid 6-character hex)
+    const normalizedSkin = normalizeHexColor(obj.skinColor);
+    if (!normalizedSkin) {
         return { valid: false, error: "Invalid skin color." };
     }
-    if (!isValidValue(obj.hairColor, ALLOWED_HAIR_COLORS)) {
+
+    // Validate hairColor (preset or valid 6-character hex)
+    const normalizedHair = normalizeHexColor(obj.hairColor);
+    if (!normalizedHair) {
         return { valid: false, error: "Invalid hair color." };
     }
+
+    // Validate top
     if (!isValidValue(obj.top, ALLOWED_TOPS)) {
         return { valid: false, error: "Invalid hairstyle." };
     }
+
+    // Validate clothing
     if (!isValidValue(obj.clothing, ALLOWED_CLOTHING)) {
         return { valid: false, error: "Invalid clothing style." };
     }
-    if (!isValidValue(obj.clothesColor, ALLOWED_CLOTHES_COLORS)) {
+
+    // Validate clothesColor (preset or valid 6-character hex)
+    const normalizedClothesColor = normalizeHexColor(obj.clothesColor);
+    if (!normalizedClothesColor) {
         return { valid: false, error: "Invalid clothing color." };
     }
+
+    // Validate eyes
     if (!isValidValue(obj.eyes, ALLOWED_EYES)) {
         return { valid: false, error: "Invalid eye shape." };
     }
+
+    // Validate eyebrows
     if (!isValidValue(obj.eyebrows, ALLOWED_EYEBROWS)) {
         return { valid: false, error: "Invalid eyebrow shape." };
     }
+
+    // Validate mouth
     if (!isValidValue(obj.mouth, ALLOWED_MOUTH)) {
         return { valid: false, error: "Invalid mouth expression." };
     }
+
+    // Validate accessories
     if (!isValidValue(obj.accessories, ALLOWED_ACCESSORIES)) {
         return { valid: false, error: "Invalid accessories option." };
     }
-    if (!isValidValue(obj.accessoriesColor, ALLOWED_ACCESSORIES_COLORS)) {
+
+    // Validate accessoriesColor (preset or valid 6-character hex)
+    const normalizedAccessoriesColor = normalizeHexColor(obj.accessoriesColor);
+    if (!normalizedAccessoriesColor) {
         return { valid: false, error: "Invalid accessories color." };
     }
+
+    // Validate facialHair
     if (!isValidValue(obj.facialHair, ALLOWED_FACIAL_HAIR)) {
         return { valid: false, error: "Invalid facial hair option." };
     }
-    if (!isValidValue(obj.facialHairColor, ALLOWED_HAIR_COLORS)) {
+
+    // Validate facialHairColor (preset or valid 6-character hex)
+    const normalizedFacialHairColor = normalizeHexColor(obj.facialHairColor);
+    if (!normalizedFacialHairColor) {
         return { valid: false, error: "Invalid facial hair color." };
     }
+
+    // Optional / backward-compatible fields:
+    const normalizedHatColor = obj.hatColor ? normalizeHexColor(obj.hatColor) ?? "262e33" : "262e33";
+    const validatedGraphic: ClothingGraphic = isValidValue(obj.clothingGraphic, ALLOWED_CLOTHING_GRAPHICS)
+        ? obj.clothingGraphic
+        : "none";
 
     return {
         valid: true,
         config: {
-            skinColor: obj.skinColor,
-            hairColor: obj.hairColor,
+            skinColor: normalizedSkin,
+            hairColor: normalizedHair,
             top: obj.top,
+            hatColor: normalizedHatColor,
             clothing: obj.clothing,
-            clothesColor: obj.clothesColor,
+            clothesColor: normalizedClothesColor,
+            clothingGraphic: validatedGraphic,
             eyes: obj.eyes,
             eyebrows: obj.eyebrows,
             mouth: obj.mouth,
             accessories: obj.accessories,
-            accessoriesColor: obj.accessoriesColor,
+            accessoriesColor: normalizedAccessoriesColor,
             facialHair: obj.facialHair,
-            facialHairColor: obj.facialHairColor,
+            facialHairColor: normalizedFacialHairColor,
         },
     };
 }

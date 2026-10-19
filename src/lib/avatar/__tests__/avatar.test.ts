@@ -1,14 +1,16 @@
 // src/lib/avatar/__tests__/avatar.test.ts
-// Automated test suite for the Core Student Avatar System.
+// Automated test suite for the Core Student Avatar System & Customization Expansion.
 
 import assert from "node:assert";
 import {
     validateAvatarConfig,
+    normalizeHexColor,
     DEFAULT_AVATAR_CONFIG,
     ALLOWED_SKIN_COLORS,
     ALLOWED_HAIR_COLORS,
     ALLOWED_TOPS,
     ALLOWED_CLOTHING,
+    ALLOWED_CLOTHING_GRAPHICS,
     ALLOWED_CLOTHES_COLORS,
     ALLOWED_EYES,
     ALLOWED_EYEBROWS,
@@ -23,6 +25,16 @@ import {
     generateAvatarDataUri,
     resolveAvatarConfig,
 } from "@/lib/avatar/generate";
+import {
+    getTopThumbnail,
+    getEyesThumbnail,
+    getEyebrowsThumbnail,
+    getMouthThumbnail,
+    getClothingThumbnail,
+    getGraphicThumbnail,
+    getAccessoryThumbnail,
+    getFacialHairThumbnail,
+} from "@/lib/avatar/thumbnails";
 
 console.log("🚀 Starting Avatar System Test Suite...\n");
 
@@ -72,6 +84,10 @@ for (const top of ALLOWED_TOPS) {
 for (const clothing of ALLOWED_CLOTHING) {
     const res = validateAvatarConfig({ ...DEFAULT_AVATAR_CONFIG, clothing });
     assert.strictEqual(res.valid, true, `Clothing ${clothing} must be valid`);
+}
+for (const graphic of ALLOWED_CLOTHING_GRAPHICS) {
+    const res = validateAvatarConfig({ ...DEFAULT_AVATAR_CONFIG, clothingGraphic: graphic });
+    assert.strictEqual(res.valid, true, `Graphic ${graphic} must be valid`);
 }
 for (const clothesColor of ALLOWED_CLOTHES_COLORS) {
     const res = validateAvatarConfig({ ...DEFAULT_AVATAR_CONFIG, clothesColor });
@@ -127,13 +143,15 @@ assert.ok(uri1.startsWith("data:image/svg+xml;utf8,"), "Must be valid SVG Data U
 assert.strictEqual(uri1, uri2, "Data URI must be identical and cached");
 console.log("✔ Data URI generation and memoization verified.");
 
-// Test 8: Custom configuration generation
-console.log("Test 8: Testing custom configuration rendering...");
+// Test 8: Custom configuration rendering & custom hex colors
+console.log("Test 8: Testing custom configuration and custom hex colors...");
 const customConfig: StudentAvatarConfig = {
     skinColor: "614335",
     hairColor: "c93305",
     top: "dreads02",
-    clothing: "blazerAndShirt",
+    hatColor: "262e33",
+    clothing: "graphicShirt",
+    clothingGraphic: "diamond",
     clothesColor: "5199e4",
     eyes: "happy",
     eyebrows: "raisedExcitedNatural",
@@ -150,4 +168,58 @@ assert.ok(customUri.length > 500, "Custom Data URI generated");
 assert.notStrictEqual(customSvg, svg1, "Custom avatar must differ from default avatar");
 console.log("✔ Custom configurations render accurately and differ from default.");
 
-console.log("\n🎉 ALL AVATAR UNIT TESTS PASSED SUCCESSFULLY! (8/8)");
+// Test 9: Bald ("none") hairstyle rendering
+console.log("Test 9: Testing Clean Bald (none) hairstyle rendering...");
+const baldConfig: StudentAvatarConfig = {
+    ...DEFAULT_AVATAR_CONFIG,
+    top: "none",
+};
+const baldSvg = generateAvatarSvg(baldConfig);
+assert.ok(baldSvg.length > 500, "Bald avatar SVG generated");
+assert.notStrictEqual(baldSvg, svg1, "Bald avatar differs from shortRound hair");
+console.log("✔ Clean Bald hairstyle renders cleanly.");
+
+// Test 10: Custom Hex Color normalization and support
+console.log("Test 10: Testing Custom Hex Color normalization...");
+assert.strictEqual(normalizeHexColor("#FFAA00"), "ffaa00");
+assert.strictEqual(normalizeHexColor("123456"), "123456");
+assert.strictEqual(normalizeHexColor("#bad"), null);
+assert.strictEqual(normalizeHexColor("notahexcolor"), null);
+
+const hexColorConfig = {
+    ...DEFAULT_AVATAR_CONFIG,
+    hairColor: "#eab308", // Custom gold hex
+    clothesColor: "#06b6d4", // Custom cyan hex
+};
+const hexValidation = validateAvatarConfig(hexColorConfig);
+assert.strictEqual(hexValidation.valid, true);
+if (hexValidation.valid) {
+    assert.strictEqual(hexValidation.config.hairColor, "eab308");
+    assert.strictEqual(hexValidation.config.clothesColor, "06b6d4");
+}
+console.log("✔ Custom hex color values validated, normalized, and accepted.");
+
+// Test 11: Visual Thumbnail Generators
+console.log("Test 11: Testing visual thumbnail generators...");
+const topThumb = getTopThumbnail("theCaesar", "4a312c");
+const baldThumb = getTopThumbnail("none");
+const eyesThumb = getEyesThumbnail("wink");
+const eyebrowsThumb = getEyebrowsThumbnail("angryNatural");
+const mouthThumb = getMouthThumbnail("smile");
+const clothingThumb = getClothingThumbnail("hoodie", "262e33");
+const graphicThumb = getGraphicThumbnail("pizza");
+const accessoryThumb = getAccessoryThumbnail("sunglasses", "ffffb1");
+const facialHairThumb = getFacialHairThumbnail("beardMajestic", "2c1b18");
+
+assert.ok(topThumb.startsWith("data:image/svg+xml;utf8,"), "Top thumbnail is valid Data URI");
+assert.ok(baldThumb.startsWith("data:image/svg+xml;utf8,"), "Bald thumbnail is valid Data URI");
+assert.ok(eyesThumb.startsWith("data:image/svg+xml;utf8,"), "Eyes thumbnail is valid Data URI");
+assert.ok(eyebrowsThumb.startsWith("data:image/svg+xml;utf8,"), "Eyebrows thumbnail is valid Data URI");
+assert.ok(mouthThumb.startsWith("data:image/svg+xml;utf8,"), "Mouth thumbnail is valid Data URI");
+assert.ok(clothingThumb.startsWith("data:image/svg+xml;utf8,"), "Clothing thumbnail is valid Data URI");
+assert.ok(graphicThumb.startsWith("data:image/svg+xml;utf8,"), "Graphic thumbnail is valid Data URI");
+assert.ok(accessoryThumb.startsWith("data:image/svg+xml;utf8,"), "Accessory thumbnail is valid Data URI");
+assert.ok(facialHairThumb.startsWith("data:image/svg+xml;utf8,"), "Facial hair thumbnail is valid Data URI");
+console.log("✔ All visual thumbnail generators generate valid SVG Data URIs.");
+
+console.log("\n🎉 ALL AVATAR UNIT TESTS PASSED SUCCESSFULLY! (11/11)");

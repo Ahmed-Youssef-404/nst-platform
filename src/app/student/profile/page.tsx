@@ -72,17 +72,17 @@ export default async function StudentProfilePage() {
         ...(isBeginner
             ? []
             : [
-                  {
-                      href: "/student/levels",
-                      label: "Level History",
-                      description: "Past levels & archives",
-                      icon: History,
-                  },
-              ]),
+                {
+                    href: "/student/levels",
+                    label: "Level History",
+                    description: "Past levels & archives",
+                    icon: History,
+                },
+            ]),
     ];
 
     return (
-        <div className="mx-auto max-w-4xl space-y-6">
+        <div className="mx-auto max-w-7xl space-y-6">
             <ProfileHeader
                 name={profile.name}
                 roleLabel="Student Cadet"

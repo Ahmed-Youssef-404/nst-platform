@@ -6,6 +6,8 @@ import { createAvatar } from "@dicebear/core";
 import { avataaars } from "@dicebear/collection";
 import {
     type StudentAvatarConfig,
+    type Top,
+    type ClothingGraphic,
     DEFAULT_AVATAR_CONFIG,
     validateAvatarConfig,
 } from "@/types/avatar";
@@ -42,12 +44,19 @@ export function resolveAvatarConfig(
 }
 
 function buildDicebearOptions(config: StudentAvatarConfig) {
+    const isBald = config.top === "none";
+    const isGraphicShirt = config.clothing === "graphicShirt";
+    const hasGraphic = isGraphicShirt && config.clothingGraphic && config.clothingGraphic !== "none";
+
     return {
         skinColor: [config.skinColor],
         hairColor: [config.hairColor],
-        top: [config.top],
+        top: isBald ? undefined : [config.top as Exclude<Top, "none">],
+        topProbability: isBald ? 0 : 100,
+        hatColor: config.hatColor ? [config.hatColor] : undefined,
         clothing: [config.clothing],
         clothesColor: [config.clothesColor],
+        clothingGraphic: hasGraphic ? [config.clothingGraphic as Exclude<ClothingGraphic, "none">] : undefined,
         eyes: [config.eyes],
         eyebrows: [config.eyebrows],
         mouth: [config.mouth],

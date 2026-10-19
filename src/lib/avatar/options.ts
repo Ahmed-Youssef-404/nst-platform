@@ -6,6 +6,7 @@ import type {
     HairColor,
     Top,
     Clothing,
+    ClothingGraphic,
     ClothesColor,
     Eyes,
     Eyebrows,
@@ -15,7 +16,7 @@ import type {
     FacialHair,
 } from "@/types/avatar";
 
-export interface ColorOption<T extends string> {
+export interface ColorOption<T extends string = string> {
     value: T;
     label: string;
     hex: string;
@@ -55,6 +56,12 @@ export const TOP_OPTIONS: {
     options: ChoiceOption<Top>[];
 }[] = [
     {
+        category: "Minimal & Bald",
+        options: [
+            { value: "none", label: "Clean Bald" },
+        ],
+    },
+    {
         category: "Short & Clean",
         options: [
             { value: "shortRound", label: "Short Round" },
@@ -88,6 +95,7 @@ export const TOP_OPTIONS: {
             { value: "straight02", label: "Straight Long" },
             { value: "straightAndStrand", label: "Strand Accent" },
             { value: "bigHair", label: "Voluminous" },
+            { value: "frida", label: "Floral Frida" },
         ],
     },
     {
@@ -104,6 +112,20 @@ export const TOP_OPTIONS: {
     },
 ];
 
+export const HEADWEAR_TOPS: readonly Top[] = [
+    "hat",
+    "hijab",
+    "turban",
+    "winterHat1",
+    "winterHat02",
+    "winterHat03",
+    "winterHat04",
+];
+
+export function isHeadwearTop(top: Top): boolean {
+    return (HEADWEAR_TOPS as readonly string[]).includes(top);
+}
+
 export const CLOTHING_OPTIONS: ChoiceOption<Clothing>[] = [
     { value: "hoodie", label: "Tech Hoodie" },
     { value: "graphicShirt", label: "Graphic Tee" },
@@ -114,6 +136,20 @@ export const CLOTHING_OPTIONS: ChoiceOption<Clothing>[] = [
     { value: "blazerAndShirt", label: "Blazer & Shirt" },
     { value: "blazerAndSweater", label: "Blazer & Knit" },
     { value: "overall", label: "Overalls" },
+];
+
+export const CLOTHING_GRAPHIC_OPTIONS: ChoiceOption<ClothingGraphic>[] = [
+    { value: "none", label: "Plain Shirt" },
+    { value: "diamond", label: "Star Diamond" },
+    { value: "skull", label: "Cyber Skull" },
+    { value: "skullOutline", label: "Outline Skull" },
+    { value: "pizza", label: "Hacker Pizza" },
+    { value: "bear", label: "Code Bear" },
+    { value: "bat", label: "Night Bat" },
+    { value: "deer", label: "Nordic Deer" },
+    { value: "resist", label: "Resist Fist" },
+    { value: "hola", label: "Hola Badge" },
+    { value: "cumbia", label: "Cumbia" },
 ];
 
 export const CLOTHES_COLOR_OPTIONS: ColorOption<ClothesColor>[] = [
@@ -133,18 +169,21 @@ export const CLOTHES_COLOR_OPTIONS: ColorOption<ClothesColor>[] = [
     { value: "ffffff", label: "Pure Starlight", hex: "#ffffff" },
 ];
 
+export const HAT_COLOR_OPTIONS = CLOTHES_COLOR_OPTIONS;
+
 export const EYES_OPTIONS: ChoiceOption<Eyes>[] = [
-    { value: "default", label: "Default Attentive" },
+    { value: "default", label: "Attentive" },
     { value: "happy", label: "Happy Spark" },
     { value: "surprised", label: "Wide Curious" },
     { value: "squint", label: "Deep Focus" },
     { value: "wink", label: "Friendly Wink" },
-    { value: "side", label: "Glance" },
+    { value: "side", label: "Glance Side" },
     { value: "closed", label: "Calm Zen" },
     { value: "eyeRoll", label: "Playful Roll" },
-    { value: "winkWacky", label: "Playful Wink" },
+    { value: "winkWacky", label: "Wacky Wink" },
     { value: "hearts", label: "Stellar Hearts" },
-    { value: "xDizzy", label: "Dizzy Coding" },
+    { value: "cry", label: "Emotional" },
+    { value: "xDizzy", label: "Dizzy / KO" },
 ];
 
 export const EYEBROWS_OPTIONS: ChoiceOption<Eyebrows>[] = [
@@ -154,19 +193,28 @@ export const EYEBROWS_OPTIONS: ChoiceOption<Eyebrows>[] = [
     { value: "upDownNatural", label: "Curious Raised" },
     { value: "raisedExcitedNatural", label: "Excited" },
     { value: "frownNatural", label: "Intense Focus" },
+    { value: "angryNatural", label: "Determined" },
     { value: "sadConcernedNatural", label: "Concerned" },
     { value: "unibrowNatural", label: "Unibrow" },
+    { value: "angry", label: "Fierce" },
+    { value: "raisedExcited", label: "Wide Excited" },
+    { value: "sadConcerned", label: "Thoughtful" },
+    { value: "upDown", label: "Asymmetric" },
 ];
 
 export const MOUTH_OPTIONS: ChoiceOption<Mouth>[] = [
     { value: "smile", label: "Warm Smile" },
-    { value: "default", label: "Neutral Composed" },
+    { value: "default", label: "Composed" },
     { value: "twinkle", label: "Confident Grin" },
-    { value: "serious", label: "Pensive / Serious" },
+    { value: "serious", label: "Focused / Serious" },
     { value: "tongue", label: "Playful" },
     { value: "concerned", label: "Thinking" },
-    { value: "eating", label: "Chewing Snack" },
+    { value: "eating", label: "Snacking" },
     { value: "grimace", label: "Debug Grimace" },
+    { value: "disbelief", label: "Skeptical" },
+    { value: "sad", label: "Melancholic" },
+    { value: "screamOpen", label: "Surprised" },
+    { value: "vomit", label: "Exhausted" },
 ];
 
 export const ACCESSORY_OPTIONS: ChoiceOption<Accessory>[] = [
