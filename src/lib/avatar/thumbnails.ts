@@ -1,5 +1,8 @@
 // src/lib/avatar/thumbnails.ts
 // Efficient, memoized visual thumbnail generators for Avatar customization options.
+// Each generator applies focused viewBox cropping so options emphasize the specific
+// feature (hair, eyes, eyebrows, mouth, clothing, accessories, facial hair) rather
+// than displaying identical full-character miniatures.
 
 import { createAvatar } from "@dicebear/core";
 import { avataaars } from "@dicebear/collection";
@@ -24,7 +27,18 @@ const accessoryCache = new Map<string, string>();
 const facialHairCache = new Map<string, string>();
 
 /**
+ * Converts a generated avatar SVG to a focused Data URI by replacing
+ * the default 280x280 viewBox with a feature-targeted crop rectangle.
+ */
+function toCroppedDataUri(avatar: ReturnType<typeof createAvatar>, viewBox: string): string {
+    const rawSvg = avatar.toString();
+    const croppedSvg = rawSvg.replace(/viewBox="[^"]+"/, `viewBox="${viewBox}"`);
+    return `data:image/svg+xml;utf8,${encodeURIComponent(croppedSvg)}`;
+}
+
+/**
  * Visual thumbnail for hairstyle / headwear.
+ * Focuses on the head and hair region (viewBox: 15 0 250 200).
  */
 export function getTopThumbnail(top: Top, hairColor = "4a312c"): string {
     const key = `${top}-${hairColor}`;
@@ -45,16 +59,16 @@ export function getTopThumbnail(top: Top, hairColor = "4a312c"): string {
         mouth: ["default"],
         accessoriesProbability: 0,
         facialHairProbability: 0,
-        size: 72,
     });
 
-    const uri = avatar.toDataUri();
+    const uri = toCroppedDataUri(avatar, "15 0 250 200");
     topCache.set(key, uri);
     return uri;
 }
 
 /**
  * Visual thumbnail for eye styles.
+ * Zooms directly onto the eye expression (viewBox: 45 80 190 75).
  */
 export function getEyesThumbnail(eyes: Eyes): string {
     const cached = eyesCache.get(eyes);
@@ -71,16 +85,16 @@ export function getEyesThumbnail(eyes: Eyes): string {
         mouth: ["default"],
         accessoriesProbability: 0,
         facialHairProbability: 0,
-        size: 72,
     });
 
-    const uri = avatar.toDataUri();
+    const uri = toCroppedDataUri(avatar, "45 80 190 75");
     eyesCache.set(eyes, uri);
     return uri;
 }
 
 /**
  * Visual thumbnail for eyebrow styles.
+ * Zooms directly onto the eyebrow attitude (viewBox: 45 65 190 65).
  */
 export function getEyebrowsThumbnail(eyebrows: Eyebrows): string {
     const cached = eyebrowsCache.get(eyebrows);
@@ -97,16 +111,16 @@ export function getEyebrowsThumbnail(eyebrows: Eyebrows): string {
         mouth: ["default"],
         accessoriesProbability: 0,
         facialHairProbability: 0,
-        size: 72,
     });
 
-    const uri = avatar.toDataUri();
+    const uri = toCroppedDataUri(avatar, "45 65 190 65");
     eyebrowsCache.set(eyebrows, uri);
     return uri;
 }
 
 /**
  * Visual thumbnail for mouth expressions.
+ * Zooms directly onto the mouth shape and expression (viewBox: 65 140 150 75).
  */
 export function getMouthThumbnail(mouth: Mouth): string {
     const cached = mouthCache.get(mouth);
@@ -123,16 +137,16 @@ export function getMouthThumbnail(mouth: Mouth): string {
         mouth: [mouth],
         accessoriesProbability: 0,
         facialHairProbability: 0,
-        size: 72,
     });
 
-    const uri = avatar.toDataUri();
+    const uri = toCroppedDataUri(avatar, "65 140 150 75");
     mouthCache.set(mouth, uri);
     return uri;
 }
 
 /**
  * Visual thumbnail for clothing styles.
+ * Focuses directly on the collar, neckline, and torso (viewBox: 30 165 220 115).
  */
 export function getClothingThumbnail(clothing: Clothing, clothesColor = "262e33"): string {
     const key = `${clothing}-${clothesColor}`;
@@ -151,16 +165,16 @@ export function getClothingThumbnail(clothing: Clothing, clothesColor = "262e33"
         mouth: ["default"],
         accessoriesProbability: 0,
         facialHairProbability: 0,
-        size: 72,
     });
 
-    const uri = avatar.toDataUri();
+    const uri = toCroppedDataUri(avatar, "30 165 220 115");
     clothingCache.set(key, uri);
     return uri;
 }
 
 /**
  * Visual thumbnail for graphic shirt badges.
+ * Zooms directly onto the chest badge graphic (viewBox: 60 180 160 95).
  */
 export function getGraphicThumbnail(graphic: ClothingGraphic): string {
     const cached = graphicCache.get(graphic);
@@ -179,16 +193,16 @@ export function getGraphicThumbnail(graphic: ClothingGraphic): string {
         mouth: ["default"],
         accessoriesProbability: 0,
         facialHairProbability: 0,
-        size: 72,
     });
 
-    const uri = avatar.toDataUri();
+    const uri = toCroppedDataUri(avatar, "60 180 160 95");
     graphicCache.set(graphic, uri);
     return uri;
 }
 
 /**
  * Visual thumbnail for glasses and eyewear.
+ * Zooms onto the face glasses and bridge area (viewBox: 40 75 200 85).
  */
 export function getAccessoryThumbnail(accessory: Accessory, accessoriesColor = "262e33"): string {
     const key = `${accessory}-${accessoriesColor}`;
@@ -209,16 +223,16 @@ export function getAccessoryThumbnail(accessory: Accessory, accessoriesColor = "
         accessoriesProbability: isNone ? 0 : 100,
         accessoriesColor: [accessoriesColor],
         facialHairProbability: 0,
-        size: 72,
     });
 
-    const uri = avatar.toDataUri();
+    const uri = toCroppedDataUri(avatar, "40 75 200 85");
     accessoryCache.set(key, uri);
     return uri;
 }
 
 /**
  * Visual thumbnail for facial hair styles.
+ * Zooms onto the jaw, chin, and upper lip (viewBox: 50 135 180 105).
  */
 export function getFacialHairThumbnail(facialHair: FacialHair, facialHairColor = "2c1b18"): string {
     const key = `${facialHair}-${facialHairColor}`;
@@ -239,10 +253,9 @@ export function getFacialHairThumbnail(facialHair: FacialHair, facialHairColor =
         facialHair: isNone ? undefined : [facialHair as Exclude<FacialHair, "none">],
         facialHairProbability: isNone ? 0 : 100,
         facialHairColor: [facialHairColor],
-        size: 72,
     });
 
-    const uri = avatar.toDataUri();
+    const uri = toCroppedDataUri(avatar, "50 135 180 105");
     facialHairCache.set(key, uri);
     return uri;
 }

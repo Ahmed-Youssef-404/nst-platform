@@ -17,6 +17,8 @@ import {
     Save,
     Palette,
     Tag,
+    Undo2,
+    X,
 } from "lucide-react";
 import {
     type StudentAvatarConfig,
@@ -74,7 +76,10 @@ export interface AvatarEditorProps {
     className?: string;
 }
 
-type EditorTab = "hair" | "face" | "base" | "clothing" | "details";
+type MainCategory = "hair" | "face" | "base" | "clothing" | "details";
+type HairSubcategory = "all" | "short" | "medium-long" | "headwear" | "bald";
+type FaceSubcategory = "all" | "eyes" | "eyebrows" | "mouth";
+type DetailsSubcategory = "all" | "eyewear" | "facial-hair";
 
 export function AvatarEditor({
     initialConfig,
@@ -88,7 +93,11 @@ export function AvatarEditor({
     }, [initialConfig]);
 
     const [currentConfig, setCurrentConfig] = React.useState<StudentAvatarConfig>(savedConfig);
-    const [activeTab, setActiveTab] = React.useState<EditorTab>("hair");
+    const [activeTab, setActiveTab] = React.useState<MainCategory>("hair");
+    const [hairFilter, setHairFilter] = React.useState<HairSubcategory>("all");
+    const [faceFilter, setFaceFilter] = React.useState<FaceSubcategory>("all");
+    const [detailsFilter, setDetailsFilter] = React.useState<DetailsSubcategory>("all");
+
     const [isSaving, startSavingTransition] = React.useTransition();
     const [statusMessage, setStatusMessage] = React.useState<{
         type: "success" | "error" | null;
@@ -155,7 +164,7 @@ export function AvatarEditor({
             if (result.success) {
                 setStatusMessage({
                     type: "success",
-                    text: "Avatar updated and synced across NST Platform!",
+                    text: "Avatar synced across NST Platform!",
                 });
                 onSaveSuccess?.(result.config);
             } else {
@@ -170,88 +179,144 @@ export function AvatarEditor({
     const hasHeadwear = isHeadwearTop(currentConfig.top);
     const isGraphicShirt = currentConfig.clothing === "graphicShirt";
 
+    // Filter top options by subcategory
+    const filteredTopGroups = React.useMemo(() => {
+        if (hairFilter === "all") return TOP_OPTIONS;
+        if (hairFilter === "short") {
+            return TOP_OPTIONS.filter((g) => g.category.includes("Short"));
+        }
+        if (hairFilter === "medium-long") {
+            return TOP_OPTIONS.filter((g) => g.category.includes("Medium"));
+        }
+        if (hairFilter === "headwear") {
+            return TOP_OPTIONS.filter((g) => g.category.includes("Headwear"));
+        }
+        if (hairFilter === "bald") {
+            return TOP_OPTIONS.filter((g) => g.category.includes("Bald"));
+        }
+        return TOP_OPTIONS;
+    }, [hairFilter]);
+
     return (
         <div
             className={cn(
-                "relative overflow-hidden rounded-2xl border border-gold-500/30 bg-card p-4 sm:p-6 shadow-xl dark:bg-space-900/90",
+                "relative rounded-2xl border border-gold-500/30 bg-card p-4 sm:p-6 shadow-2xl dark:bg-space-900/95 transition-all",
                 className
             )}
         >
-            {/* Background Ambient Space Glow */}
+            {/* Background Ambient Space Glow (contained without overflow-hidden breaking sticky) */}
             <div
                 aria-hidden="true"
-                className="pointer-events-none absolute -top-32 -right-24 size-80 rounded-full bg-gold-500/10 blur-3xl"
+                className="pointer-events-none absolute -top-24 -right-16 size-72 rounded-full bg-gold-500/10 blur-3xl opacity-70"
             />
             <div
                 aria-hidden="true"
-                className="pointer-events-none absolute -bottom-32 -left-24 size-80 rounded-full bg-gold-500/5 blur-3xl"
+                className="pointer-events-none absolute -bottom-24 -left-16 size-72 rounded-full bg-gold-500/5 blur-3xl opacity-70"
             />
 
-            {/* Mobile-Only Persistent Sticky Preview Header */}
-            <div className="sticky top-0 z-30 -mx-4 -mt-4 mb-4 flex items-center justify-between gap-3 border-b border-gold-500/30 bg-space-950/95 px-4 py-2.5 backdrop-blur-md sm:-mx-6 sm:-mt-6 sm:px-6 lg:hidden">
-                <div className="flex items-center gap-3 min-w-0">
-                    <div className="relative size-12 shrink-0 rounded-full border-2 border-gold-500/40 bg-gradient-to-b from-space-850 to-space-900 p-0.5 shadow-gold overflow-hidden">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                            src={previewDataUri}
-                            alt={`${studentName}'s avatar preview`}
-                            className="size-full select-none object-cover rounded-full"
-                        />
-                    </div>
-                    <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                            <span className="truncate text-xs font-bold text-starlight-100">
-                                {studentName}
-                            </span>
-                            {isDirty && (
-                                <span className="shrink-0 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-semibold text-amber-400 border border-amber-500/30 animate-pulse">
-                                    Unsaved
-                                </span>
-                            )}
+            {/* Mobile-Only Persistent Character Stage Header (Sticky top-12 below StudentTopBar) */}
+            <div className="sticky top-12 z-20 -mx-4 -mt-4 mb-4 flex flex-col border-b border-gold-500/30 bg-space-950/95 px-4 py-3 backdrop-blur-md rounded-t-2xl shadow-md lg:hidden">
+                <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                        {/* Circular Avatar Spotlight */}
+                        <div className="relative size-16 shrink-0 rounded-full border-2 border-gold-500/50 bg-gradient-to-b from-space-850 to-space-950 p-0.5 shadow-gold overflow-hidden">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                                src={previewDataUri}
+                                alt={`${studentName}'s avatar preview`}
+                                className="size-full select-none object-cover rounded-full"
+                            />
                         </div>
-                        <span className="block text-[10px] text-starlight-400">
-                            Live Cadet Preview
-                        </span>
+
+                        <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                                <span className="truncate text-xs font-bold text-starlight-100">
+                                    {studentName}
+                                </span>
+                                {isDirty && (
+                                    <span className="shrink-0 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-semibold text-amber-400 border border-amber-500/30 animate-pulse">
+                                        Unsaved
+                                    </span>
+                                )}
+                            </div>
+                            <span className="block text-[10px] text-starlight-400">
+                                Live Cadet Preview
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Mobile Quick Action Buttons */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                            type="button"
+                            onClick={handleRandomize}
+                            title="Randomize Appearance"
+                            className="inline-flex size-8 items-center justify-center rounded-lg border border-border/70 bg-space-850 text-gold-400 hover:border-gold-500/40 hover:bg-space-800"
+                        >
+                            <Dices className="size-4" />
+                        </button>
+                        {isDirty && (
+                            <button
+                                type="button"
+                                onClick={handleRevert}
+                                title="Revert to Saved"
+                                className="inline-flex size-8 items-center justify-center rounded-lg border border-border/70 bg-space-850 text-starlight-300 hover:bg-space-800"
+                            >
+                                <RotateCcw className="size-3.5" />
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={handleSave}
+                            disabled={isSaving || !isDirty}
+                            className={cn(
+                                "inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold shadow-gold transition-all",
+                                isDirty
+                                    ? "bg-gradient-to-r from-gold-500 to-gold-600 text-space-950 hover:brightness-110 active:scale-95"
+                                    : "bg-space-800 text-starlight-400 border border-border/60 cursor-not-allowed opacity-60"
+                            )}
+                        >
+                            {isSaving ? (
+                                <Loader2 className="size-3.5 animate-spin" />
+                            ) : (
+                                <Save className="size-3.5" />
+                            )}
+                            <span className="text-[11px]">{isDirty ? "Save" : "Saved"}</span>
+                        </button>
+                        {onCancel && (
+                            <button
+                                type="button"
+                                onClick={onCancel}
+                                title="Close Editor"
+                                className="inline-flex size-8 items-center justify-center rounded-lg border border-border/70 bg-space-850 text-starlight-400 hover:text-starlight-100"
+                            >
+                                <X className="size-4" />
+                            </button>
+                        )}
                     </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 shrink-0">
-                    <button
-                        type="button"
-                        onClick={handleRandomize}
-                        title="Randomize Appearance"
-                        className="inline-flex size-8 items-center justify-center rounded-lg border border-border/70 bg-space-850 text-gold-400 hover:border-gold-500/40 hover:bg-space-800"
-                    >
-                        <Dices className="size-4" />
-                    </button>
-                    <button
-                        type="button"
-                        onClick={handleSave}
-                        disabled={isSaving || !isDirty}
+                {statusMessage.type && (
+                    <div
                         className={cn(
-                            "inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold shadow-gold transition-all",
-                            isDirty
-                                ? "bg-gradient-to-r from-gold-500 to-gold-600 text-space-950 hover:brightness-110 active:scale-95"
-                                : "bg-space-800 text-starlight-400 border border-border/60 cursor-not-allowed opacity-60"
+                            "mt-2 text-center py-1 px-2 rounded-lg text-[10px] font-semibold animate-fade-in",
+                            statusMessage.type === "success"
+                                ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
+                                : "bg-rose-500/15 text-rose-300 border border-rose-500/30"
                         )}
                     >
-                        {isSaving ? (
-                            <Loader2 className="size-3.5 animate-spin" />
-                        ) : (
-                            <Save className="size-3.5" />
-                        )}
-                        <span className="text-[11px]">{isDirty ? "Save" : "Saved"}</span>
-                    </button>
-                </div>
+                        {statusMessage.text}
+                    </div>
+                )}
             </div>
 
-            {/* Desktop Top Header */}
+            {/* Desktop Top Workspace Header */}
             <div className="relative mb-6 hidden items-center justify-between gap-3 border-b border-border/70 pb-4 lg:flex">
                 <div>
                     <div className="flex items-center gap-2">
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-gold-500/30 bg-gold-500/10 px-2.5 py-0.5 text-xs font-semibold text-gold-600 dark:text-gold-400">
                             <Sparkles className="size-3" />
-                            Cadet Identity System
+                            Cadet Identity Studio
                         </span>
                         {isDirty && (
                             <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-500 dark:text-amber-300 border border-amber-500/30 animate-pulse">
@@ -260,14 +325,14 @@ export function AvatarEditor({
                         )}
                     </div>
                     <h2 className="mt-1 font-display text-xl font-bold tracking-tight text-starlight-100 sm:text-2xl">
-                        Avatar Customizer
+                        Character Creator
                     </h2>
                     <p className="text-xs text-starlight-400">
-                        Design your unique cadet look with visual previews and custom colors.
+                        Customize your cadet identity in real-time. Changes are permanently reflected across platform rankings, podiums, and spaces.
                     </p>
                 </div>
 
-                {/* Top Action Buttons */}
+                {/* Desktop Top Action Toolbar */}
                 <div className="flex items-center gap-2">
                     <button
                         type="button"
@@ -289,36 +354,85 @@ export function AvatarEditor({
                             <span>Revert</span>
                         </button>
                     )}
+                    {onCancel && (
+                        <button
+                            type="button"
+                            onClick={onCancel}
+                            title="Close Editor"
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-border/70 bg-transparent px-3 py-1.5 text-xs font-medium text-starlight-300 hover:bg-space-850 hover:text-starlight-100"
+                        >
+                            <X className="size-3.5" />
+                            <span>Close</span>
+                        </button>
+                    )}
                 </div>
             </div>
 
-            {/* Main Layout: Left = Sticky Live Preview, Right = Customization Tabs */}
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-                {/* Left: Sticky Live Preview (Desktop) */}
-                <div className="hidden lg:flex flex-col items-center justify-between rounded-2xl border border-gold-500/25 bg-space-950/60 p-6 text-center lg:col-span-4 !lg:sticky lg:top-4 lg:h-fit">
-                    <div className="w-full">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-gold-400/90">
-                            Live Cadet Preview
-                        </span>
+            {/* Main Layout: Left = Genuinely Sticky Live Character Stage, Right = Customization Panel */}
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 items-start">
+                {/* Left: Genuinely Sticky Live Character Stage (Desktop) */}
+                <div className="hidden lg:flex flex-col items-center justify-between rounded-2xl border border-gold-500/30 bg-gradient-to-b from-space-900/95 via-space-950/90 to-space-950 p-6 text-center lg:col-span-5 xl:col-span-4 lg:sticky lg:top-20 lg:self-start lg:h-fit shadow-2xl relative overflow-hidden">
+                    {/* Ambient Glow behind character stage */}
+                    <div
+                        aria-hidden="true"
+                        className="pointer-events-none absolute -top-16 -left-16 size-48 rounded-full bg-gold-500/10 blur-2xl"
+                    />
 
-                        {/* Avatar Frame with Gold Accent Glow */}
-                        <div className="relative mx-auto my-6 flex size-44 sm:size-48 items-center justify-center rounded-full border-2 border-gold-500/40 bg-gradient-to-b from-space-850 to-space-900 p-0.5 shadow-gold ring-4 ring-gold-500/10 overflow-hidden">
+                    <div className="w-full relative z-10">
+                        <div className="flex items-center justify-between border-b border-border/50 pb-2 mb-3">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-gold-400/90">
+                                Live Cadet Stage
+                            </span>
+                            {isDirty ? (
+                                <span className="text-[10px] font-semibold text-amber-400">
+                                    Modifying...
+                                </span>
+                            ) : (
+                                <span className="text-[10px] text-emerald-400 font-semibold">
+                                    Saved & Active
+                                </span>
+                            )}
+                        </div>
+
+                        {/* Character Frame with Glowing Gold Starlight Ring */}
+                        <div className="relative mx-auto my-3 flex size-48 sm:size-56 items-center justify-center rounded-full border-2 border-gold-500/50 bg-gradient-to-b from-space-850 to-space-950 p-1 shadow-gold ring-4 ring-gold-500/15 overflow-hidden">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                                 src={previewDataUri}
                                 alt={`${studentName}'s avatar preview`}
-                                className="size-full select-none object-cover rounded-full"
+                                className="size-full select-none object-cover rounded-full transition-transform duration-200"
                             />
                         </div>
 
-                        <h3 className="font-display text-base font-bold text-starlight-100">
+                        <h3 className="font-display text-lg font-bold text-starlight-100 truncate mt-2">
                             {studentName}
                         </h3>
                         <p className="text-xs text-starlight-400">NST Student Cadet</p>
+
+                        {/* Quick Action Toolbar on Stage */}
+                        <div className="mt-3 flex items-center justify-center gap-2 pt-2 border-t border-border/40">
+                            <button
+                                type="button"
+                                onClick={handleRandomize}
+                                className="inline-flex items-center gap-1 text-[11px] font-medium text-starlight-300 hover:text-gold-300 transition-colors"
+                            >
+                                <Dices className="size-3 text-gold-400" />
+                                <span>Randomize</span>
+                            </button>
+                            <span className="text-starlight-600">•</span>
+                            <button
+                                type="button"
+                                onClick={handleResetDefault}
+                                className="inline-flex items-center gap-1 text-[11px] font-medium text-starlight-400 hover:text-gold-300 transition-colors"
+                            >
+                                <Undo2 className="size-3" />
+                                <span>Default</span>
+                            </button>
+                        </div>
                     </div>
 
-                    {/* Status & Save CTA */}
-                    <div className="mt-6 w-full space-y-3">
+                    {/* Status Banners & Primary CTA */}
+                    <div className="mt-5 w-full space-y-3 relative z-10">
                         {statusMessage.type === "success" && (
                             <div className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/15 p-2 text-xs font-semibold text-emerald-300 animate-fade-in">
                                 <Check className="size-4 shrink-0" />
@@ -338,7 +452,7 @@ export function AvatarEditor({
                                 onClick={handleSave}
                                 disabled={isSaving || !isDirty}
                                 className={cn(
-                                    "flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold shadow-gold transition-all duration-200",
+                                    "flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold shadow-gold transition-all duration-200",
                                     isDirty
                                         ? "bg-gradient-to-r from-gold-500 via-gold-400 to-gold-600 text-space-950 hover:brightness-110 active:scale-[0.98]"
                                         : "cursor-not-allowed bg-space-850 text-starlight-400 border border-border/70"
@@ -352,7 +466,7 @@ export function AvatarEditor({
                                 ) : (
                                     <>
                                         <Save className="size-4" />
-                                        <span>{isDirty ? "Save Avatar" : "Saved"}</span>
+                                        <span>{isDirty ? "Save Avatar Changes" : "Avatar Saved"}</span>
                                     </>
                                 )}
                             </button>
@@ -367,22 +481,14 @@ export function AvatarEditor({
                                     Close Editor
                                 </button>
                             )}
-
-                            <button
-                                type="button"
-                                onClick={handleResetDefault}
-                                className="text-[11px] text-starlight-400 hover:text-gold-300 transition-colors underline-offset-2 hover:underline pt-1"
-                            >
-                                Reset to Default Cadet Look
-                            </button>
                         </div>
                     </div>
                 </div>
 
-                {/* Right: Customization Controls & Visual Options */}
-                <div className="space-y-5 lg:col-span-8">
-                    {/* Navigation Tab Pills */}
-                    <div className="flex items-center gap-1.5 overflow-x-auto rounded-xl border border-border/70 bg-space-950/70 p-1.5 no-scrollbar">
+                {/* Right: Customization Controls Panel */}
+                <div className="space-y-4 lg:col-span-7 xl:col-span-8 flex flex-col min-h-0">
+                    {/* Category Navigation Tabs */}
+                    <div className="flex items-center gap-1.5 overflow-x-auto rounded-xl border border-border/70 bg-space-950/80 p-1.5 no-scrollbar shrink-0">
                         <TabButton
                             active={activeTab === "hair"}
                             onClick={() => setActiveTab("hair")}
@@ -415,425 +521,519 @@ export function AvatarEditor({
                         />
                     </div>
 
-                    {/* Tab 1: Hair & Headwear */}
-                    {activeTab === "hair" && (
-                        <div className="space-y-6 animate-fade-in">
-                            {/* Hair Color Palette with Custom Color Picker */}
-                            <ColorPickerSection
-                                title="Hair Color"
-                                currentColor={currentConfig.hairColor}
-                                presets={HAIR_COLOR_OPTIONS}
-                                onSelectColor={(hex) => updateConfig("hairColor", hex)}
-                                defaultColor="2c1b18"
-                            />
-
-                            {/* Hat Color (conditional when headwear selected) */}
-                            {hasHeadwear && (
+                    {/* Independently Scrollable Customization Area */}
+                    <div className="flex-1 overflow-y-auto max-h-[calc(100vh-14rem)] lg:max-h-[calc(100vh-13rem)] pr-1 sm:pr-2 space-y-5 custom-scrollbar">
+                        {/* Tab 1: Hair & Headwear */}
+                        {activeTab === "hair" && (
+                            <div className="space-y-5 animate-fade-in">
+                                {/* Hair Color Palette with Custom Color Picker */}
                                 <ColorPickerSection
-                                    title="Headwear / Hat Color"
-                                    currentColor={currentConfig.hatColor ?? "262e33"}
-                                    presets={HAT_COLOR_OPTIONS}
-                                    onSelectColor={(hex) => updateConfig("hatColor", hex)}
-                                    defaultColor="262e33"
+                                    title="Hair Color"
+                                    currentColor={currentConfig.hairColor}
+                                    presets={HAIR_COLOR_OPTIONS}
+                                    onSelectColor={(hex) => updateConfig("hairColor", hex)}
+                                    defaultColor="2c1b18"
                                 />
-                            )}
 
-                            {/* Hairstyle Groups with Visual Thumbnails */}
-                            {TOP_OPTIONS.map((group) => (
-                                <div key={group.category} className="space-y-2.5">
-                                    <div className="flex items-center justify-between border-b border-border/50 pb-1">
-                                        <h4 className="text-xs font-semibold uppercase tracking-wider text-starlight-400">
-                                            {group.category}
-                                        </h4>
-                                        <span className="text-[10px] text-starlight-500 font-mono">
-                                            {group.options.length} styles
-                                        </span>
+                                {/* Hat Color (conditional when headwear selected) */}
+                                {hasHeadwear && (
+                                    <ColorPickerSection
+                                        title="Headwear / Hat Color"
+                                        currentColor={currentConfig.hatColor ?? "262e33"}
+                                        presets={HAT_COLOR_OPTIONS}
+                                        onSelectColor={(hex) => updateConfig("hatColor", hex)}
+                                        defaultColor="262e33"
+                                    />
+                                )}
+
+                                {/* Subcategory Filter Pills */}
+                                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                                    <SubcategoryPill
+                                        active={hairFilter === "all"}
+                                        onClick={() => setHairFilter("all")}
+                                        label="All Styles"
+                                    />
+                                    <SubcategoryPill
+                                        active={hairFilter === "short"}
+                                        onClick={() => setHairFilter("short")}
+                                        label="Short & Clean"
+                                    />
+                                    <SubcategoryPill
+                                        active={hairFilter === "medium-long"}
+                                        onClick={() => setHairFilter("medium-long")}
+                                        label="Medium & Long"
+                                    />
+                                    <SubcategoryPill
+                                        active={hairFilter === "headwear"}
+                                        onClick={() => setHairFilter("headwear")}
+                                        label="Headwear & Wraps"
+                                    />
+                                    <SubcategoryPill
+                                        active={hairFilter === "bald"}
+                                        onClick={() => setHairFilter("bald")}
+                                        label="Minimal / Bald"
+                                    />
+                                </div>
+
+                                {/* Hairstyle Groups with Focused Visual Thumbnails */}
+                                {filteredTopGroups.map((group) => (
+                                    <div key={group.category} className="space-y-2.5">
+                                        <div className="flex items-center justify-between border-b border-border/50 pb-1">
+                                            <h4 className="text-xs font-semibold uppercase tracking-wider text-starlight-400">
+                                                {group.category}
+                                            </h4>
+                                            <span className="text-[10px] text-starlight-500 font-mono">
+                                                {group.options.length} styles
+                                            </span>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
+                                            {group.options.map((option) => (
+                                                <ThumbnailChoiceCard
+                                                    key={option.value}
+                                                    label={option.label}
+                                                    thumbnailUri={getTopThumbnail(
+                                                        option.value,
+                                                        currentConfig.hairColor
+                                                    )}
+                                                    selected={currentConfig.top === option.value}
+                                                    onClick={() => updateConfig("top", option.value)}
+                                                />
+                                            ))}
+                                        </div>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-                                        {group.options.map((option) => (
-                                            <ThumbnailChoiceCard
-                                                key={option.value}
-                                                label={option.label}
-                                                thumbnailUri={getTopThumbnail(
-                                                    option.value,
-                                                    currentConfig.hairColor
-                                                )}
-                                                selected={currentConfig.top === option.value}
-                                                onClick={() => updateConfig("top", option.value)}
-                                            />
-                                        ))}
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Tab 2: Face & Expression */}
+                        {activeTab === "face" && (
+                            <div className="space-y-5 animate-fade-in">
+                                {/* Subcategory Filter Pills */}
+                                <div className="flex items-center gap-1.5 pt-1">
+                                    <SubcategoryPill
+                                        active={faceFilter === "all"}
+                                        onClick={() => setFaceFilter("all")}
+                                        label="All Expressions"
+                                    />
+                                    <SubcategoryPill
+                                        active={faceFilter === "eyes"}
+                                        onClick={() => setFaceFilter("eyes")}
+                                        label="Eyes (12)"
+                                    />
+                                    <SubcategoryPill
+                                        active={faceFilter === "eyebrows"}
+                                        onClick={() => setFaceFilter("eyebrows")}
+                                        label="Eyebrows (13)"
+                                    />
+                                    <SubcategoryPill
+                                        active={faceFilter === "mouth"}
+                                        onClick={() => setFaceFilter("mouth")}
+                                        label="Mouth (12)"
+                                    />
+                                </div>
+
+                                {/* Eye Styles with Focused Eye Thumbnails */}
+                                {(faceFilter === "all" || faceFilter === "eyes") && (
+                                    <div className="space-y-2.5">
+                                        <div className="flex items-center justify-between border-b border-border/50 pb-1">
+                                            <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-starlight-400">
+                                                <Eye className="size-3.5 text-gold-400" />
+                                                Eye Expression
+                                            </h4>
+                                            <span className="text-[10px] text-starlight-500 font-mono">
+                                                {EYES_OPTIONS.length} shapes
+                                            </span>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
+                                            {EYES_OPTIONS.map((option) => (
+                                                <ThumbnailChoiceCard
+                                                    key={option.value}
+                                                    label={option.label}
+                                                    thumbnailUri={getEyesThumbnail(option.value)}
+                                                    selected={currentConfig.eyes === option.value}
+                                                    onClick={() => updateConfig("eyes", option.value)}
+                                                />
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                                )}
 
-                    {/* Tab 2: Face & Expression */}
-                    {activeTab === "face" && (
-                        <div className="space-y-6 animate-fade-in">
-                            {/* Eye Styles with Visual Thumbnails */}
-                            <div className="space-y-2.5">
-                                <div className="flex items-center justify-between border-b border-border/50 pb-1">
-                                    <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-starlight-400">
-                                        <Eye className="size-3.5 text-gold-400" />
-                                        Eye Expression
-                                    </h4>
-                                    <span className="text-[10px] text-starlight-500 font-mono">
-                                        {EYES_OPTIONS.length} shapes
-                                    </span>
-                                </div>
-                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-                                    {EYES_OPTIONS.map((option) => (
-                                        <ThumbnailChoiceCard
-                                            key={option.value}
-                                            label={option.label}
-                                            thumbnailUri={getEyesThumbnail(option.value)}
-                                            selected={currentConfig.eyes === option.value}
-                                            onClick={() => updateConfig("eyes", option.value)}
-                                        />
-                                    ))}
-                                </div>
+                                {/* Eyebrows with Focused Eyebrow Thumbnails */}
+                                {(faceFilter === "all" || faceFilter === "eyebrows") && (
+                                    <div className="space-y-2.5">
+                                        <div className="flex items-center justify-between border-b border-border/50 pb-1">
+                                            <h4 className="text-xs font-semibold uppercase tracking-wider text-starlight-400">
+                                                Eyebrow Attitude
+                                            </h4>
+                                            <span className="text-[10px] text-starlight-500 font-mono">
+                                                {EYEBROWS_OPTIONS.length} styles
+                                            </span>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
+                                            {EYEBROWS_OPTIONS.map((option) => (
+                                                <ThumbnailChoiceCard
+                                                    key={option.value}
+                                                    label={option.label}
+                                                    thumbnailUri={getEyebrowsThumbnail(option.value)}
+                                                    selected={currentConfig.eyebrows === option.value}
+                                                    onClick={() => updateConfig("eyebrows", option.value)}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Mouth Expressions with Focused Mouth Thumbnails */}
+                                {(faceFilter === "all" || faceFilter === "mouth") && (
+                                    <div className="space-y-2.5">
+                                        <div className="flex items-center justify-between border-b border-border/50 pb-1">
+                                            <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-starlight-400">
+                                                <Smile className="size-3.5 text-gold-400" />
+                                                Mouth Expression
+                                            </h4>
+                                            <span className="text-[10px] text-starlight-500 font-mono">
+                                                {MOUTH_OPTIONS.length} expressions
+                                            </span>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
+                                            {MOUTH_OPTIONS.map((option) => (
+                                                <ThumbnailChoiceCard
+                                                    key={option.value}
+                                                    label={option.label}
+                                                    thumbnailUri={getMouthThumbnail(option.value)}
+                                                    selected={currentConfig.mouth === option.value}
+                                                    onClick={() => updateConfig("mouth", option.value)}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
+                        )}
 
-                            {/* Eyebrows with Visual Thumbnails */}
-                            <div className="space-y-2.5">
-                                <div className="flex items-center justify-between border-b border-border/50 pb-1">
-                                    <h4 className="text-xs font-semibold uppercase tracking-wider text-starlight-400">
-                                        Eyebrow Attitude
-                                    </h4>
-                                    <span className="text-[10px] text-starlight-500 font-mono">
-                                        {EYEBROWS_OPTIONS.length} styles
-                                    </span>
-                                </div>
-                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-                                    {EYEBROWS_OPTIONS.map((option) => (
-                                        <ThumbnailChoiceCard
-                                            key={option.value}
-                                            label={option.label}
-                                            thumbnailUri={getEyebrowsThumbnail(option.value)}
-                                            selected={currentConfig.eyebrows === option.value}
-                                            onClick={() => updateConfig("eyebrows", option.value)}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
+                        {/* Tab 3: Skin Tone (Non-duplicated, unified UI) */}
+                        {activeTab === "base" && (
+                            <div className="space-y-5 animate-fade-in">
+                                <div className="rounded-xl border border-border/60 bg-space-950/40 p-4 sm:p-5">
+                                    <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                                        <div>
+                                            <label className="block text-xs font-bold uppercase tracking-wider text-gold-400">
+                                                Skin Complexion & Tone
+                                            </label>
+                                            <p className="text-[11px] text-starlight-400 mt-0.5">
+                                                Select a preset cadet complexion or pick a custom hex tone.
+                                            </p>
+                                        </div>
 
-                            {/* Mouth Expressions with Visual Thumbnails */}
-                            <div className="space-y-2.5">
-                                <div className="flex items-center justify-between border-b border-border/50 pb-1">
-                                    <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-starlight-400">
-                                        <Smile className="size-3.5 text-gold-400" />
-                                        Mouth Expression
-                                    </h4>
-                                    <span className="text-[10px] text-starlight-500 font-mono">
-                                        {MOUTH_OPTIONS.length} expressions
-                                    </span>
-                                </div>
-                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-                                    {MOUTH_OPTIONS.map((option) => (
-                                        <ThumbnailChoiceCard
-                                            key={option.value}
-                                            label={option.label}
-                                            thumbnailUri={getMouthThumbnail(option.value)}
-                                            selected={currentConfig.mouth === option.value}
-                                            onClick={() => updateConfig("mouth", option.value)}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Tab 3: Skin Tone */}
-                    {activeTab === "base" && (
-                        <div className="space-y-6 animate-fade-in">
-                            <ColorPickerSection
-                                title="Skin Tone"
-                                currentColor={currentConfig.skinColor}
-                                presets={SKIN_COLOR_OPTIONS}
-                                onSelectColor={(hex) => updateConfig("skinColor", hex)}
-                                defaultColor="edb98a"
-                            />
-
-                            {/* Detailed Swatch Cards */}
-                            <div className="rounded-xl border border-border/60 bg-space-950/40 p-4">
-                                <label className="mb-3 block text-xs font-bold uppercase tracking-wider text-gold-400">
-                                    Preset Skin Tones
-                                </label>
-                                <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
-                                    {SKIN_COLOR_OPTIONS.map((color) => {
-                                        const isSelected =
-                                            currentConfig.skinColor.toLowerCase() ===
-                                            color.value.toLowerCase();
-                                        return (
-                                            <button
-                                                key={color.value}
-                                                type="button"
-                                                onClick={() => updateConfig("skinColor", color.value)}
+                                        {/* Custom Color Trigger beside header */}
+                                        <div className="relative group">
+                                            <div
                                                 className={cn(
-                                                    "flex items-center gap-2.5 rounded-xl border p-2 text-left transition-all",
-                                                    isSelected
-                                                        ? "border-gold-400 bg-gold-500/15 shadow-gold ring-1 ring-gold-400 font-semibold"
-                                                        : "border-border/60 bg-space-850/60 hover:border-gold-500/30 hover:bg-space-850"
+                                                    "flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-all duration-150 cursor-pointer",
+                                                    !SKIN_COLOR_OPTIONS.some(
+                                                        (s) =>
+                                                            s.value.toLowerCase() ===
+                                                            currentConfig.skinColor.toLowerCase()
+                                                    )
+                                                        ? "border-gold-400 bg-gold-500/15 text-gold-300 ring-2 ring-gold-400/50 shadow-gold font-semibold"
+                                                        : "border-border/60 bg-space-850/80 text-starlight-300 hover:border-gold-500/40 hover:text-starlight-100"
                                                 )}
+                                                title="Pick custom skin hex"
                                             >
                                                 <span
-                                                    className="size-7 shrink-0 rounded-full border border-black/20 shadow-xs"
-                                                    style={{ backgroundColor: color.hex }}
+                                                    className="size-4 rounded-full border border-black/30 shrink-0 shadow-xs"
+                                                    style={{ backgroundColor: `#${currentConfig.skinColor}` }}
                                                 />
-                                                <div className="min-w-0">
-                                                    <span className="block truncate text-xs font-medium text-starlight-100">
-                                                        {color.label}
-                                                    </span>
-                                                    <span className="block text-[10px] text-starlight-400 font-mono">
-                                                        {color.hex}
-                                                    </span>
-                                                </div>
-                                            </button>
-                                        );
-                                    })}
+                                                <Palette className="size-3 text-gold-400" />
+                                                <span className="font-mono text-[11px]">
+                                                    #{currentConfig.skinColor.toUpperCase()}
+                                                </span>
+                                                <input
+                                                    type="color"
+                                                    value={`#${currentConfig.skinColor}`}
+                                                    onChange={(e) => {
+                                                        const clean = normalizeHexColor(e.target.value);
+                                                        if (clean) updateConfig("skinColor", clean);
+                                                    }}
+                                                    className="absolute inset-0 size-full cursor-pointer opacity-0"
+                                                    aria-label="Custom Skin Tone Picker"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* 7 Preset Complexion Cards */}
+                                    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
+                                        {SKIN_COLOR_OPTIONS.map((color) => {
+                                            const isSelected =
+                                                currentConfig.skinColor.toLowerCase() ===
+                                                color.value.toLowerCase();
+                                            return (
+                                                <button
+                                                    key={color.value}
+                                                    type="button"
+                                                    onClick={() => updateConfig("skinColor", color.value)}
+                                                    className={cn(
+                                                        "group relative flex items-center gap-3 rounded-xl border p-2.5 text-left transition-all select-none",
+                                                        isSelected
+                                                            ? "border-gold-400 bg-gold-500/15 shadow-gold ring-2 ring-gold-400/50 font-semibold"
+                                                            : "border-border/60 bg-space-850/60 hover:border-gold-500/30 hover:bg-space-850"
+                                                    )}
+                                                >
+                                                    <span
+                                                        className="size-8 shrink-0 rounded-full border border-black/30 shadow-xs group-hover:scale-105 transition-transform"
+                                                        style={{ backgroundColor: color.hex }}
+                                                    />
+                                                    <div className="min-w-0">
+                                                        <span className="block truncate text-xs font-medium text-starlight-100">
+                                                            {color.label}
+                                                        </span>
+                                                        <span className="block text-[10px] text-starlight-400 font-mono">
+                                                            {color.hex}
+                                                        </span>
+                                                    </div>
+                                                    {isSelected && (
+                                                        <span className="absolute top-1.5 right-1.5 flex size-4 items-center justify-center rounded-full bg-gold-400 text-space-950 shadow-xs">
+                                                            <Check className="size-2.5 stroke-[3]" />
+                                                        </span>
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    )}
+                        )}
 
-                    {/* Tab 4: Clothing & Outfits */}
-                    {activeTab === "clothing" && (
-                        <div className="space-y-6 animate-fade-in">
-                            {/* Clothes Color with Custom Picker */}
-                            <ColorPickerSection
-                                title="Clothing Hue"
-                                currentColor={currentConfig.clothesColor}
-                                presets={CLOTHES_COLOR_OPTIONS}
-                                onSelectColor={(hex) => updateConfig("clothesColor", hex)}
-                                defaultColor="262e33"
-                            />
+                        {/* Tab 4: Clothing & Outfits */}
+                        {activeTab === "clothing" && (
+                            <div className="space-y-5 animate-fade-in">
+                                {/* Clothes Color with Custom Picker */}
+                                <ColorPickerSection
+                                    title="Clothing Hue"
+                                    currentColor={currentConfig.clothesColor}
+                                    presets={CLOTHES_COLOR_OPTIONS}
+                                    onSelectColor={(hex) => updateConfig("clothesColor", hex)}
+                                    defaultColor="262e33"
+                                />
 
-                            {/* Clothing Styles with Visual Thumbnails */}
-                            <div className="space-y-2.5">
-                                <div className="flex items-center justify-between border-b border-border/50 pb-1">
-                                    <h4 className="text-xs font-semibold uppercase tracking-wider text-starlight-400">
-                                        Outfit & Style
-                                    </h4>
-                                    <span className="text-[10px] text-starlight-500 font-mono">
-                                        {CLOTHING_OPTIONS.length} styles
-                                    </span>
-                                </div>
-                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                                    {CLOTHING_OPTIONS.map((option) => (
-                                        <ThumbnailChoiceCard
-                                            key={option.value}
-                                            label={option.label}
-                                            thumbnailUri={getClothingThumbnail(
-                                                option.value,
-                                                currentConfig.clothesColor
-                                            )}
-                                            selected={currentConfig.clothing === option.value}
-                                            onClick={() => updateConfig("clothing", option.value)}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Graphic Shirt Badges (conditional when graphicShirt is selected) */}
-                            {isGraphicShirt && (
-                                <div className="space-y-2.5 rounded-xl border border-gold-500/30 bg-space-950/50 p-4">
+                                {/* Clothing Styles with Focused Torso Thumbnails */}
+                                <div className="space-y-2.5">
                                     <div className="flex items-center justify-between border-b border-border/50 pb-1">
-                                        <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gold-400">
-                                            <Tag className="size-3.5" />
-                                            T-Shirt Graphic Badge
+                                        <h4 className="text-xs font-semibold uppercase tracking-wider text-starlight-400">
+                                            Outfit & Style
                                         </h4>
                                         <span className="text-[10px] text-starlight-500 font-mono">
-                                            {CLOTHING_GRAPHIC_OPTIONS.length} badges
+                                            {CLOTHING_OPTIONS.length} styles
                                         </span>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-                                        {CLOTHING_GRAPHIC_OPTIONS.map((option) => (
+                                    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+                                        {CLOTHING_OPTIONS.map((option) => (
                                             <ThumbnailChoiceCard
                                                 key={option.value}
                                                 label={option.label}
-                                                thumbnailUri={getGraphicThumbnail(option.value)}
-                                                selected={
-                                                    (currentConfig.clothingGraphic ?? "none") ===
-                                                    option.value
-                                                }
-                                                onClick={() =>
-                                                    updateConfig("clothingGraphic", option.value)
-                                                }
+                                                thumbnailUri={getClothingThumbnail(
+                                                    option.value,
+                                                    currentConfig.clothesColor
+                                                )}
+                                                selected={currentConfig.clothing === option.value}
+                                                onClick={() => updateConfig("clothing", option.value)}
                                             />
                                         ))}
                                     </div>
                                 </div>
-                            )}
-                        </div>
-                    )}
 
-                    {/* Tab 5: Accessories & Details */}
-                    {activeTab === "details" && (
-                        <div className="space-y-6 animate-fade-in">
-                            {/* Glasses / Eyewear */}
-                            <div className="space-y-3">
-                                <div className="flex items-center justify-between border-b border-border/50 pb-1">
-                                    <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-starlight-400">
-                                        <Glasses className="size-3.5 text-gold-400" />
-                                        Eyewear & Accessories
-                                    </h4>
-                                    {currentConfig.accessories !== "none" && (
-                                        <button
-                                            type="button"
-                                            onClick={() => updateConfig("accessories", "none")}
-                                            className="text-[11px] text-starlight-400 hover:text-gold-300 transition-colors"
-                                        >
-                                            Remove Eyewear
-                                        </button>
-                                    )}
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                                    {ACCESSORY_OPTIONS.map((option) => (
-                                        <ThumbnailChoiceCard
-                                            key={option.value}
-                                            label={option.label}
-                                            thumbnailUri={getAccessoryThumbnail(
-                                                option.value,
-                                                currentConfig.accessoriesColor
-                                            )}
-                                            selected={currentConfig.accessories === option.value}
-                                            onClick={() => updateConfig("accessories", option.value)}
-                                        />
-                                    ))}
-                                </div>
-
-                                {currentConfig.accessories !== "none" && (
-                                    <ColorPickerSection
-                                        title="Frame Color"
-                                        currentColor={currentConfig.accessoriesColor}
-                                        presets={ACCESSORIES_COLOR_OPTIONS}
-                                        onSelectColor={(hex) =>
-                                            updateConfig("accessoriesColor", hex)
-                                        }
-                                        defaultColor="262e33"
-                                        className="mt-3"
-                                    />
+                                {/* Graphic Shirt Badges (conditional when graphicShirt is selected) */}
+                                {isGraphicShirt && (
+                                    <div className="space-y-2.5 rounded-xl border border-gold-500/30 bg-space-950/50 p-4">
+                                        <div className="flex items-center justify-between border-b border-border/50 pb-1">
+                                            <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gold-400">
+                                                <Tag className="size-3.5" />
+                                                T-Shirt Graphic Badge
+                                            </h4>
+                                            <span className="text-[10px] text-starlight-500 font-mono">
+                                                {CLOTHING_GRAPHIC_OPTIONS.length} badges
+                                            </span>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
+                                            {CLOTHING_GRAPHIC_OPTIONS.map((option) => (
+                                                <ThumbnailChoiceCard
+                                                    key={option.value}
+                                                    label={option.label}
+                                                    thumbnailUri={getGraphicThumbnail(option.value)}
+                                                    selected={
+                                                        (currentConfig.clothingGraphic ?? "none") ===
+                                                        option.value
+                                                    }
+                                                    onClick={() =>
+                                                        updateConfig("clothingGraphic", option.value)
+                                                    }
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
                                 )}
-                            </div>
-
-                            {/* Facial Hair */}
-                            <div className="space-y-3 pt-4 border-t border-border/60">
-                                <div className="flex items-center justify-between border-b border-border/50 pb-1">
-                                    <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-starlight-400">
-                                        <UserCheck className="size-3.5 text-gold-400" />
-                                        Facial Hair & Grooming
-                                    </h4>
-                                    {currentConfig.facialHair !== "none" && (
-                                        <button
-                                            type="button"
-                                            onClick={() => updateConfig("facialHair", "none")}
-                                            className="text-[11px] text-starlight-400 hover:text-gold-300 transition-colors"
-                                        >
-                                            Clean Shaven
-                                        </button>
-                                    )}
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                                    {FACIAL_HAIR_OPTIONS.map((option) => (
-                                        <ThumbnailChoiceCard
-                                            key={option.value}
-                                            label={option.label}
-                                            thumbnailUri={getFacialHairThumbnail(
-                                                option.value,
-                                                currentConfig.facialHairColor
-                                            )}
-                                            selected={currentConfig.facialHair === option.value}
-                                            onClick={() => updateConfig("facialHair", option.value)}
-                                        />
-                                    ))}
-                                </div>
-
-                                {currentConfig.facialHair !== "none" && (
-                                    <ColorPickerSection
-                                        title="Facial Hair Color"
-                                        currentColor={currentConfig.facialHairColor}
-                                        presets={HAIR_COLOR_OPTIONS}
-                                        onSelectColor={(hex) =>
-                                            updateConfig("facialHairColor", hex)
-                                        }
-                                        defaultColor="2c1b18"
-                                        className="mt-3"
-                                    />
-                                )}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Mobile Bottom Save Bar / Revert */}
-                    <div className="flex flex-col gap-2 pt-4 border-t border-border/60 lg:hidden">
-                        {statusMessage.type === "success" && (
-                            <div className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/15 p-2 text-xs font-semibold text-emerald-300">
-                                <Check className="size-4 shrink-0" />
-                                <span>{statusMessage.text}</span>
-                            </div>
-                        )}
-                        {statusMessage.type === "error" && (
-                            <div className="rounded-xl border border-rose-500/30 bg-rose-500/15 p-2 text-xs font-medium text-rose-300">
-                                {statusMessage.text}
                             </div>
                         )}
 
-                        <div className="flex items-center gap-2">
-                            <button
-                                type="button"
-                                onClick={handleSave}
-                                disabled={isSaving || !isDirty}
-                                className={cn(
-                                    "flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold shadow-gold transition-all",
-                                    isDirty
-                                        ? "bg-gradient-to-r from-gold-500 via-gold-400 to-gold-600 text-space-950 active:scale-95"
-                                        : "bg-space-850 text-starlight-400 border border-border/70 cursor-not-allowed"
+                        {/* Tab 5: Accessories & Details */}
+                        {activeTab === "details" && (
+                            <div className="space-y-5 animate-fade-in">
+                                {/* Subcategory Filter Pills */}
+                                <div className="flex items-center gap-1.5 pt-1">
+                                    <SubcategoryPill
+                                        active={detailsFilter === "all"}
+                                        onClick={() => setDetailsFilter("all")}
+                                        label="All Details"
+                                    />
+                                    <SubcategoryPill
+                                        active={detailsFilter === "eyewear"}
+                                        onClick={() => setDetailsFilter("eyewear")}
+                                        label="Eyewear (8)"
+                                    />
+                                    <SubcategoryPill
+                                        active={detailsFilter === "facial-hair"}
+                                        onClick={() => setDetailsFilter("facial-hair")}
+                                        label="Facial Hair (6)"
+                                    />
+                                </div>
+
+                                {/* Glasses / Eyewear */}
+                                {(detailsFilter === "all" || detailsFilter === "eyewear") && (
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between border-b border-border/50 pb-1">
+                                            <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-starlight-400">
+                                                <Glasses className="size-3.5 text-gold-400" />
+                                                Eyewear & Accessories
+                                            </h4>
+                                            {currentConfig.accessories !== "none" && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => updateConfig("accessories", "none")}
+                                                    className="text-[11px] text-starlight-400 hover:text-gold-300 transition-colors"
+                                                >
+                                                    Remove Eyewear
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                                            {ACCESSORY_OPTIONS.map((option) => (
+                                                <ThumbnailChoiceCard
+                                                    key={option.value}
+                                                    label={option.label}
+                                                    thumbnailUri={getAccessoryThumbnail(
+                                                        option.value,
+                                                        currentConfig.accessoriesColor
+                                                    )}
+                                                    selected={currentConfig.accessories === option.value}
+                                                    onClick={() => updateConfig("accessories", option.value)}
+                                                />
+                                            ))}
+                                        </div>
+
+                                        {currentConfig.accessories !== "none" && (
+                                            <ColorPickerSection
+                                                title="Frame Color"
+                                                currentColor={currentConfig.accessoriesColor}
+                                                presets={ACCESSORIES_COLOR_OPTIONS}
+                                                onSelectColor={(hex) =>
+                                                    updateConfig("accessoriesColor", hex)
+                                                }
+                                                defaultColor="262e33"
+                                                className="mt-3"
+                                            />
+                                        )}
+                                    </div>
                                 )}
-                            >
-                                {isSaving ? (
-                                    <>
-                                        <Loader2 className="size-3.5 animate-spin" />
-                                        <span>Saving...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Save className="size-3.5" />
-                                        <span>{isDirty ? "Save Avatar" : "Saved"}</span>
-                                    </>
+
+                                {/* Facial Hair */}
+                                {(detailsFilter === "all" || detailsFilter === "facial-hair") && (
+                                    <div className="space-y-3 pt-3 border-t border-border/50">
+                                        <div className="flex items-center justify-between border-b border-border/50 pb-1">
+                                            <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-starlight-400">
+                                                <UserCheck className="size-3.5 text-gold-400" />
+                                                Facial Hair & Grooming
+                                            </h4>
+                                            {currentConfig.facialHair !== "none" && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => updateConfig("facialHair", "none")}
+                                                    className="text-[11px] text-starlight-400 hover:text-gold-300 transition-colors"
+                                                >
+                                                    Clean Shaven
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+                                            {FACIAL_HAIR_OPTIONS.map((option) => (
+                                                <ThumbnailChoiceCard
+                                                    key={option.value}
+                                                    label={option.label}
+                                                    thumbnailUri={getFacialHairThumbnail(
+                                                        option.value,
+                                                        currentConfig.facialHairColor
+                                                    )}
+                                                    selected={currentConfig.facialHair === option.value}
+                                                    onClick={() => updateConfig("facialHair", option.value)}
+                                                />
+                                            ))}
+                                        </div>
+
+                                        {currentConfig.facialHair !== "none" && (
+                                            <ColorPickerSection
+                                                title="Facial Hair Color"
+                                                currentColor={currentConfig.facialHairColor}
+                                                presets={HAIR_COLOR_OPTIONS}
+                                                onSelectColor={(hex) =>
+                                                    updateConfig("facialHairColor", hex)
+                                                }
+                                                defaultColor="2c1b18"
+                                                className="mt-3"
+                                            />
+                                        )}
+                                    </div>
                                 )}
-                            </button>
+                            </div>
+                        )}
+                    </div>
 
-                            {isDirty && (
-                                <button
-                                    type="button"
-                                    onClick={handleRevert}
-                                    className="rounded-xl border border-border/70 bg-space-850 px-3 py-2.5 text-xs font-medium text-starlight-300 hover:bg-space-800"
-                                >
-                                    <RotateCcw className="size-3.5" />
-                                </button>
-                            )}
-
-                            {onCancel && (
-                                <button
-                                    type="button"
-                                    onClick={onCancel}
-                                    className="rounded-xl border border-border/70 bg-space-850 px-3 py-2.5 text-xs font-medium text-starlight-300 hover:bg-space-800"
-                                >
-                                    Close
-                                </button>
-                            )}
-                        </div>
-
+                    {/* Mobile Bottom Save & Close Actions */}
+                    <div className="flex items-center gap-2 pt-3 border-t border-border/60 lg:hidden">
                         <button
                             type="button"
-                            onClick={handleResetDefault}
-                            className="text-center text-[11px] text-starlight-400 hover:text-gold-300 transition-colors pt-1"
+                            onClick={handleSave}
+                            disabled={isSaving || !isDirty}
+                            className={cn(
+                                "flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold shadow-gold transition-all",
+                                isDirty
+                                    ? "bg-gradient-to-r from-gold-500 via-gold-400 to-gold-600 text-space-950 active:scale-95"
+                                    : "bg-space-850 text-starlight-400 border border-border/70 cursor-not-allowed"
+                            )}
                         >
-                            Reset to Default Cadet Look
+                            {isSaving ? (
+                                <>
+                                    <Loader2 className="size-3.5 animate-spin" />
+                                    <span>Saving...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Save className="size-3.5" />
+                                    <span>{isDirty ? "Save Avatar" : "Saved"}</span>
+                                </>
+                            )}
                         </button>
+
+                        {onCancel && (
+                            <button
+                                type="button"
+                                onClick={onCancel}
+                                className="rounded-xl border border-border/70 bg-space-850 px-4 py-2.5 text-xs font-medium text-starlight-300 hover:bg-space-800"
+                            >
+                                Close
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
@@ -859,7 +1059,7 @@ function TabButton({
             type="button"
             onClick={onClick}
             className={cn(
-                "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all",
+                "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all select-none",
                 active
                     ? "bg-gold-500/15 text-gold-300 border border-gold-500/35 shadow-gold font-semibold"
                     : "text-starlight-400 hover:bg-space-850 hover:text-starlight-200 border border-transparent"
@@ -867,6 +1067,31 @@ function TabButton({
         >
             <Icon className={cn("size-3.5", active ? "text-gold-400" : "text-starlight-400")} />
             <span>{label}</span>
+        </button>
+    );
+}
+
+function SubcategoryPill({
+    active,
+    onClick,
+    label,
+}: {
+    active: boolean;
+    onClick: () => void;
+    label: string;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className={cn(
+                "rounded-full px-2.5 py-1 text-[11px] font-medium transition-all select-none border",
+                active
+                    ? "border-gold-500/40 bg-gold-500/15 text-gold-300 font-semibold"
+                    : "border-border/60 bg-space-850/60 text-starlight-400 hover:border-gold-500/30 hover:text-starlight-200"
+            )}
+        >
+            {label}
         </button>
     );
 }
@@ -902,7 +1127,7 @@ function ThumbnailChoiceCard({
                     src={thumbnailUri}
                     alt={label}
                     loading="lazy"
-                    className="size-full select-none object-cover"
+                    className="size-full select-none object-contain"
                 />
                 {selected && (
                     <span className="absolute top-1 right-1 flex size-4 items-center justify-center rounded-full bg-gold-400 text-space-950 shadow-xs">
