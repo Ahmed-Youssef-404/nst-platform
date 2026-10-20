@@ -176,7 +176,8 @@ const baldConfig: StudentAvatarConfig = {
 };
 const baldSvg = generateAvatarSvg(baldConfig);
 assert.ok(baldSvg.length > 500, "Bald avatar SVG generated");
-assert.notStrictEqual(baldSvg, svg1, "Bald avatar differs from shortRound hair");
+const hairSvg = generateAvatarSvg({ ...DEFAULT_AVATAR_CONFIG, top: "shortRound" });
+assert.notStrictEqual(baldSvg, hairSvg, "Bald avatar differs from shortRound hair");
 console.log("✔ Clean Bald hairstyle renders cleanly.");
 
 // Test 10: Custom Hex Color normalization and support

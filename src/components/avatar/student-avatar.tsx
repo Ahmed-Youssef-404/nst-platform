@@ -15,6 +15,7 @@ export interface StudentAvatarProps {
     className?: string;
     fallbackInitials?: string;
     alt?: string;
+    onClick?: () => void;
 }
 
 const SIZE_CLASSES = {
@@ -33,6 +34,7 @@ export function StudentAvatar({
     className,
     fallbackInitials,
     alt,
+    onClick,
 }: StudentAvatarProps) {
     const dataUri = React.useMemo(() => {
         return generateAvatarDataUri(avatarConfig);
@@ -44,6 +46,7 @@ export function StudentAvatar({
 
     return (
         <Avatar
+            onClick={onClick}
             className={cn(
                 "relative shrink-0 overflow-hidden rounded-full border border-gold-500/30 bg-space-900 shadow-xs ring-1 ring-gold-500/15",
                 SIZE_CLASSES[size],

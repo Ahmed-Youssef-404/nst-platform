@@ -3,10 +3,12 @@
 // badge, a one-line description and optional identifier chips.
 
 import type { LucideIcon } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { StudentAvatar } from "@/components/avatar/student-avatar";
 import type { StudentAvatarConfig } from "@/types/avatar";
 import { getInitials } from "@/lib/profile/initials";
+import { cn } from "@/lib/utils";
 
 export interface ProfileChip {
     icon: LucideIcon;
@@ -24,6 +26,7 @@ export function ProfileHeader({
     chips = [],
     avatarConfig,
     action,
+    onEditAvatar,
 }: {
     name: string;
     roleLabel: string;
@@ -33,6 +36,7 @@ export function ProfileHeader({
     chips?: ProfileChip[];
     avatarConfig?: StudentAvatarConfig | null;
     action?: React.ReactNode;
+    onEditAvatar?: () => void;
 }) {
     return (
         <header className="relative overflow-hidden rounded-2xl border border-gold-500/25 bg-card p-6 shadow-md dark:bg-space-900/80 md:p-8">
@@ -43,12 +47,29 @@ export function ProfileHeader({
 
             <div className="relative flex flex-col items-start gap-5 sm:flex-row sm:items-center">
                 {avatarConfig !== undefined ? (
-                    <StudentAvatar
-                        avatarConfig={avatarConfig}
-                        name={name}
-                        fallbackInitials={initialsFallback}
-                        className="size-20 shrink-0 sm:size-24 border-2 border-gold-500/40 ring-4 ring-gold-500/15 shadow-gold"
-                    />
+                    <div className="relative group/avatar shrink-0">
+                        <StudentAvatar
+                            avatarConfig={avatarConfig}
+                            name={name}
+                            fallbackInitials={initialsFallback}
+                            className={cn(
+                                "size-20 shrink-0 sm:size-24 border-2 border-gold-500/40 ring-4 ring-gold-500/15 shadow-gold transition-transform",
+                                onEditAvatar && "cursor-pointer group-hover/avatar:scale-105"
+                            )}
+                            onClick={onEditAvatar}
+                        />
+                        {onEditAvatar && (
+                            <button
+                                type="button"
+                                onClick={onEditAvatar}
+                                aria-label="Customize avatar"
+                                title="Customize avatar"
+                                className="absolute -bottom-1 -right-1 flex size-7 sm:size-8 items-center justify-center rounded-full bg-gold-500 text-space-950 shadow-md ring-2 ring-space-900 transition-all hover:scale-110 hover:bg-gold-400 active:scale-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-400 cursor-pointer"
+                            >
+                                <Pencil className="size-3.5 sm:size-4 stroke-[2.5]" />
+                            </button>
+                        )}
+                    </div>
                 ) : (
                     <Avatar className="size-20 shrink-0 border border-gold-500/35 bg-gold-500/10 ring-4 ring-gold-500/10 sm:size-24">
                         <AvatarFallback className="bg-gold-500/10 font-display text-2xl font-bold text-gold-700 dark:bg-space-850 dark:text-gold-300 sm:text-3xl">

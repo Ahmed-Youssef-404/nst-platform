@@ -4,8 +4,8 @@
 // Wrapped in its own <Suspense> in layout.tsx.
 
 import Link from "next/link";
-import { Coins, AlertTriangle, ShieldAlert, Sparkles, ChevronRight } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Coins, AlertTriangle, ShieldAlert, ChevronRight } from "lucide-react";
+import { StudentAvatar } from "@/components/avatar/student-avatar";
 import { reconcileStudentST } from "@/lib/st-economy/reconcile";
 import { getStudentBalance } from "@/lib/data/get-st-balance";
 import type { BalanceZone } from "@/types/types";
@@ -53,26 +53,32 @@ export async function StudentTopBar({ studentId }: { studentId: string }) {
             className={`sticky top-0 z-30 border-b px-4 md:px-8 py-3 backdrop-blur-xl transition-all duration-300 ${zoneStyle.barClassName}`}
         >
             <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-x-4 gap-y-2">
-                {/* Left: Greeting & status */}
+                {/* Left: Student Identity (clickable to /student/profile) */}
                 <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-foreground dark:text-starlight-100 truncate">
+                    <Link
+                        href="/student/profile"
+                        className="group flex items-center gap-2.5 rounded-xl py-1 px-1.5 -ml-1.5 transition-colors hover:bg-space-850/80 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-gold-500/40"
+                        title="View Profile"
+                    >
+                        <StudentAvatar
+                            avatarConfig={balance.avatarConfig}
+                            name={balance.name}
+                            size="2xl"
+                            className="size-12 shrink-0 border border-gold-500/30 group-hover:border-gold-500/60 ring-1 ring-gold-500/20 transition-all"
+                        />
+                        <span className="text-sm font-semibold text-foreground dark:text-starlight-100 group-hover:text-gold-300 transition-colors truncate">
                             {balance.name}
                         </span>
-                        {/* <span className="hidden sm:inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold bg-gold-500/10 text-gold-700 dark:text-gold-400 border border-gold-500/25">
-                            <Sparkles className="size-2.5 text-gold-600 dark:text-gold-400" />
-                            Cadet
-                        </span> */}
-                    </div>
+                    </Link>
 
-                    {zoneStyle.label && balance.zone !== "normal" && (
+                    {/* {zoneStyle.label && balance.zone !== "normal" && (
                         <div className="flex items-center gap-1.5">
                             {zoneStyle.icon && <zoneStyle.icon className="size-3.5 shrink-0" />}
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${zoneStyle.badgeClassName}`}>
                                 {zoneStyle.label}
                             </span>
                         </div>
-                    )}
+                    )} */}
                 </div>
 
                 {/* Right: Star Tokens Balance */}

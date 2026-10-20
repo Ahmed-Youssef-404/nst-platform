@@ -10,10 +10,7 @@ import type { Metadata } from "next";
 import {
     Calendar,
     CalendarCheck,
-    Hash,
     History,
-    Mail,
-    Sparkles,
     Trophy,
     UserRound,
     Compass,
@@ -23,7 +20,7 @@ import { getCurrentStudentId } from "@/lib/auth/get-current-user";
 import { getStudentProfileData } from "@/lib/data/get-profile";
 import { formatDate } from "@/lib/format-date";
 import type { StudentProfileData } from "@/types/types";
-import { ProfileHeader } from "@/components/profile/profile-header";
+import { StudentProfileHeader } from "@/components/profile/student-profile-header";
 import { ProfileSection } from "@/components/profile/profile-section";
 import { InfoList, InfoRow } from "@/components/profile/info-row";
 import { LearningJourneySection } from "@/components/profile/learning-journey-section";
@@ -32,7 +29,6 @@ import { ShortcutList, type Shortcut } from "@/components/profile/shortcut-list"
 import { StudentSecurityNotice } from "@/components/profile/student-security-notice";
 import { ProfilePreferencesSection } from "@/components/profile/profile-preferences-section";
 import { ProfileUnavailable } from "@/components/profile/profile-unavailable";
-import { StudentAvatarSection } from "@/components/profile/student-avatar-section";
 
 export const metadata: Metadata = { title: "My Profile — NST Platform" };
 
@@ -83,22 +79,11 @@ export default async function StudentProfilePage() {
 
     return (
         <div className="mx-auto max-w-7xl space-y-6">
-            <ProfileHeader
+            <StudentProfileHeader
                 name={profile.name}
-                roleLabel="Student Details"
-                roleIcon={Sparkles}
-                initialsFallback="ST"
-                description=""
-                avatarConfig={profile.avatarConfig}
-                chips={[
-                    { icon: Hash, label: "Student code", value: profile.studentCode, mono: true },
-                    { icon: Mail, label: "Email", value: profile.email },
-                ]}
-            />
-
-            <StudentAvatarSection
-                initialConfig={profile.avatarConfig}
-                studentName={profile.name}
+                studentCode={profile.studentCode}
+                email={profile.email}
+                initialAvatarConfig={profile.avatarConfig}
             />
 
             <ProfileSection
