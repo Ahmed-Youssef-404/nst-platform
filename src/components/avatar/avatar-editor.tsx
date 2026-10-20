@@ -207,11 +207,11 @@ export function AvatarEditor({
             {/* Background Ambient Space Glow (contained without overflow-hidden breaking sticky) */}
             <div
                 aria-hidden="true"
-                className="pointer-events-none absolute -top-24 -right-16 size-72 rounded-full bg-gold-500/10 blur-3xl opacity-70"
+                className="pointer-events-none absolute -top-24 size-72 rounded-full bg-gold-500/10 blur-3xl opacity-70"
             />
             <div
                 aria-hidden="true"
-                className="pointer-events-none absolute -bottom-24 -left-16 size-72 rounded-full bg-gold-500/5 blur-3xl opacity-70"
+                className="pointer-events-none absolute -bottom-24 size-72 rounded-full bg-gold-500/5 blur-3xl opacity-70"
             />
 
             {/* Mobile-Only Persistent Character Stage Header (Sticky top-12 below StudentTopBar) */}
@@ -314,10 +314,10 @@ export function AvatarEditor({
             <div className="relative mb-6 hidden items-center justify-between gap-3 border-b border-border/70 pb-4 lg:flex">
                 <div>
                     <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-gold-500/30 bg-gold-500/10 px-2.5 py-0.5 text-xs font-semibold text-gold-600 dark:text-gold-400">
+                        {/* <span className="inline-flex items-center gap-1.5 rounded-full border border-gold-500/30 bg-gold-500/10 px-2.5 py-0.5 text-xs font-semibold text-gold-600 dark:text-gold-400">
                             <Sparkles className="size-3" />
                             Cadet Identity Studio
-                        </span>
+                        </span> */}
                         {isDirty && (
                             <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-500 dark:text-amber-300 border border-amber-500/30 animate-pulse">
                                 Unsaved Changes
