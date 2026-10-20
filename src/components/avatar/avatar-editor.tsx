@@ -200,7 +200,7 @@ export function AvatarEditor({
     return (
         <div
             className={cn(
-                "relative rounded-2xl border border-gold-500/30 bg-card p-4 sm:p-6 shadow-2xl dark:bg-space-900/95 transition-all",
+                "relative rounded-2xl max-h-fit overflow-hidden border border-gold-500/30 bg-card p-4 sm:p-6 shadow-2xl dark:bg-space-900/95 transition-all",
                 className
             )}
         >
@@ -211,7 +211,7 @@ export function AvatarEditor({
             />
             <div
                 aria-hidden="true"
-                className="pointer-events-none absolute -bottom-24 size-72 rounded-full bg-gold-500/5 blur-3xl opacity-70"
+                className="pointer-events-none absolute size-72 rounded-full bg-gold-500/5 blur-3xl opacity-70"
             />
 
             {/* Mobile-Only Persistent Character Stage Header (Sticky top-12 below StudentTopBar) */}
@@ -328,7 +328,7 @@ export function AvatarEditor({
                         Character Creator
                     </h2>
                     <p className="text-xs text-starlight-400">
-                        Customize your cadet identity in real-time. Changes are permanently reflected across platform rankings, podiums, and spaces.
+                        Customize your avatar here — it's your profile picture across the entire platform.
                     </p>
                 </div>
 
@@ -380,9 +380,9 @@ export function AvatarEditor({
 
                     <div className="w-full relative z-10">
                         <div className="flex items-center justify-between border-b border-border/50 pb-2 mb-3">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-gold-400/90">
+                            {/* <span className="text-[10px] font-bold uppercase tracking-wider text-gold-400/90">
                                 Live Cadet Stage
-                            </span>
+                            </span> */}
                             {isDirty ? (
                                 <span className="text-[10px] font-semibold text-amber-400">
                                     Modifying...
@@ -407,7 +407,6 @@ export function AvatarEditor({
                         <h3 className="font-display text-lg font-bold text-starlight-100 truncate mt-2">
                             {studentName}
                         </h3>
-                        <p className="text-xs text-starlight-400">NST Student Cadet</p>
 
                         {/* Quick Action Toolbar on Stage */}
                         <div className="mt-3 flex items-center justify-center gap-2 pt-2 border-t border-border/40">
@@ -476,7 +475,7 @@ export function AvatarEditor({
                                     type="button"
                                     onClick={onCancel}
                                     disabled={isSaving}
-                                    className="w-full rounded-xl border border-border/70 bg-transparent py-2 text-xs font-medium text-starlight-300 transition-colors hover:bg-space-850 hover:text-starlight-100"
+                                    className="w-full rounded-xl border border-border/70 py-2 text-xs font-medium transition-colors hover:bg-error-500/80 bg-error-500/60"
                                 >
                                     Close Editor
                                 </button>
@@ -486,7 +485,7 @@ export function AvatarEditor({
                 </div>
 
                 {/* Right: Customization Controls Panel */}
-                <div className="space-y-4 lg:col-span-7 xl:col-span-8 flex flex-col min-h-0">
+                <div className="space-y-4 lg:col-span-7 xl:col-span-8 flex flex-col max-h-140">
                     {/* Category Navigation Tabs */}
                     <div className="flex items-center gap-1.5 overflow-x-auto rounded-xl border border-border/70 bg-space-950/80 p-1.5 no-scrollbar shrink-0">
                         <TabButton

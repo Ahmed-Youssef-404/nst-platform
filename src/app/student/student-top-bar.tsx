@@ -59,10 +59,10 @@ export async function StudentTopBar({ studentId }: { studentId: string }) {
                         <span className="text-sm font-semibold text-foreground dark:text-starlight-100 truncate">
                             {balance.name}
                         </span>
-                        <span className="hidden sm:inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold bg-gold-500/10 text-gold-700 dark:text-gold-400 border border-gold-500/25">
+                        {/* <span className="hidden sm:inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold bg-gold-500/10 text-gold-700 dark:text-gold-400 border border-gold-500/25">
                             <Sparkles className="size-2.5 text-gold-600 dark:text-gold-400" />
                             Cadet
-                        </span>
+                        </span> */}
                     </div>
 
                     {zoneStyle.label && balance.zone !== "normal" && (
