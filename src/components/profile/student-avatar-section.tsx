@@ -73,8 +73,8 @@ export function StudentAvatarSection({
                                 </h3>
                                 <p className="text-xs text-starlight-400 max-w-md">
                                     {savedConfig
-                                        ? "Your custom 2D avatar represents you in group leaderboards, podiums, and platform spaces."
-                                        : "You are currently using the default Cadet avatar. Customize your hairstyle, outfit, expression, and gear."}
+                                        ? "your profile picture across the entire platform."
+                                        : "You are currently using the default Cadet avatar. Customize your hairstyle, outfit, expression, ..."}
                                 </p>
                             </div>
                         </div>

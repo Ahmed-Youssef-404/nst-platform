@@ -14,6 +14,7 @@ import type {
     SessionFeedbackDetail,
     SessionFeedbackStats,
 } from "@/types/types";
+import type { StudentAvatarConfig } from "@/types/avatar";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -29,6 +30,7 @@ export interface SessionDetailRosterEntry {
     studentName: string;
     attendanceStatus: "PRESENT" | "ABSENT" | null;
     engagementGiven: boolean;
+    avatarConfig?: StudentAvatarConfig | null;
 }
 
 export interface SessionDetailHint {
@@ -45,6 +47,7 @@ export interface SessionDetailHint {
 export interface SessionDetailSubmission {
     studentId: string;
     studentName: string;
+    avatarConfig?: StudentAvatarConfig | null;
     submission: {
         id: string;
         mode: SubmissionModeCode;
@@ -160,7 +163,7 @@ export async function getSessionDetail(
     // across every INTERNAL task in this Session.
     const groupStudents = await prisma.student.findMany({
         where: { groupId: session.level.groupId },
-        select: { id: true, name: true },
+        select: { id: true, name: true, avatarConfig: true },
         orderBy: { name: "asc" },
     });
 
@@ -179,7 +182,7 @@ export async function getSessionDetail(
         prisma.sessionFeedback.findMany({
             where: { sessionId },
             include: {
-                student: { select: { id: true, name: true, email: true } },
+                student: { select: { id: true, name: true, email: true, avatarConfig: true } },
             },
             orderBy: { createdAt: "desc" },
         }),
@@ -221,6 +224,7 @@ export async function getSessionDetail(
             studentName: student.name,
             attendanceStatus: attendanceByStudent.get(student.id) ?? null,
             engagementGiven: engagedStudentIds.has(student.id),
+            avatarConfig: (student.avatarConfig as unknown as StudentAvatarConfig) ?? null,
         })),
         feedbacks: feedbackRows.map((f) => ({
             id: f.id,
@@ -230,6 +234,7 @@ export async function getSessionDetail(
             rating: f.rating,
             comment: f.comment,
             createdAt: f.createdAt,
+            avatarConfig: (f.student.avatarConfig as unknown as StudentAvatarConfig) ?? null,
         })),
         feedbackStats: {
             totalFeedbacks,
@@ -266,6 +271,7 @@ export async function getSessionDetail(
                         return {
                             studentId: student.id,
                             studentName: student.name,
+                            avatarConfig: (student.avatarConfig as unknown as StudentAvatarConfig) ?? null,
                             submission: submission
                                 ? {
                                     id: submission.id,

@@ -32,6 +32,7 @@ export default async function StudentLayout({
         <SidebarProvider defaultOpen={true}>
             <div className="flex min-h-screen w-full bg-space-950 text-starlight-100 selection:bg-gold-500/25 selection:text-gold-300">
                 <StudentSidebar
+                    studentId={studentId}
                     studentName={profile.name}
                     groupType={profile.groupType}
                     avatarConfig={profile.avatarConfig}

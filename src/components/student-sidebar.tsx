@@ -94,10 +94,12 @@ function getStudentSubLinks(itemHref: string, pathname: string) {
 }
 
 export function StudentSidebar({
+    studentId,
     studentName,
     groupType = "INTERMEDIATE",
     avatarConfig,
 }: {
+    studentId?: string;
     studentName: string;
     groupType?: "BEGINNER" | "INTERMEDIATE";
     avatarConfig?: StudentAvatarConfig | null;
@@ -123,13 +125,13 @@ export function StudentSidebar({
         ...(isBeginner
             ? []
             : [
-                  {
-                      href: "/student/levels",
-                      label: "Level History",
-                      icon: History,
-                      description: "Past levels & archives",
-                  },
-              ]),
+                {
+                    href: "/student/levels",
+                    label: "Level History",
+                    icon: History,
+                    description: "Past levels & archives",
+                },
+            ]),
         {
             href: "/student/st-history",
             label: "ST History",
@@ -188,8 +190,8 @@ export function StudentSidebar({
                             item.href === "/student"
                                 ? (cleanPath.startsWith("/student/weeks") || cleanPath.startsWith("/student/sessions")) && cleanPath !== "/student"
                                 : item.href === "/student/levels"
-                                  ? cleanPath.startsWith("/student/levels") && cleanPath !== "/student/levels"
-                                  : false;
+                                    ? cleanPath.startsWith("/student/levels") && cleanPath !== "/student/levels"
+                                    : false;
 
                         const isHighlighted = isExactActive || isParentActive;
 
@@ -203,12 +205,11 @@ export function StudentSidebar({
                                         transition-all duration-200
                                         group-data-[collapsible=icon]:justify-center
                                         group-data-[collapsible=icon]:px-0
-                                        ${
-                                            isExactActive
-                                                ? "bg-gold-500/15 text-gold-700 dark:text-gold-300 border border-gold-500/35 shadow-gold font-semibold"
-                                                : isParentActive
-                                                  ? "bg-space-850/80 text-starlight-100 border border-gold-500/25 font-medium"
-                                                  : "text-starlight-300 hover:bg-space-850 hover:text-starlight-100 border border-transparent"
+                                        ${isExactActive
+                                            ? "bg-gold-500/15 text-gold-700 dark:text-gold-300 border border-gold-500/35 shadow-gold font-semibold"
+                                            : isParentActive
+                                                ? "bg-space-850/80 text-starlight-100 border border-gold-500/25 font-medium"
+                                                : "text-starlight-300 hover:bg-space-850 hover:text-starlight-100 border border-transparent"
                                         }
                                     `}
                                 >
@@ -239,19 +240,17 @@ export function StudentSidebar({
                                                     className={`
                                                         relative h-8 px-2.5 rounded-lg text-xs font-medium
                                                         transition-all duration-150 flex items-center gap-2
-                                                        ${
-                                                            sub.isActive
-                                                                ? "bg-gold-500/15 text-gold-700 dark:text-gold-300 border border-gold-500/35 shadow-xs font-semibold"
-                                                                : "text-starlight-300 hover:bg-space-850 hover:text-starlight-100 border border-transparent"
+                                                        ${sub.isActive
+                                                            ? "bg-gold-500/15 text-gold-700 dark:text-gold-300 border border-gold-500/35 shadow-xs font-semibold"
+                                                            : "text-starlight-300 hover:bg-space-850 hover:text-starlight-100 border border-transparent"
                                                         }
                                                     `}
                                                 >
                                                     <sub.icon
-                                                        className={`size-3.5 shrink-0 transition-colors ${
-                                                            sub.isActive
+                                                        className={`size-3.5 shrink-0 transition-colors ${sub.isActive
                                                                 ? "text-gold-600 dark:text-gold-400"
                                                                 : "text-starlight-400"
-                                                        }`}
+                                                            }`}
                                                     />
                                                     <span className="truncate">{sub.label}</span>
                                                     {sub.isActive && (
@@ -275,11 +274,10 @@ export function StudentSidebar({
                     aria-label="My Profile"
                     title="My Profile"
                     aria-current={isProfileActive ? "page" : undefined}
-                    className={`flex w-full items-center gap-2.5 rounded-xl p-2 transition-all duration-200 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-1.5 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500/40 ${
-                        isProfileActive
+                    className={`flex w-full items-center gap-2.5 rounded-xl p-2 transition-all duration-200 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-1.5 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500/40 ${isProfileActive
                             ? "bg-gold-500/15 ring-1 ring-gold-500/35 font-semibold text-gold-700 dark:text-gold-300"
                             : "hover:bg-space-850 text-starlight-300 hover:text-starlight-100"
-                    }`}
+                        }`}
                 >
                     <StudentAvatar
                         avatarConfig={avatarConfig}
@@ -292,8 +290,8 @@ export function StudentSidebar({
                         <p className="truncate text-xs font-semibold text-starlight-100">
                             {studentName}
                         </p>
-                        <span className="inline-flex items-center gap-1 text-[10px] text-gold-600 dark:text-gold-400/90 font-mono">
-                            Student Cadet
+                        <span className="truncate block text-[10px] text-gold-600 dark:text-gold-400/90 font-mono">
+                            {studentId ? studentId : "Student"}
                         </span>
                     </div>
 

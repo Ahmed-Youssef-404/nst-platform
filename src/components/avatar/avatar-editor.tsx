@@ -88,15 +88,30 @@ export function AvatarEditor({
     onCancel,
     className,
 }: AvatarEditorProps) {
-    const savedConfig = React.useMemo<StudentAvatarConfig>(() => {
-        return initialConfig ?? DEFAULT_AVATAR_CONFIG;
-    }, [initialConfig]);
+    const [savedBaseline, setSavedBaseline] = React.useState<StudentAvatarConfig>(
+        () => initialConfig ?? DEFAULT_AVATAR_CONFIG
+    );
 
-    const [currentConfig, setCurrentConfig] = React.useState<StudentAvatarConfig>(savedConfig);
+    const [prevInitialConfig, setPrevInitialConfig] = React.useState(initialConfig);
+    if (initialConfig !== prevInitialConfig) {
+        setPrevInitialConfig(initialConfig);
+        setSavedBaseline(initialConfig ?? DEFAULT_AVATAR_CONFIG);
+    }
+
+    const [currentConfig, setCurrentConfig] = React.useState<StudentAvatarConfig>(savedBaseline);
     const [activeTab, setActiveTab] = React.useState<MainCategory>("hair");
     const [hairFilter, setHairFilter] = React.useState<HairSubcategory>("all");
     const [faceFilter, setFaceFilter] = React.useState<FaceSubcategory>("all");
     const [detailsFilter, setDetailsFilter] = React.useState<DetailsSubcategory>("all");
+
+    // Scrollable customization panel ref to reset scroll to top on tab switch
+    const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+
+    React.useEffect(() => {
+        if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTop = 0;
+        }
+    }, [activeTab]);
 
     const [isSaving, startSavingTransition] = React.useTransition();
     const [statusMessage, setStatusMessage] = React.useState<{
@@ -104,25 +119,85 @@ export function AvatarEditor({
         text: string;
     }>({ type: null, text: "" });
 
-    // Detect if current config differs from saved config
+    // Detect if current config differs from saved baseline
     const isDirty = React.useMemo(() => {
-        return JSON.stringify(currentConfig) !== JSON.stringify(savedConfig);
-    }, [currentConfig, savedConfig]);
+        return JSON.stringify(currentConfig) !== JSON.stringify(savedBaseline);
+    }, [currentConfig, savedBaseline]);
 
-    // Live preview data URI (memoized in memory)
+    // Live preview data URI (updates immediately without debounce)
     const previewDataUri = React.useMemo(() => {
         return generateAvatarDataUri(currentConfig);
     }, [currentConfig]);
+
+    // Thumbnail colors snapshot (debounced by 2000ms from draft color changes)
+    const [thumbnailColors, setThumbnailColors] = React.useState({
+        hairColor: savedBaseline.hairColor,
+        clothesColor: savedBaseline.clothesColor,
+        accessoriesColor: savedBaseline.accessoriesColor,
+        facialHairColor: savedBaseline.facialHairColor,
+    });
+
+    const debounceTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+
+    const latestColorsRef = React.useRef({
+        hairColor: savedBaseline.hairColor,
+        clothesColor: savedBaseline.clothesColor,
+        accessoriesColor: savedBaseline.accessoriesColor,
+        facialHairColor: savedBaseline.facialHairColor,
+    });
+
+    // Clean up pending debounce timer on unmount
+    React.useEffect(() => {
+        return () => {
+            if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current);
+            }
+        };
+    }, []);
 
     const updateConfig = <K extends keyof StudentAvatarConfig>(
         key: K,
         value: StudentAvatarConfig[K]
     ) => {
-        setCurrentConfig((prev) => ({ ...prev, [key]: value }));
+        setCurrentConfig((prev) => {
+            if (prev[key] === value) return prev;
+            return { ...prev, [key]: value };
+        });
         setStatusMessage({ type: null, text: "" });
+
+        // If the changed option is a thumbnail-affecting color, debounce thumbnail update by 2,000ms
+        if (
+            key === "hairColor" ||
+            key === "clothesColor" ||
+            key === "accessoriesColor" ||
+            key === "facialHairColor"
+        ) {
+            latestColorsRef.current = {
+                ...latestColorsRef.current,
+                [key]: value as string,
+            };
+            if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current);
+            }
+            debounceTimerRef.current = setTimeout(() => {
+                const latest = latestColorsRef.current;
+                setThumbnailColors({
+                    hairColor: latest.hairColor,
+                    clothesColor: latest.clothesColor,
+                    accessoriesColor: latest.accessoriesColor,
+                    facialHairColor: latest.facialHairColor,
+                });
+                debounceTimerRef.current = null;
+            }, 200);
+        }
     };
 
     const handleRandomize = () => {
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+            debounceTimerRef.current = null;
+        }
+
         const randomFrom = <T,>(arr: readonly T[]): T =>
             arr[Math.floor(Math.random() * arr.length)]!;
 
@@ -143,17 +218,51 @@ export function AvatarEditor({
             facialHairColor: randomFrom(ALLOWED_HAIR_COLORS),
         };
 
+        const nextColors = {
+            hairColor: randomConfig.hairColor,
+            clothesColor: randomConfig.clothesColor,
+            accessoriesColor: randomConfig.accessoriesColor,
+            facialHairColor: randomConfig.facialHairColor,
+        };
+        latestColorsRef.current = nextColors;
         setCurrentConfig(randomConfig);
+        setThumbnailColors(nextColors);
         setStatusMessage({ type: null, text: "" });
     };
 
     const handleResetDefault = () => {
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+            debounceTimerRef.current = null;
+        }
+
+        const nextColors = {
+            hairColor: DEFAULT_AVATAR_CONFIG.hairColor,
+            clothesColor: DEFAULT_AVATAR_CONFIG.clothesColor,
+            accessoriesColor: DEFAULT_AVATAR_CONFIG.accessoriesColor,
+            facialHairColor: DEFAULT_AVATAR_CONFIG.facialHairColor,
+        };
+        latestColorsRef.current = nextColors;
         setCurrentConfig(DEFAULT_AVATAR_CONFIG);
+        setThumbnailColors(nextColors);
         setStatusMessage({ type: null, text: "" });
     };
 
     const handleRevert = () => {
-        setCurrentConfig(savedConfig);
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+            debounceTimerRef.current = null;
+        }
+
+        const nextColors = {
+            hairColor: savedBaseline.hairColor,
+            clothesColor: savedBaseline.clothesColor,
+            accessoriesColor: savedBaseline.accessoriesColor,
+            facialHairColor: savedBaseline.facialHairColor,
+        };
+        latestColorsRef.current = nextColors;
+        setCurrentConfig(savedBaseline);
+        setThumbnailColors(nextColors);
         setStatusMessage({ type: null, text: "" });
     };
 
@@ -162,6 +271,19 @@ export function AvatarEditor({
             setStatusMessage({ type: null, text: "" });
             const result = await saveStudentAvatarAction(currentConfig);
             if (result.success) {
+                setSavedBaseline(result.config);
+                if (debounceTimerRef.current) {
+                    clearTimeout(debounceTimerRef.current);
+                    debounceTimerRef.current = null;
+                }
+                const nextColors = {
+                    hairColor: result.config.hairColor,
+                    clothesColor: result.config.clothesColor,
+                    accessoriesColor: result.config.accessoriesColor,
+                    facialHairColor: result.config.facialHairColor,
+                };
+                latestColorsRef.current = nextColors;
+                setThumbnailColors(nextColors);
                 setStatusMessage({
                     type: "success",
                     text: "Avatar synced across NST Platform!",
@@ -317,18 +439,18 @@ export function AvatarEditor({
                         {/* <span className="inline-flex items-center gap-1.5 rounded-full border border-gold-500/30 bg-gold-500/10 px-2.5 py-0.5 text-xs font-semibold text-gold-600 dark:text-gold-400">
                             <Sparkles className="size-3" />
                             Cadet Identity Studio
-                        </span> */}
-                        {isDirty && (
+                        </span> */
+                        /* {isDirty && (
                             <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-500 dark:text-amber-300 border border-amber-500/30 animate-pulse">
                                 Unsaved Changes
                             </span>
-                        )}
+                        )} */}
                     </div>
                     <h2 className="mt-1 font-display text-xl font-bold tracking-tight text-starlight-100 sm:text-2xl">
                         Character Creator
                     </h2>
                     <p className="text-xs text-starlight-400">
-                        Customize your avatar here — it's your profile picture across the entire platform.
+                        Customize your avatar here — it&apos;s your profile picture across the entire platform.
                     </p>
                 </div>
 
@@ -384,8 +506,8 @@ export function AvatarEditor({
                                 Live Cadet Stage
                             </span> */}
                             {isDirty ? (
-                                <span className="text-[10px] font-semibold text-amber-400">
-                                    Modifying...
+                                <span className="text-[10px] font-semibold text-error-400">
+                                    Unsaved Changes
                                 </span>
                             ) : (
                                 <span className="text-[10px] text-emerald-400 font-semibold">
@@ -413,7 +535,9 @@ export function AvatarEditor({
                             <button
                                 type="button"
                                 onClick={handleRandomize}
-                                className="inline-flex items-center gap-1 text-[11px] font-medium text-starlight-300 hover:text-gold-300 transition-colors"
+                                aria-label="Randomize appearance"
+                                title="Randomize appearance"
+                                className="inline-flex items-center gap-1 text-[11px] font-medium text-starlight-300 hover:text-gold-300 transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-gold-500/40 rounded-sm"
                             >
                                 <Dices className="size-3 text-gold-400" />
                                 <span>Randomize</span>
@@ -422,10 +546,29 @@ export function AvatarEditor({
                             <button
                                 type="button"
                                 onClick={handleResetDefault}
-                                className="inline-flex items-center gap-1 text-[11px] font-medium text-starlight-400 hover:text-gold-300 transition-colors"
+                                aria-label="Reset to default avatar"
+                                title="Reset to default avatar"
+                                className="inline-flex items-center gap-1 text-[11px] font-medium text-starlight-400 hover:text-gold-300 transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-gold-500/40 rounded-sm"
                             >
                                 <Undo2 className="size-3" />
                                 <span>Default</span>
+                            </button>
+                            <span className="text-starlight-600">•</span>
+                            <button
+                                type="button"
+                                onClick={handleRevert}
+                                disabled={!isDirty}
+                                aria-label="Revert to saved avatar"
+                                title="Revert to saved avatar"
+                                className={cn(
+                                    "inline-flex items-center gap-1 text-[11px] font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-gold-500/40 rounded-sm",
+                                    isDirty
+                                        ? "text-starlight-300 hover:text-gold-300 cursor-pointer"
+                                        : "text-starlight-600 cursor-not-allowed opacity-50"
+                                )}
+                            >
+                                <RotateCcw className="size-3 text-gold-400" />
+                                <span>Revert</span>
                             </button>
                         </div>
                     </div>
@@ -521,7 +664,10 @@ export function AvatarEditor({
                     </div>
 
                     {/* Independently Scrollable Customization Area */}
-                    <div className="flex-1 overflow-y-auto max-h-[calc(100vh-14rem)] lg:max-h-[calc(100vh-13rem)] pr-1 sm:pr-2 space-y-5 custom-scrollbar">
+                    <div
+                        ref={scrollContainerRef}
+                        className="flex-1 overflow-y-auto max-h-[calc(100vh-14rem)] lg:max-h-[calc(100vh-13rem)] pr-1 sm:pr-2 space-y-5 custom-scrollbar"
+                    >
                         {/* Tab 1: Hair & Headwear */}
                         {activeTab === "hair" && (
                             <div className="space-y-5 animate-fade-in">
@@ -592,7 +738,7 @@ export function AvatarEditor({
                                                     label={option.label}
                                                     thumbnailUri={getTopThumbnail(
                                                         option.value,
-                                                        currentConfig.hairColor
+                                                        thumbnailColors.hairColor
                                                     )}
                                                     selected={currentConfig.top === option.value}
                                                     onClick={() => updateConfig("top", option.value)}
@@ -833,7 +979,7 @@ export function AvatarEditor({
                                                 label={option.label}
                                                 thumbnailUri={getClothingThumbnail(
                                                     option.value,
-                                                    currentConfig.clothesColor
+                                                    thumbnailColors.clothesColor
                                                 )}
                                                 selected={currentConfig.clothing === option.value}
                                                 onClick={() => updateConfig("clothing", option.value)}
@@ -923,7 +1069,7 @@ export function AvatarEditor({
                                                     label={option.label}
                                                     thumbnailUri={getAccessoryThumbnail(
                                                         option.value,
-                                                        currentConfig.accessoriesColor
+                                                        thumbnailColors.accessoriesColor
                                                     )}
                                                     selected={currentConfig.accessories === option.value}
                                                     onClick={() => updateConfig("accessories", option.value)}
@@ -972,7 +1118,7 @@ export function AvatarEditor({
                                                     label={option.label}
                                                     thumbnailUri={getFacialHairThumbnail(
                                                         option.value,
-                                                        currentConfig.facialHairColor
+                                                        thumbnailColors.facialHairColor
                                                     )}
                                                     selected={currentConfig.facialHair === option.value}
                                                     onClick={() => updateConfig("facialHair", option.value)}
@@ -1102,7 +1248,7 @@ interface ThumbnailChoiceCardProps {
     onClick: () => void;
 }
 
-function ThumbnailChoiceCard({
+const ThumbnailChoiceCard = React.memo(function ThumbnailChoiceCard({
     label,
     thumbnailUri,
     selected,
@@ -1139,7 +1285,7 @@ function ThumbnailChoiceCard({
             </span>
         </button>
     );
-}
+});
 
 interface ColorPickerSectionProps<T extends string = string> {
     title: string;

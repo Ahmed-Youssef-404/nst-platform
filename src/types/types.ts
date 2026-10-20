@@ -710,6 +710,7 @@ export interface SessionFeedbackDetail {
     rating: number;
     comment: string | null;
     createdAt: Date;
+    avatarConfig?: StudentAvatarConfig | null;
 }
 
 export interface SessionFeedbackStats {

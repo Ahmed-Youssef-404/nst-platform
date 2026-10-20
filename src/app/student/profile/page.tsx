@@ -85,10 +85,10 @@ export default async function StudentProfilePage() {
         <div className="mx-auto max-w-7xl space-y-6">
             <ProfileHeader
                 name={profile.name}
-                roleLabel="Student Cadet"
+                roleLabel="Student Details"
                 roleIcon={Sparkles}
                 initialsFallback="ST"
-                description="Your place in the NST learning journey."
+                description=""
                 avatarConfig={profile.avatarConfig}
                 chips={[
                     { icon: Hash, label: "Student code", value: profile.studentCode, mono: true },

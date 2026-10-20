@@ -43,6 +43,7 @@ import {
     MessageSquareQuote,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { StudentAvatar } from "@/components/avatar/student-avatar";
 import { formatDateTime } from "@/lib/format-date";
 import { getSubmissionFileUrlAction } from "@/lib/actions/submission-management";
 import { showToast } from "@/components/ui/toast";
@@ -192,45 +193,53 @@ export function WeekGradingView({ data }: { data: WeekGradingViewData }) {
                                                     : "hover:bg-space-850/60 border-l-4 border-l-transparent"
                                             }`}
                                         >
-                                            <div className="space-y-1.5 min-w-0">
-                                                <p
-                                                    className={`text-sm font-bold truncate ${
-                                                        isSelected ? "text-gold-300" : "text-starlight-100"
-                                                    }`}
-                                                >
-                                                    {student.studentName}
-                                                </p>
-                                                <div className="flex items-center gap-1.5 flex-wrap">
-                                                    {student.isFinalized ? (
-                                                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-success-500/15 text-success-400 border border-success-500/30">
-                                                            Finalized
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-space-850 text-starlight-400 border border-border/80">
-                                                            Pending
-                                                        </span>
-                                                    )}
+                                            <div className="flex items-start gap-2.5 min-w-0">
+                                                <StudentAvatar
+                                                    avatarConfig={student.avatarConfig}
+                                                    name={student.studentName}
+                                                    size="sm"
+                                                    className="size-8 shrink-0 mt-0.5"
+                                                />
+                                                <div className="space-y-1.5 min-w-0 flex-1">
+                                                    <p
+                                                        className={`text-sm font-bold truncate ${
+                                                            isSelected ? "text-gold-300" : "text-starlight-100"
+                                                        }`}
+                                                    >
+                                                        {student.studentName}
+                                                    </p>
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                        {student.isFinalized ? (
+                                                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-success-500/15 text-success-400 border border-success-500/30">
+                                                                Finalized
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-space-850 text-starlight-400 border border-border/80">
+                                                                Pending
+                                                            </span>
+                                                        )}
 
-                                                    {student.isLocked && (
-                                                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-space-850 text-gold-400 border border-gold-500/30 flex items-center gap-0.5">
-                                                            <Lock className="size-2.5" />
-                                                            Locked
-                                                        </span>
-                                                    )}
+                                                        {student.isLocked && (
+                                                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-space-850 text-gold-400 border border-gold-500/30 flex items-center gap-0.5">
+                                                                <Lock className="size-2.5" />
+                                                                Locked
+                                                            </span>
+                                                        )}
 
-                                                    {student.resource?.status === "ACCEPTED" ? (
-                                                        <span className="text-[10px] text-success-400 font-semibold font-mono">
-                                                            File ✓
-                                                        </span>
-                                                    ) : student.resource?.fileUrl ? (
-                                                        <span className="text-[10px] text-amber-400 font-semibold font-mono">
-                                                            File PENDING
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-[10px] text-starlight-400 font-mono">
-                                                            No file
-                                                        </span>
-                                                    )}
+                                                        {student.resource?.status === "ACCEPTED" ? (
+                                                            <span className="text-[10px] text-success-400 font-semibold font-mono">
+                                                                File ✓
+                                                            </span>
+                                                        ) : student.resource?.fileUrl ? (
+                                                            <span className="text-[10px] text-amber-400 font-semibold font-mono">
+                                                                File PENDING
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-[10px] text-starlight-400 font-mono">
+                                                                No file
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
 
@@ -362,11 +371,18 @@ function StudentGradingWorkspace({
             {/* Student Header Card */}
             <Card className="rounded-2xl border border-border/80 bg-space-900/80 shadow-2 backdrop-blur-md overflow-hidden">
                 <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 border-b border-border/70 bg-space-950/40">
-                    <div>
-                        <div className="flex items-center gap-2.5">
-                            <CardTitle className="text-xl font-bold font-display text-starlight-100">
-                                {student.studentName}
-                            </CardTitle>
+                    <div className="flex items-center gap-3.5 min-w-0">
+                        <StudentAvatar
+                            avatarConfig={student.avatarConfig}
+                            name={student.studentName}
+                            size="md"
+                            className="size-11 shrink-0 border-2 border-gold-500/40 shadow-gold"
+                        />
+                        <div className="min-w-0">
+                            <div className="flex items-center gap-2.5">
+                                <CardTitle className="text-xl font-bold font-display text-starlight-100 truncate">
+                                    {student.studentName}
+                                </CardTitle>
                             {student.isFinalized ? (
                                 <Badge className="bg-success-500/15 text-success-400 border-success-500/30 text-xs px-2.5 py-0.5 rounded-full font-semibold">
                                     Finalized
@@ -395,6 +411,7 @@ function StudentGradingWorkspace({
                                 )}
                             </span>
                         </CardDescription>
+                        </div>
                     </div>
 
                     {!student.isFinalized && (

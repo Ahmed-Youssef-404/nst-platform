@@ -77,7 +77,7 @@ export function ProfileHeader({
                             {chips.map((chip) => (
                                 <li
                                     key={chip.label}
-                                    className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-border/70 bg-space-850/60 px-2.5 py-1 text-xs text-starlight-300"
+                                    className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-border/70 bg-space-850/60 px-2.5 py-1 text-base text-starlight-300"
                                 >
                                     <chip.icon
                                         className="size-3.5 shrink-0 text-gold-600 dark:text-gold-400"
