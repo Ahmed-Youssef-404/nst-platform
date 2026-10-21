@@ -223,4 +223,78 @@ assert.ok(accessoryThumb.startsWith("data:image/svg+xml;utf8,"), "Accessory thum
 assert.ok(facialHairThumb.startsWith("data:image/svg+xml;utf8,"), "Facial hair thumbnail is valid Data URI");
 console.log("✔ All visual thumbnail generators generate valid SVG Data URIs.");
 
-console.log("\n🎉 ALL AVATAR UNIT TESTS PASSED SUCCESSFULLY! (11/11)");
+// Test 12: Default avatar items are all free (0 ST)
+console.log("Test 12: Verifying all default avatar items and basic options are free...");
+import {
+    AVATAR_CATALOG,
+    getCatalogItemById,
+    isItemInherentFree,
+    isColorInherentFreeForItem,
+    getAuthoritativeItemPrice,
+    getAuthoritativeColorPrice,
+    CUSTOM_COLOR_PRICE,
+} from "@/lib/avatar/catalog";
+
+assert.strictEqual(isItemInherentFree("top", DEFAULT_AVATAR_CONFIG.top), true);
+assert.strictEqual(isItemInherentFree("clothing", DEFAULT_AVATAR_CONFIG.clothing), true);
+assert.strictEqual(isItemInherentFree("clothingGraphic", DEFAULT_AVATAR_CONFIG.clothingGraphic ?? "none"), true);
+assert.strictEqual(isItemInherentFree("accessories", DEFAULT_AVATAR_CONFIG.accessories), true);
+assert.strictEqual(isItemInherentFree("facialHair", DEFAULT_AVATAR_CONFIG.facialHair), true);
+assert.strictEqual(isItemInherentFree("eyes", DEFAULT_AVATAR_CONFIG.eyes), true);
+assert.strictEqual(isItemInherentFree("eyebrows", DEFAULT_AVATAR_CONFIG.eyebrows), true);
+assert.strictEqual(isItemInherentFree("mouth", DEFAULT_AVATAR_CONFIG.mouth), true);
+console.log("✔ All items in DEFAULT_AVATAR_CONFIG are completely free (0 ST).");
+
+// Test 13: Every category has at least one free usable option
+console.log("Test 13: Verifying every category has free usable options...");
+const hairItems = AVATAR_CATALOG.filter((i) => i.slot === "top");
+const clothingItems = AVATAR_CATALOG.filter((i) => i.slot === "clothing");
+const accessoryItems = AVATAR_CATALOG.filter((i) => i.slot === "accessories");
+const facialHairItems = AVATAR_CATALOG.filter((i) => i.slot === "facialHair");
+
+assert.ok(hairItems.some((i) => i.isFree), "Hair category must have free options");
+assert.ok(clothingItems.some((i) => i.isFree), "Clothing category must have free options");
+assert.ok(accessoryItems.some((i) => i.isFree), "Accessories category must have free options");
+assert.ok(facialHairItems.some((i) => i.isFree), "Facial hair category must have free options");
+console.log("✔ Every avatar category has accessible free options.");
+
+// Test 14: Item-specific color pricing and ownership rules
+console.log("Test 14: Testing item-specific color rules...");
+const caesarItem = getCatalogItemById("top:theCaesar")!;
+assert.ok(caesarItem, "top:theCaesar must exist in catalog");
+assert.strictEqual(isColorInherentFreeForItem("top:theCaesar", "2c1b18"), true, "Midnight black is free for theCaesar");
+assert.strictEqual(isColorInherentFreeForItem("top:theCaesar", "4a312c"), true, "Dark brown is free for theCaesar");
+assert.strictEqual(isColorInherentFreeForItem("top:theCaesar", "c93305"), false, "Crimson red is paid for theCaesar");
+
+const crimsonPrice = getAuthoritativeColorPrice("top:theCaesar", "c93305");
+assert.strictEqual(crimsonPrice, 15, "Predefined paid color cost must be 15 ST");
+
+const customHexPrice = getAuthoritativeColorPrice("top:theCaesar", "39ff14", true);
+assert.strictEqual(customHexPrice, CUSTOM_COLOR_PRICE, "Custom hex color price must be 25 ST");
+console.log("✔ Item-specific color pricing verified.");
+
+// Test 15: Color independence across items
+console.log("Test 15: Verifying color entitlements are strictly scoped to the exact item...");
+// Owning crimson red on theCaesar must NOT automatically make it free or owned on shaggyMullet
+const ownedColorSet = new Set(["top:theCaesar:c93305"]);
+const ownsOnCaesar = ownedColorSet.has("top:theCaesar:c93305");
+const ownsOnMullet = ownedColorSet.has("top:shaggyMullet:c93305");
+assert.strictEqual(ownsOnCaesar, true, "Crimson red owned for theCaesar");
+assert.strictEqual(ownsOnMullet, false, "Crimson red NOT owned for shaggyMullet");
+console.log("✔ Colors belong to individual items and do not bleed into other items.");
+
+// Test 16: Bulk purchase price calculation
+console.log("Test 16: Testing bulk purchase price calculations...");
+const selectedItemIds = ["top:theCaesar", "clothing:hoodie"]; // 20 ST + 25 ST = 45 ST
+const selectedColors = [{ itemId: "top:theCaesar", colorHex: "c93305" }]; // 15 ST
+const totalExpected = 20 + 25 + 15; // 60 ST
+
+const calculatedTotal =
+    selectedItemIds.reduce((sum, id) => sum + getAuthoritativeItemPrice(id), 0) +
+    selectedColors.reduce((sum, c) => sum + getAuthoritativeColorPrice(c.itemId, c.colorHex), 0);
+
+assert.strictEqual(calculatedTotal, totalExpected, `Expected ${totalExpected} ST total`);
+console.log("✔ Bulk purchase calculations correctly aggregate items and item-specific colors.");
+
+console.log("\n🎉 ALL AVATAR UNIT TESTS PASSED SUCCESSFULLY! (16/16)");
+

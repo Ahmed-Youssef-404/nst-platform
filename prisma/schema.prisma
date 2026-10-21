@@ -65,6 +65,7 @@ model Student {
   levelStBalances         LevelStBalance[] // INTERMEDIATE فقط
   weekResourceSubmissions WeekResourceSubmission[] // BEGINNER فقط
   sessionFeedbacks        SessionFeedback[]
+  itemColors              StudentItemColor[]
 
   @@map("students")
 }
@@ -780,6 +781,29 @@ model StudentInventory {
 
   @@unique([studentId, storeItemId])
   @@map("student_inventory")
+}
+
+// ============================================
+// STUDENT ITEM COLOR
+// ============================================
+// Entitlements for item-specific colors (both predefined paid colors
+// and custom hex color picker choices).
+// (studentId, itemId, colorHex) is unique — a student only purchases
+// a specific color for a specific item once.
+
+model StudentItemColor {
+  id          String   @id @default(uuid())
+  studentId   String
+  itemId      String   // Item identifier, e.g. "top_theCaesar", "clothing_hoodie"
+  colorHex    String   // Normalized 6-character hex string (e.g. "c93305")
+  isCustom    Boolean  @default(false)
+  purchasedAt DateTime @default(now())
+
+  // Relations
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, itemId, colorHex])
+  @@map("student_item_colors")
 }
 
 // ============================================

@@ -55,62 +55,62 @@ export const TOP_OPTIONS: {
     category: string;
     options: ChoiceOption<Top>[];
 }[] = [
-    {
-        category: "Minimal & Bald",
-        options: [
-            { value: "none", label: "Clean Bald" },
-        ],
-    },
-    {
-        category: "Short & Clean",
-        options: [
-            { value: "shortRound", label: "Short Round" },
-            { value: "shortFlat", label: "Short Flat" },
-            { value: "shortCurly", label: "Short Curly" },
-            { value: "shortWaved", label: "Short Waved" },
-            { value: "theCaesar", label: "Caesar" },
-            { value: "theCaesarAndSidePart", label: "Caesar Part" },
-            { value: "sides", label: "Buzz Sides" },
-            { value: "shavedSides", label: "Undercut" },
-            { value: "shaggy", label: "Shaggy" },
-            { value: "shaggyMullet", label: "Modern Shag" },
-        ],
-    },
-    {
-        category: "Medium & Long",
-        options: [
-            { value: "bob", label: "Classic Bob" },
-            { value: "bun", label: "Top Bun" },
-            { value: "curly", label: "Curly Cascade" },
-            { value: "curvy", label: "Wavy Medium" },
-            { value: "dreads", label: "Long Dreads" },
-            { value: "dreads01", label: "Short Dreads" },
-            { value: "dreads02", label: "Braided Dreads" },
-            { value: "fro", label: "Afro" },
-            { value: "froBand", label: "Afro Band" },
-            { value: "frizzle", label: "Frizz Wave" },
-            { value: "longButNotTooLong", label: "Shoulder Flow" },
-            { value: "miaWallace", label: "Sharp Bangs" },
-            { value: "straight01", label: "Straight Flow" },
-            { value: "straight02", label: "Straight Long" },
-            { value: "straightAndStrand", label: "Strand Accent" },
-            { value: "bigHair", label: "Voluminous" },
-            { value: "frida", label: "Floral Frida" },
-        ],
-    },
-    {
-        category: "Headwear & Wraps",
-        options: [
-            { value: "hat", label: "Casual Cap" },
-            { value: "hijab", label: "Hijab" },
-            { value: "turban", label: "Turban" },
-            { value: "winterHat1", label: "Winter Beanie" },
-            { value: "winterHat02", label: "Ribbed Beanie" },
-            { value: "winterHat03", label: "Pompom Beanie" },
-            { value: "winterHat04", label: "Knit Cap" },
-        ],
-    },
-];
+        {
+            category: "Minimal & Bald",
+            options: [
+                { value: "none", label: "Clean Bald" },
+            ],
+        },
+        {
+            category: "Short & Clean",
+            options: [
+                { value: "theCaesar", label: "Caesar" },
+                { value: "sides", label: "Buzz Sides" },
+                { value: "theCaesarAndSidePart", label: "Caesar Part" },
+                { value: "dreads01", label: "Short Dreads" },
+                { value: "shortRound", label: "Short Round" },
+                { value: "shortFlat", label: "Short Flat" },
+                { value: "shortCurly", label: "Short Curly" },
+                { value: "shortWaved", label: "Short Waved" },
+                { value: "shavedSides", label: "Undercut" },
+                { value: "shaggy", label: "Shaggy" },
+                { value: "shaggyMullet", label: "Modern Shag" },
+            ],
+        },
+        {
+            category: "Medium & Long",
+            options: [
+                { value: "bob", label: "Classic Bob" },
+                { value: "bun", label: "Top Bun" },
+                { value: "frizzle", label: "Frizz Wave" },
+                { value: "curly", label: "Curly Cascade" },
+                { value: "curvy", label: "Wavy Medium" },
+                { value: "dreads", label: "Long Dreads" },
+                { value: "dreads02", label: "Braided Dreads" },
+                { value: "fro", label: "Afro" },
+                { value: "froBand", label: "Afro Band" },
+                { value: "longButNotTooLong", label: "Shoulder Flow" },
+                { value: "miaWallace", label: "Sharp Bangs" },
+                { value: "straight02", label: "Straight Long" },
+                { value: "straight01", label: "Straight Flow" },
+                { value: "straightAndStrand", label: "Strand Accent" },
+                { value: "bigHair", label: "Voluminous" },
+                { value: "frida", label: "Floral Frida" },
+            ],
+        },
+        {
+            category: "Headwear & Wraps",
+            options: [
+                { value: "hijab", label: "Hijab" },
+                { value: "turban", label: "Turban" },
+                { value: "winterHat1", label: "Winter Beanie" },
+                { value: "winterHat02", label: "Ribbed Beanie" },
+                { value: "hat", label: "Casual Cap" },
+                { value: "winterHat03", label: "Pompom Beanie" },
+                { value: "winterHat04", label: "Knit Cap" },
+            ],
+        },
+    ];
 
 export const HEADWEAR_TOPS: readonly Top[] = [
     "hat",

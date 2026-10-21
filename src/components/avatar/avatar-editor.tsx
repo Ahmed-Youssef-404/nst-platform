@@ -19,6 +19,10 @@ import {
     Tag,
     Undo2,
     X,
+    Coins,
+    ShoppingBag,
+    Plus,
+    Filter,
 } from "lucide-react";
 import {
     type StudentAvatarConfig,
@@ -65,7 +69,32 @@ import {
     getFacialHairThumbnail,
 } from "@/lib/avatar/thumbnails";
 import { generateAvatarDataUri } from "@/lib/avatar/generate";
-import { saveStudentAvatarAction } from "@/lib/actions/avatar";
+import {
+    saveStudentAvatarAction,
+    getStudentAvatarEntitlementsAction,
+    purchaseAvatarSelectionAction,
+    type StudentEntitlementsResult,
+} from "@/lib/actions/avatar";
+import {
+    AVATAR_CATALOG,
+    getCatalogItemById,
+    getCatalogItemBySlotValue,
+    isItemInherentFree,
+    isColorInherentFreeForItem,
+    getAuthoritativeItemPrice,
+    getAuthoritativeColorPrice,
+    type CatalogItem,
+    type AvatarSlotName,
+    CUSTOM_COLOR_PRICE,
+    DEFAULT_HAIR_FREE_HEXES,
+    DEFAULT_CLOTHES_FREE_HEXES,
+    DEFAULT_ACCESSORIES_FREE_HEXES,
+} from "@/lib/avatar/catalog";
+import {
+    PurchaseReviewDialog,
+    type SelectedColorCartItem,
+} from "@/components/avatar/purchase-review-dialog";
+import { UnsavedChangesDialog } from "@/components/avatar/unsaved-changes-dialog";
 import { cn } from "@/lib/utils";
 
 export interface AvatarEditorProps {
@@ -80,6 +109,7 @@ type MainCategory = "hair" | "face" | "base" | "clothing" | "details";
 type HairSubcategory = "all" | "short" | "medium-long" | "headwear" | "bald";
 type FaceSubcategory = "all" | "eyes" | "eyebrows" | "mouth";
 type DetailsSubcategory = "all" | "eyewear" | "facial-hair";
+type OwnershipFilter = "all" | "owned" | "not-owned";
 
 export function AvatarEditor({
     initialConfig,
@@ -103,8 +133,9 @@ export function AvatarEditor({
     const [hairFilter, setHairFilter] = React.useState<HairSubcategory>("all");
     const [faceFilter, setFaceFilter] = React.useState<FaceSubcategory>("all");
     const [detailsFilter, setDetailsFilter] = React.useState<DetailsSubcategory>("all");
+    const [ownershipFilter, setOwnershipFilter] = React.useState<OwnershipFilter>("all");
 
-    // Scrollable customization panel ref to reset scroll to top on tab switch
+    // Scrollable customization panel ref
     const scrollContainerRef = React.useRef<HTMLDivElement>(null);
 
     React.useEffect(() => {
@@ -113,23 +144,89 @@ export function AvatarEditor({
         }
     }, [activeTab]);
 
+    // Entitlements and Spendable ST Balance
+    const [spendableBalance, setSpendableBalance] = React.useState<number>(50);
+    const [ownedItemIds, setOwnedItemIds] = React.useState<Set<string>>(new Set());
+    const [ownedColorsMap, setOwnedColorsMap] = React.useState<Set<string>>(new Set());
+    const [customColorsByItem, setCustomColorsByItem] = React.useState<Map<string, string[]>>(
+        new Map()
+    );
+    const [isLoadingEntitlements, setIsLoadingEntitlements] = React.useState<boolean>(true);
+
+    // Fetch initial entitlements
+    React.useEffect(() => {
+        let isMounted = true;
+        async function loadEntitlements() {
+            try {
+                const res = await getStudentAvatarEntitlementsAction();
+                if (!isMounted) return;
+                if (res.success) {
+                    setSpendableBalance(res.spendableBalance ?? 50);
+                    setOwnedItemIds(new Set(res.ownedItemIds ?? []));
+
+                    const colorKeys = new Set<string>();
+                    const customMap = new Map<string, string[]>();
+
+                    for (const c of res.ownedColors ?? []) {
+                        colorKeys.add(`${c.itemId}:${c.colorHex.toLowerCase()}`);
+                        if (c.isCustom) {
+                            const existing = customMap.get(c.itemId) ?? [];
+                            if (!existing.includes(c.colorHex)) {
+                                existing.push(c.colorHex);
+                                customMap.set(c.itemId, existing);
+                            }
+                        }
+                    }
+                    setOwnedColorsMap(colorKeys);
+                    setCustomColorsByItem(customMap);
+                }
+            } catch (err) {
+                console.error("Failed to load avatar entitlements:", err);
+            } finally {
+                if (isMounted) setIsLoadingEntitlements(false);
+            }
+        }
+        loadEntitlements();
+        return () => {
+            isMounted = false;
+        };
+    }, []);
+
+    // Cart / Purchase Selection State
+    const [selectedCartItemIds, setSelectedCartItemIds] = React.useState<Set<string>>(
+        new Set()
+    );
+    const [selectedCartColors, setSelectedCartColors] = React.useState<
+        Map<string, SelectedColorCartItem>
+    >(new Map());
+    const [isCartDialogOpen, setIsCartDialogOpen] = React.useState<boolean>(false);
+    const [isPurchasing, setIsPurchasing] = React.useState<boolean>(false);
+
+    // Unsaved Changes Exit Protection Dialog State
+    const [isExitDialogOpen, setIsExitDialogOpen] = React.useState<boolean>(false);
+    const pendingNavHrefRef = React.useRef<string | null>(null);
+
     const [isSaving, startSavingTransition] = React.useTransition();
     const [statusMessage, setStatusMessage] = React.useState<{
         type: "success" | "error" | null;
         text: string;
     }>({ type: null, text: "" });
 
-    // Detect if current config differs from saved baseline
+    // Detect if current draft config differs from saved baseline
     const isDirty = React.useMemo(() => {
-        return JSON.stringify(currentConfig) !== JSON.stringify(savedBaseline);
-    }, [currentConfig, savedBaseline]);
+        return (
+            JSON.stringify(currentConfig) !== JSON.stringify(savedBaseline) ||
+            selectedCartItemIds.size > 0 ||
+            selectedCartColors.size > 0
+        );
+    }, [currentConfig, savedBaseline, selectedCartItemIds, selectedCartColors]);
 
-    // Live preview data URI (updates immediately without debounce)
+    // Live preview data URI
     const previewDataUri = React.useMemo(() => {
         return generateAvatarDataUri(currentConfig);
     }, [currentConfig]);
 
-    // Thumbnail colors snapshot (debounced by 2000ms from draft color changes)
+    // Debounced thumbnail colors snapshot
     const [thumbnailColors, setThumbnailColors] = React.useState({
         hairColor: savedBaseline.hairColor,
         clothesColor: savedBaseline.clothesColor,
@@ -138,7 +235,6 @@ export function AvatarEditor({
     });
 
     const debounceTimerRef = React.useRef<NodeJS.Timeout | null>(null);
-
     const latestColorsRef = React.useRef({
         hairColor: savedBaseline.hairColor,
         clothesColor: savedBaseline.clothesColor,
@@ -146,7 +242,6 @@ export function AvatarEditor({
         facialHairColor: savedBaseline.facialHairColor,
     });
 
-    // Clean up pending debounce timer on unmount
     React.useEffect(() => {
         return () => {
             if (debounceTimerRef.current) {
@@ -154,6 +249,286 @@ export function AvatarEditor({
             }
         };
     }, []);
+
+    // Browser-native beforeunload protection for refresh and tab close
+    React.useEffect(() => {
+        function handleBeforeUnload(e: BeforeUnloadEvent) {
+            if (isDirty) {
+                e.preventDefault();
+                e.returnValue = "You have unsaved changes on your Avatar.";
+                return "You have unsaved changes on your Avatar.";
+            }
+        }
+        window.addEventListener("beforeunload", handleBeforeUnload);
+        return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+    }, [isDirty]);
+
+    // Document click interceptor for internal links when dirty
+    React.useEffect(() => {
+        function handleDocumentClick(e: MouseEvent) {
+            if (!isDirty) return;
+            const target = e.target as HTMLElement | null;
+            const anchor = target?.closest("a");
+            if (!anchor) return;
+
+            const href = anchor.getAttribute("href");
+            if (
+                !href ||
+                href.startsWith("#") ||
+                href.startsWith("mailto:") ||
+                href.startsWith("tel:") ||
+                anchor.target === "_blank"
+            ) {
+                return;
+            }
+
+            e.preventDefault();
+            e.stopPropagation();
+            pendingNavHrefRef.current = href;
+            setIsExitDialogOpen(true);
+        }
+
+        document.addEventListener("click", handleDocumentClick, true);
+        return () => document.removeEventListener("click", handleDocumentClick, true);
+    }, [isDirty]);
+
+    // Check if an item is owned
+    const checkItemIsOwned = React.useCallback(
+        (slot: AvatarSlotName, value: string): boolean => {
+            if (isItemInherentFree(slot, value)) return true;
+            return ownedItemIds.has(`${slot}:${value}`);
+        },
+        [ownedItemIds]
+    );
+
+    // Check if a color is owned for a specific item
+    const checkColorIsOwned = React.useCallback(
+        (itemId: string, colorHex: string): boolean => {
+            if (isColorInherentFreeForItem(itemId, colorHex)) return true;
+            const clean = normalizeHexColor(colorHex);
+            if (!clean) return false;
+            return ownedColorsMap.has(`${itemId}:${clean}`);
+        },
+        [ownedColorsMap]
+    );
+
+    // Check if any equipped item or color in the draft is currently unowned
+    const unownedEquippedList = React.useMemo(() => {
+        const list: { type: "item" | "color"; name: string; cost: number; id: string }[] = [];
+
+        // Check top
+        if (!checkItemIsOwned("top", currentConfig.top)) {
+            const item = getCatalogItemBySlotValue("top", currentConfig.top);
+            if (item) list.push({ type: "item", name: item.name, cost: item.cost, id: item.id });
+        }
+        if (currentConfig.top !== "none") {
+            const topId = `top:${currentConfig.top}`;
+            if (!checkColorIsOwned(topId, currentConfig.hairColor)) {
+                const cost = getAuthoritativeColorPrice(topId, currentConfig.hairColor);
+                list.push({ type: "color", name: `Hair Color (#${currentConfig.hairColor})`, cost, id: topId });
+            }
+            if (isHeadwearTop(currentConfig.top) && currentConfig.hatColor) {
+                if (!checkColorIsOwned(topId, currentConfig.hatColor)) {
+                    const cost = getAuthoritativeColorPrice(topId, currentConfig.hatColor);
+                    list.push({ type: "color", name: `Headwear Color (#${currentConfig.hatColor})`, cost, id: topId });
+                }
+            }
+        }
+
+        // Check clothing
+        if (!checkItemIsOwned("clothing", currentConfig.clothing)) {
+            const item = getCatalogItemBySlotValue("clothing", currentConfig.clothing);
+            if (item) list.push({ type: "item", name: item.name, cost: item.cost, id: item.id });
+        }
+        const clothingId = `clothing:${currentConfig.clothing}`;
+        if (!checkColorIsOwned(clothingId, currentConfig.clothesColor)) {
+            const cost = getAuthoritativeColorPrice(clothingId, currentConfig.clothesColor);
+            list.push({ type: "color", name: `Clothing Color (#${currentConfig.clothesColor})`, cost, id: clothingId });
+        }
+        if (currentConfig.clothing === "graphicShirt" && currentConfig.clothingGraphic) {
+            if (!checkItemIsOwned("clothingGraphic", currentConfig.clothingGraphic)) {
+                const item = getCatalogItemBySlotValue("clothingGraphic", currentConfig.clothingGraphic);
+                if (item) list.push({ type: "item", name: item.name, cost: item.cost, id: item.id });
+            }
+        }
+
+        // Check accessories
+        if (currentConfig.accessories !== "none") {
+            if (!checkItemIsOwned("accessories", currentConfig.accessories)) {
+                const item = getCatalogItemBySlotValue("accessories", currentConfig.accessories);
+                if (item) list.push({ type: "item", name: item.name, cost: item.cost, id: item.id });
+            }
+            const accId = `accessories:${currentConfig.accessories}`;
+            if (!checkColorIsOwned(accId, currentConfig.accessoriesColor)) {
+                const cost = getAuthoritativeColorPrice(accId, currentConfig.accessoriesColor);
+                list.push({ type: "color", name: `Frame Color (#${currentConfig.accessoriesColor})`, cost, id: accId });
+            }
+        }
+
+        // Check facial hair
+        if (currentConfig.facialHair !== "none") {
+            if (!checkItemIsOwned("facialHair", currentConfig.facialHair)) {
+                const item = getCatalogItemBySlotValue("facialHair", currentConfig.facialHair);
+                if (item) list.push({ type: "item", name: item.name, cost: item.cost, id: item.id });
+            }
+            const fhId = `facialHair:${currentConfig.facialHair}`;
+            if (!checkColorIsOwned(fhId, currentConfig.facialHairColor)) {
+                const cost = getAuthoritativeColorPrice(fhId, currentConfig.facialHairColor);
+                list.push({ type: "color", name: `Facial Hair Color (#${currentConfig.facialHairColor})`, cost, id: fhId });
+            }
+        }
+
+        return list;
+    }, [currentConfig, checkItemIsOwned, checkColorIsOwned]);
+
+    const hasUnownedEquipped = unownedEquippedList.length > 0;
+
+    // Cart modification handlers
+    const toggleCartItem = (itemId: string) => {
+        setSelectedCartItemIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(itemId)) {
+                next.delete(itemId);
+            } else {
+                next.add(itemId);
+            }
+            return next;
+        });
+    };
+
+    const removeCartItem = (itemId: string) => {
+        setSelectedCartItemIds((prev) => {
+            const next = new Set(prev);
+            next.delete(itemId);
+            return next;
+        });
+    };
+
+    const toggleCartColor = (colorItem: SelectedColorCartItem) => {
+        const key = `${colorItem.itemId}:${colorItem.colorHex.toLowerCase()}`;
+        setSelectedCartColors((prev) => {
+            const next = new Map(prev);
+            if (next.has(key)) {
+                next.delete(key);
+            } else {
+                next.set(key, colorItem);
+            }
+            return next;
+        });
+    };
+
+    const removeCartColor = (itemId: string, colorHex: string) => {
+        const key = `${itemId}:${colorHex.toLowerCase()}`;
+        setSelectedCartColors((prev) => {
+            const next = new Map(prev);
+            next.delete(key);
+            return next;
+        });
+    };
+
+    // Calculate total cost for cart
+    const cartSelectedItems = React.useMemo(() => {
+        return Array.from(selectedCartItemIds)
+            .map((id) => getCatalogItemById(id))
+            .filter((item): item is CatalogItem => item !== undefined);
+    }, [selectedCartItemIds]);
+
+    const cartSelectedColors = React.useMemo(() => {
+        return Array.from(selectedCartColors.values());
+    }, [selectedCartColors]);
+
+    const totalCartCount = cartSelectedItems.length + cartSelectedColors.length;
+    const totalCartCost =
+        cartSelectedItems.reduce((sum, i) => sum + i.cost, 0) +
+        cartSelectedColors.reduce((sum, c) => sum + c.cost, 0);
+
+    // Auto-add unowned equipped items to cart when requested
+    const addAllUnownedToCart = () => {
+        for (const item of unownedEquippedList) {
+            if (item.type === "item") {
+                setSelectedCartItemIds((prev) => new Set(prev).add(item.id));
+            }
+        }
+        setIsCartDialogOpen(true);
+    };
+
+    // Bulk Purchase Action Execution
+    const handleConfirmBulkPurchase = async () => {
+        setIsPurchasing(true);
+        setStatusMessage({ type: null, text: "" });
+
+        const itemsPayload = cartSelectedItems.map((i) => ({ itemId: i.id }));
+        const colorsPayload = cartSelectedColors.map((c) => ({
+            itemId: c.itemId,
+            colorHex: c.colorHex,
+            isCustom: c.isCustom,
+        }));
+
+        try {
+            const res = await purchaseAvatarSelectionAction({
+                items: itemsPayload,
+                colors: colorsPayload,
+            });
+
+            if (res.success) {
+                // Update local ownership state immediately
+                setOwnedItemIds((prev) => {
+                    const next = new Set(prev);
+                    res.purchasedItemIds?.forEach((id) => next.add(id));
+                    return next;
+                });
+
+                setOwnedColorsMap((prev) => {
+                    const next = new Set(prev);
+                    res.purchasedColors?.forEach((c) =>
+                        next.add(`${c.itemId}:${c.colorHex.toLowerCase()}`)
+                    );
+                    return next;
+                });
+
+                // Add to custom colors if any custom color was purchased
+                setCustomColorsByItem((prev) => {
+                    const next = new Map(prev);
+                    res.purchasedColors?.forEach((c) => {
+                        if (c.isCustom) {
+                            const existing = next.get(c.itemId) ?? [];
+                            if (!existing.includes(c.colorHex)) {
+                                next.set(c.itemId, [...existing, c.colorHex]);
+                            }
+                        }
+                    });
+                    return next;
+                });
+
+                if (typeof res.newBalance === "number") {
+                    setSpendableBalance(res.newBalance);
+                }
+
+                // Clear cart
+                setSelectedCartItemIds(new Set());
+                setSelectedCartColors(new Map());
+                setIsCartDialogOpen(false);
+
+                setStatusMessage({
+                    type: "success",
+                    text: `Purchase complete! Deducted ${res.totalCharged} ST. You can now apply and save your avatar.`,
+                });
+            } else {
+                setStatusMessage({
+                    type: "error",
+                    text: res.error || "Failed to complete purchase.",
+                });
+            }
+        } catch (err) {
+            console.error("Bulk purchase error:", err);
+            setStatusMessage({
+                type: "error",
+                text: "An error occurred while processing the purchase.",
+            });
+        } finally {
+            setIsPurchasing(false);
+        }
+    };
 
     const updateConfig = <K extends keyof StudentAvatarConfig>(
         key: K,
@@ -165,7 +540,6 @@ export function AvatarEditor({
         });
         setStatusMessage({ type: null, text: "" });
 
-        // If the changed option is a thumbnail-affecting color, debounce thumbnail update by 2,000ms
         if (
             key === "hairColor" ||
             key === "clothesColor" ||
@@ -267,6 +641,15 @@ export function AvatarEditor({
     };
 
     const handleSave = () => {
+        if (hasUnownedEquipped) {
+            setStatusMessage({
+                type: "error",
+                text: "Your current avatar draft contains unowned items or colors. Please purchase them before saving.",
+            });
+            setIsCartDialogOpen(true);
+            return;
+        }
+
         startSavingTransition(async () => {
             setStatusMessage({ type: null, text: "" });
             const result = await saveStudentAvatarAction(currentConfig);
@@ -298,26 +681,82 @@ export function AvatarEditor({
         });
     };
 
+    // Exit Handling with Unsaved Protection
+    const handleAttemptClose = () => {
+        if (isDirty) {
+            pendingNavHrefRef.current = null;
+            setIsExitDialogOpen(true);
+        } else {
+            onCancel?.();
+        }
+    };
+
+    const handleConfirmExit = () => {
+        setIsExitDialogOpen(false);
+        handleRevert();
+        if (pendingNavHrefRef.current) {
+            window.location.href = pendingNavHrefRef.current;
+            pendingNavHrefRef.current = null;
+        } else {
+            onCancel?.();
+        }
+    };
+
     const hasHeadwear = isHeadwearTop(currentConfig.top);
     const isGraphicShirt = currentConfig.clothing === "graphicShirt";
 
-    // Filter top options by subcategory
+    // Filtering tops by subcategory AND ownership filter
     const filteredTopGroups = React.useMemo(() => {
-        if (hairFilter === "all") return TOP_OPTIONS;
+        let groups = TOP_OPTIONS;
         if (hairFilter === "short") {
-            return TOP_OPTIONS.filter((g) => g.category.includes("Short"));
+            groups = TOP_OPTIONS.filter((g) => g.category.includes("Short"));
+        } else if (hairFilter === "medium-long") {
+            groups = TOP_OPTIONS.filter((g) => g.category.includes("Medium"));
+        } else if (hairFilter === "headwear") {
+            groups = TOP_OPTIONS.filter((g) => g.category.includes("Headwear"));
+        } else if (hairFilter === "bald") {
+            groups = TOP_OPTIONS.filter((g) => g.category.includes("Bald"));
         }
-        if (hairFilter === "medium-long") {
-            return TOP_OPTIONS.filter((g) => g.category.includes("Medium"));
-        }
-        if (hairFilter === "headwear") {
-            return TOP_OPTIONS.filter((g) => g.category.includes("Headwear"));
-        }
-        if (hairFilter === "bald") {
-            return TOP_OPTIONS.filter((g) => g.category.includes("Bald"));
-        }
-        return TOP_OPTIONS;
-    }, [hairFilter]);
+
+        if (ownershipFilter === "all") return groups;
+
+        return groups
+            .map((g) => ({
+                ...g,
+                options: g.options.filter((opt) => {
+                    const isOwned = checkItemIsOwned("top", opt.value);
+                    return ownershipFilter === "owned" ? isOwned : !isOwned;
+                }),
+            }))
+            .filter((g) => g.options.length > 0);
+    }, [hairFilter, ownershipFilter, checkItemIsOwned]);
+
+    // Filtering clothing options by ownership filter
+    const filteredClothingOptions = React.useMemo(() => {
+        if (ownershipFilter === "all") return CLOTHING_OPTIONS;
+        return CLOTHING_OPTIONS.filter((opt) => {
+            const isOwned = checkItemIsOwned("clothing", opt.value);
+            return ownershipFilter === "owned" ? isOwned : !isOwned;
+        });
+    }, [ownershipFilter, checkItemIsOwned]);
+
+    // Filtering accessories by ownership filter
+    const filteredAccessoryOptions = React.useMemo(() => {
+        if (ownershipFilter === "all") return ACCESSORY_OPTIONS;
+        return ACCESSORY_OPTIONS.filter((opt) => {
+            const isOwned = checkItemIsOwned("accessories", opt.value);
+            return ownershipFilter === "owned" ? isOwned : !isOwned;
+        });
+    }, [ownershipFilter, checkItemIsOwned]);
+
+    // Filtering facial hair by ownership filter
+    const filteredFacialHairOptions = React.useMemo(() => {
+        if (ownershipFilter === "all") return FACIAL_HAIR_OPTIONS;
+        return FACIAL_HAIR_OPTIONS.filter((opt) => {
+            const isOwned = checkItemIsOwned("facialHair", opt.value);
+            return ownershipFilter === "owned" ? isOwned : !isOwned;
+        });
+    }, [ownershipFilter, checkItemIsOwned]);
 
     return (
         <div
@@ -326,7 +765,7 @@ export function AvatarEditor({
                 className
             )}
         >
-            {/* Background Ambient Space Glow (contained without overflow-hidden breaking sticky) */}
+            {/* Background Ambient Space Glow */}
             <div
                 aria-hidden="true"
                 className="pointer-events-none absolute -top-24 size-72 rounded-full bg-gold-500/10 blur-3xl opacity-70"
@@ -336,12 +775,12 @@ export function AvatarEditor({
                 className="pointer-events-none absolute size-72 rounded-full bg-gold-500/5 blur-3xl opacity-70"
             />
 
-            {/* Mobile-Only Persistent Character Stage Header (Sticky top-12 below StudentTopBar) */}
+            {/* Mobile-Only Persistent Character Stage Header */}
             <div className="sticky top-12 z-20 -mx-4 -mt-4 mb-4 flex flex-col border-b border-gold-500/30 bg-space-950/95 px-4 py-3 backdrop-blur-md rounded-t-2xl shadow-md lg:hidden">
                 <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                         {/* Circular Avatar Spotlight */}
-                        <div className="relative size-16 shrink-0 rounded-full border-2 border-gold-500/50 bg-gradient-to-b from-space-850 to-space-950 p-0.5 shadow-gold overflow-hidden">
+                        <div className="relative size-14 shrink-0 rounded-full border-2 border-gold-500/50 bg-gradient-to-b from-space-850 to-space-950 p-0.5 shadow-gold overflow-hidden">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                                 src={previewDataUri}
@@ -357,18 +796,35 @@ export function AvatarEditor({
                                 </span>
                                 {isDirty && (
                                     <span className="shrink-0 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-semibold text-amber-400 border border-amber-500/30 animate-pulse">
-                                        Unsaved
+                                        Draft
                                     </span>
                                 )}
                             </div>
-                            <span className="block text-[10px] text-starlight-400">
-                                Live Cadet Preview
-                            </span>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                                <Coins className="size-3 text-gold-400" />
+                                <span className="font-mono text-[10px] text-gold-300 font-bold">
+                                    {spendableBalance} ST
+                                </span>
+                            </div>
                         </div>
                     </div>
 
                     {/* Mobile Quick Action Buttons */}
                     <div className="flex items-center gap-1.5 shrink-0">
+                        {totalCartCount > 0 && (
+                            <button
+                                type="button"
+                                onClick={() => setIsCartDialogOpen(true)}
+                                className="relative inline-flex items-center gap-1 rounded-lg bg-gold-500/20 border border-gold-500/40 px-2 py-1 text-xs font-bold text-gold-300 shadow-gold"
+                            >
+                                <ShoppingBag className="size-3.5" />
+                                <span className="font-mono text-[11px]">{totalCartCost} ST</span>
+                                <span className="flex size-4 items-center justify-center rounded-full bg-gold-400 text-space-950 text-[9px] font-bold">
+                                    {totalCartCount}
+                                </span>
+                            </button>
+                        )}
+
                         <button
                             type="button"
                             onClick={handleRandomize}
@@ -377,23 +833,14 @@ export function AvatarEditor({
                         >
                             <Dices className="size-4" />
                         </button>
-                        {isDirty && (
-                            <button
-                                type="button"
-                                onClick={handleRevert}
-                                title="Revert to Saved"
-                                className="inline-flex size-8 items-center justify-center rounded-lg border border-border/70 bg-space-850 text-starlight-300 hover:bg-space-800"
-                            >
-                                <RotateCcw className="size-3.5" />
-                            </button>
-                        )}
+
                         <button
                             type="button"
                             onClick={handleSave}
-                            disabled={isSaving || !isDirty}
+                            disabled={isSaving || !isDirty || hasUnownedEquipped}
                             className={cn(
                                 "inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold shadow-gold transition-all",
-                                isDirty
+                                isDirty && !hasUnownedEquipped
                                     ? "bg-gradient-to-r from-gold-500 to-gold-600 text-space-950 hover:brightness-110 active:scale-95"
                                     : "bg-space-800 text-starlight-400 border border-border/60 cursor-not-allowed opacity-60"
                             )}
@@ -405,16 +852,15 @@ export function AvatarEditor({
                             )}
                             <span className="text-[11px]">{isDirty ? "Save" : "Saved"}</span>
                         </button>
-                        {onCancel && (
-                            <button
-                                type="button"
-                                onClick={onCancel}
-                                title="Close Editor"
-                                className="inline-flex size-8 items-center justify-center rounded-lg border border-border/70 bg-space-850 text-starlight-400 hover:text-starlight-100"
-                            >
-                                <X className="size-4" />
-                            </button>
-                        )}
+
+                        <button
+                            type="button"
+                            onClick={handleAttemptClose}
+                            title="Close Editor"
+                            className="inline-flex size-8 items-center justify-center rounded-lg border border-border/70 bg-space-850 text-starlight-400 hover:text-starlight-100"
+                        >
+                            <X className="size-4" />
+                        </button>
                     </div>
                 </div>
 
@@ -436,26 +882,56 @@ export function AvatarEditor({
             <div className="relative mb-6 hidden items-center justify-between gap-3 border-b border-border/70 pb-4 lg:flex">
                 <div>
                     <div className="flex items-center gap-2">
-                        {/* <span className="inline-flex items-center gap-1.5 rounded-full border border-gold-500/30 bg-gold-500/10 px-2.5 py-0.5 text-xs font-semibold text-gold-600 dark:text-gold-400">
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-gold-500/30 bg-gold-500/10 px-2.5 py-0.5 text-xs font-semibold text-gold-400">
                             <Sparkles className="size-3" />
-                            Cadet Identity Studio
-                        </span> */
-                        /* {isDirty && (
-                            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-500 dark:text-amber-300 border border-amber-500/30 animate-pulse">
-                                Unsaved Changes
+                            Avatar Studio & Store
+                        </span>
+                        {isDirty && (
+                            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-300 border border-amber-500/30 animate-pulse">
+                                Draft Unsaved
                             </span>
-                        )} */}
+                        )}
                     </div>
                     <h2 className="mt-1 font-display text-xl font-bold tracking-tight text-starlight-100 sm:text-2xl">
-                        Character Creator
+                        Character Creator & Store
                     </h2>
                     <p className="text-xs text-starlight-400">
-                        Customize your avatar here — it&apos;s your profile picture across the entire platform.
+                        Customize your cadet avatar, try premium options freely, and purchase with ST tokens.
                     </p>
                 </div>
 
                 {/* Desktop Top Action Toolbar */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
+                    {/* Live Spendable ST Balance Indicator */}
+                    <div className="flex items-center gap-2 rounded-xl border border-gold-500/30 bg-space-850/90 px-3 py-1.5 shadow-xs">
+                        <div className="flex size-5 items-center justify-center rounded-md bg-gold-500/15 text-gold-400">
+                            <Coins className="size-3 text-gold-400" />
+                        </div>
+                        <div className="flex items-baseline gap-1">
+                            <span className="font-mono text-xs font-bold text-gold-300">
+                                {spendableBalance}
+                            </span>
+                            <span className="text-[10px] font-semibold uppercase text-gold-500">
+                                ST
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Cart Trigger */}
+                    {totalCartCount > 0 && (
+                        <button
+                            type="button"
+                            onClick={() => setIsCartDialogOpen(true)}
+                            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-gold-500/20 to-gold-600/20 border border-gold-500/40 px-3 py-1.5 text-xs font-bold text-gold-300 shadow-gold transition-all hover:brightness-110 active:scale-95"
+                        >
+                            <ShoppingBag className="size-3.5" />
+                            <span>Cart ({totalCartCount})</span>
+                            <span className="rounded-md bg-gold-400/20 px-1.5 py-0.5 font-mono text-[10px] text-gold-200">
+                                {totalCartCost} ST
+                            </span>
+                        </button>
+                    )}
+
                     <button
                         type="button"
                         onClick={handleRandomize}
@@ -465,6 +941,7 @@ export function AvatarEditor({
                         <Dices className="size-3.5 text-gold-400" />
                         <span>Randomize</span>
                     </button>
+
                     {isDirty && (
                         <button
                             type="button"
@@ -476,25 +953,24 @@ export function AvatarEditor({
                             <span>Revert</span>
                         </button>
                     )}
-                    {onCancel && (
-                        <button
-                            type="button"
-                            onClick={onCancel}
-                            title="Close Editor"
-                            className="inline-flex items-center gap-1.5 rounded-xl border border-border/70 bg-transparent px-3 py-1.5 text-xs font-medium text-starlight-300 hover:bg-space-850 hover:text-starlight-100"
-                        >
-                            <X className="size-3.5" />
-                            <span>Close</span>
-                        </button>
-                    )}
+
+                    <button
+                        type="button"
+                        onClick={handleAttemptClose}
+                        title="Close Editor"
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-border/70 bg-transparent px-3 py-1.5 text-xs font-medium text-starlight-300 hover:bg-space-850 hover:text-starlight-100"
+                    >
+                        <X className="size-3.5" />
+                        <span>Close</span>
+                    </button>
                 </div>
             </div>
 
-            {/* Main Layout: Left = Genuinely Sticky Live Character Stage, Right = Customization Panel */}
+            {/* Main Layout: Left = Sticky Live Character Stage, Right = Customization & Store Panel */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 items-start">
-                {/* Left: Genuinely Sticky Live Character Stage (Desktop) */}
+                {/* Left: Sticky Live Character Stage (Desktop) */}
                 <div className="hidden lg:flex flex-col items-center justify-between rounded-2xl border border-gold-500/30 bg-gradient-to-b from-space-900/95 via-space-950/90 to-space-950 p-6 text-center lg:col-span-5 xl:col-span-4 lg:sticky lg:top-20 lg:self-start lg:h-fit shadow-2xl relative overflow-hidden">
-                    {/* Ambient Glow behind character stage */}
+                    {/* Ambient Glow */}
                     <div
                         aria-hidden="true"
                         className="pointer-events-none absolute -top-16 -left-16 size-48 rounded-full bg-gold-500/10 blur-2xl"
@@ -502,12 +978,12 @@ export function AvatarEditor({
 
                     <div className="w-full relative z-10">
                         <div className="flex items-center justify-between border-b border-border/50 pb-2 mb-3">
-                            {/* <span className="text-[10px] font-bold uppercase tracking-wider text-gold-400/90">
-                                Live Cadet Stage
-                            </span> */}
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-gold-400/90">
+                                Cadet Identity Stage
+                            </span>
                             {isDirty ? (
-                                <span className="text-[10px] font-semibold text-error-400">
-                                    Unsaved Changes
+                                <span className="text-[10px] font-semibold text-amber-400">
+                                    Draft Preview
                                 </span>
                             ) : (
                                 <span className="text-[10px] text-emerald-400 font-semibold">
@@ -516,7 +992,7 @@ export function AvatarEditor({
                             )}
                         </div>
 
-                        {/* Character Frame with Glowing Gold Starlight Ring */}
+                        {/* Character Frame */}
                         <div className="relative mx-auto my-3 flex size-48 sm:size-56 items-center justify-center rounded-full border-2 border-gold-500/50 bg-gradient-to-b from-space-850 to-space-950 p-1 shadow-gold ring-4 ring-gold-500/15 overflow-hidden">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
@@ -530,14 +1006,29 @@ export function AvatarEditor({
                             {studentName}
                         </h3>
 
+                        {/* Unowned items alert on stage */}
+                        {hasUnownedEquipped && (
+                            <div className="mt-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-2 text-center">
+                                <span className="block text-[11px] font-semibold text-amber-300">
+                                    Previewing {unownedEquippedList.length} unowned{" "}
+                                    {unownedEquippedList.length === 1 ? "item" : "items"}
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={addAllUnownedToCart}
+                                    className="mt-1 text-[10px] font-bold text-gold-300 hover:text-gold-200 underline underline-offset-2 transition-colors"
+                                >
+                                    Purchase to Keep ({unownedEquippedList.reduce((s, i) => s + i.cost, 0)} ST)
+                                </button>
+                            </div>
+                        )}
+
                         {/* Quick Action Toolbar on Stage */}
                         <div className="mt-3 flex items-center justify-center gap-2 pt-2 border-t border-border/40">
                             <button
                                 type="button"
                                 onClick={handleRandomize}
-                                aria-label="Randomize appearance"
-                                title="Randomize appearance"
-                                className="inline-flex items-center gap-1 text-[11px] font-medium text-starlight-300 hover:text-gold-300 transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-gold-500/40 rounded-sm"
+                                className="inline-flex items-center gap-1 text-[11px] font-medium text-starlight-300 hover:text-gold-300 transition-colors rounded-sm"
                             >
                                 <Dices className="size-3 text-gold-400" />
                                 <span>Randomize</span>
@@ -546,9 +1037,7 @@ export function AvatarEditor({
                             <button
                                 type="button"
                                 onClick={handleResetDefault}
-                                aria-label="Reset to default avatar"
-                                title="Reset to default avatar"
-                                className="inline-flex items-center gap-1 text-[11px] font-medium text-starlight-400 hover:text-gold-300 transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-gold-500/40 rounded-sm"
+                                className="inline-flex items-center gap-1 text-[11px] font-medium text-starlight-400 hover:text-gold-300 transition-colors rounded-sm"
                             >
                                 <Undo2 className="size-3" />
                                 <span>Default</span>
@@ -558,10 +1047,8 @@ export function AvatarEditor({
                                 type="button"
                                 onClick={handleRevert}
                                 disabled={!isDirty}
-                                aria-label="Revert to saved avatar"
-                                title="Revert to saved avatar"
                                 className={cn(
-                                    "inline-flex items-center gap-1 text-[11px] font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-gold-500/40 rounded-sm",
+                                    "inline-flex items-center gap-1 text-[11px] font-medium transition-colors rounded-sm",
                                     isDirty
                                         ? "text-starlight-300 hover:text-gold-300 cursor-pointer"
                                         : "text-starlight-600 cursor-not-allowed opacity-50"
@@ -589,36 +1076,53 @@ export function AvatarEditor({
                         )}
 
                         <div className="flex flex-col gap-2">
-                            <button
-                                type="button"
-                                onClick={handleSave}
-                                disabled={isSaving || !isDirty}
-                                className={cn(
-                                    "flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold shadow-gold transition-all duration-200",
-                                    isDirty
-                                        ? "bg-gradient-to-r from-gold-500 via-gold-400 to-gold-600 text-space-950 hover:brightness-110 active:scale-[0.98]"
-                                        : "cursor-not-allowed bg-space-850 text-starlight-400 border border-border/70"
-                                )}
-                            >
-                                {isSaving ? (
-                                    <>
-                                        <Loader2 className="size-4 animate-spin" />
-                                        <span>Saving Avatar...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Save className="size-4" />
-                                        <span>{isDirty ? "Save Avatar Changes" : "Avatar Saved"}</span>
-                                    </>
-                                )}
-                            </button>
+                            {/* If unowned items are equipped, show button to checkout */}
+                            {hasUnownedEquipped ? (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        addAllUnownedToCart();
+                                    }}
+                                    className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold bg-gradient-to-r from-amber-500 to-amber-600 text-space-950 shadow-gold hover:brightness-110 active:scale-[0.98] transition-all"
+                                >
+                                    <ShoppingBag className="size-4" />
+                                    <span>
+                                        Purchase Selection (
+                                        {unownedEquippedList.reduce((s, i) => s + i.cost, 0)} ST)
+                                    </span>
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={handleSave}
+                                    disabled={isSaving || !isDirty}
+                                    className={cn(
+                                        "flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold shadow-gold transition-all duration-200",
+                                        isDirty
+                                            ? "bg-gradient-to-r from-gold-500 via-gold-400 to-gold-600 text-space-950 hover:brightness-110 active:scale-[0.98]"
+                                            : "cursor-not-allowed bg-space-850 text-starlight-400 border border-border/70"
+                                    )}
+                                >
+                                    {isSaving ? (
+                                        <>
+                                            <Loader2 className="size-4 animate-spin" />
+                                            <span>Saving Avatar...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Save className="size-4" />
+                                            <span>{isDirty ? "Save Avatar Changes" : "Avatar Saved"}</span>
+                                        </>
+                                    )}
+                                </button>
+                            )}
 
                             {onCancel && (
                                 <button
                                     type="button"
-                                    onClick={onCancel}
+                                    onClick={handleAttemptClose}
                                     disabled={isSaving}
-                                    className="w-full rounded-xl border border-border/70 py-2 text-xs font-medium transition-colors hover:bg-error-500/80 bg-error-500/60"
+                                    className="w-full rounded-xl border border-border/70 py-2 text-xs font-medium transition-colors hover:bg-space-850 text-starlight-300"
                                 >
                                     Close Editor
                                 </button>
@@ -628,39 +1132,61 @@ export function AvatarEditor({
                 </div>
 
                 {/* Right: Customization Controls Panel */}
-                <div className="space-y-4 lg:col-span-7 xl:col-span-8 flex flex-col max-h-140">
+                <div className="space-y-4 lg:col-span-7 xl:col-span-8 flex flex-col">
                     {/* Category Navigation Tabs */}
-                    <div className="flex items-center gap-1.5 overflow-x-auto rounded-xl border border-border/70 bg-space-950/80 p-1.5 no-scrollbar shrink-0">
-                        <TabButton
-                            active={activeTab === "hair"}
-                            onClick={() => setActiveTab("hair")}
-                            icon={Sparkles}
-                            label="Hair & Hats"
-                        />
-                        <TabButton
-                            active={activeTab === "face"}
-                            onClick={() => setActiveTab("face")}
-                            icon={Smile}
-                            label="Expression"
-                        />
-                        <TabButton
-                            active={activeTab === "base"}
-                            onClick={() => setActiveTab("base")}
-                            icon={Sliders}
-                            label="Skin Tone"
-                        />
-                        <TabButton
-                            active={activeTab === "clothing"}
-                            onClick={() => setActiveTab("clothing")}
-                            icon={Shirt}
-                            label="Outfits"
-                        />
-                        <TabButton
-                            active={activeTab === "details"}
-                            onClick={() => setActiveTab("details")}
-                            icon={Glasses}
-                            label="Accessories"
-                        />
+                    <div className="flex items-center justify-between gap-2 overflow-x-auto rounded-xl border border-border/70 bg-space-950/80 p-1.5 no-scrollbar shrink-0">
+                        <div className="flex items-center gap-1">
+                            <TabButton
+                                active={activeTab === "hair"}
+                                onClick={() => setActiveTab("hair")}
+                                icon={Sparkles}
+                                label="Hair & Hats"
+                            />
+                            <TabButton
+                                active={activeTab === "face"}
+                                onClick={() => setActiveTab("face")}
+                                icon={Smile}
+                                label="Expression"
+                            />
+                            <TabButton
+                                active={activeTab === "base"}
+                                onClick={() => setActiveTab("base")}
+                                icon={Sliders}
+                                label="Skin Tone"
+                            />
+                            <TabButton
+                                active={activeTab === "clothing"}
+                                onClick={() => setActiveTab("clothing")}
+                                icon={Shirt}
+                                label="Outfits"
+                            />
+                            <TabButton
+                                active={activeTab === "details"}
+                                onClick={() => setActiveTab("details")}
+                                icon={Glasses}
+                                label="Accessories"
+                            />
+                        </div>
+
+                        {/* Ownership Filter Pills (All / Owned / Not Owned) */}
+                        <div className="flex items-center gap-1 border-l border-border/60 pl-2 shrink-0">
+                            <Filter className="size-3 text-starlight-400 mr-0.5" />
+                            <FilterChip
+                                active={ownershipFilter === "all"}
+                                onClick={() => setOwnershipFilter("all")}
+                                label="All"
+                            />
+                            <FilterChip
+                                active={ownershipFilter === "owned"}
+                                onClick={() => setOwnershipFilter("owned")}
+                                label="Owned"
+                            />
+                            <FilterChip
+                                active={ownershipFilter === "not-owned"}
+                                onClick={() => setOwnershipFilter("not-owned")}
+                                label="Store"
+                            />
+                        </div>
                     </div>
 
                     {/* Independently Scrollable Customization Area */}
@@ -671,23 +1197,35 @@ export function AvatarEditor({
                         {/* Tab 1: Hair & Headwear */}
                         {activeTab === "hair" && (
                             <div className="space-y-5 animate-fade-in">
-                                {/* Hair Color Palette with Custom Color Picker */}
-                                <ColorPickerSection
-                                    title="Hair Color"
+                                {/* Item-Specific Hair Color Palette */}
+                                <ItemSpecificColorSection
+                                    itemId={`top:${currentConfig.top}`}
+                                    itemLabel="Hairstyle"
                                     currentColor={currentConfig.hairColor}
                                     presets={HAIR_COLOR_OPTIONS}
+                                    freeHexes={DEFAULT_HAIR_FREE_HEXES}
+                                    ownedColorsMap={ownedColorsMap}
+                                    customColors={customColorsByItem.get(`top:${currentConfig.top}`) ?? []}
+                                    cartColors={selectedCartColors}
                                     onSelectColor={(hex) => updateConfig("hairColor", hex)}
-                                    defaultColor="2c1b18"
+                                    onToggleCartColor={toggleCartColor}
                                 />
 
                                 {/* Hat Color (conditional when headwear selected) */}
                                 {hasHeadwear && (
-                                    <ColorPickerSection
-                                        title="Headwear / Hat Color"
+                                    <ItemSpecificColorSection
+                                        itemId={`top:${currentConfig.top}`}
+                                        itemLabel="Headwear / Hat"
                                         currentColor={currentConfig.hatColor ?? "262e33"}
                                         presets={HAT_COLOR_OPTIONS}
+                                        freeHexes={DEFAULT_CLOTHES_FREE_HEXES}
+                                        ownedColorsMap={ownedColorsMap}
+                                        customColors={
+                                            customColorsByItem.get(`top:${currentConfig.top}`) ?? []
+                                        }
+                                        cartColors={selectedCartColors}
                                         onSelectColor={(hex) => updateConfig("hatColor", hex)}
-                                        defaultColor="262e33"
+                                        onToggleCartColor={toggleCartColor}
                                     />
                                 )}
 
@@ -720,7 +1258,7 @@ export function AvatarEditor({
                                     />
                                 </div>
 
-                                {/* Hairstyle Groups with Focused Visual Thumbnails */}
+                                {/* Hairstyle Groups with Item Cards */}
                                 {filteredTopGroups.map((group) => (
                                     <div key={group.category} className="space-y-2.5">
                                         <div className="flex items-center justify-between border-b border-border/50 pb-1">
@@ -732,18 +1270,32 @@ export function AvatarEditor({
                                             </span>
                                         </div>
                                         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
-                                            {group.options.map((option) => (
-                                                <ThumbnailChoiceCard
-                                                    key={option.value}
-                                                    label={option.label}
-                                                    thumbnailUri={getTopThumbnail(
-                                                        option.value,
-                                                        thumbnailColors.hairColor
-                                                    )}
-                                                    selected={currentConfig.top === option.value}
-                                                    onClick={() => updateConfig("top", option.value)}
-                                                />
-                                            ))}
+                                            {group.options.map((option) => {
+                                                const itemId = `top:${option.value}`;
+                                                const catalogItem = getCatalogItemById(itemId);
+                                                const isOwned = checkItemIsOwned("top", option.value);
+                                                const isEquipped = currentConfig.top === option.value;
+                                                const isInCart = selectedCartItemIds.has(itemId);
+
+                                                return (
+                                                    <StoreItemCard
+                                                        key={option.value}
+                                                        name={option.label}
+                                                        thumbnailUri={getTopThumbnail(
+                                                            option.value,
+                                                            thumbnailColors.hairColor
+                                                        )}
+                                                        isEquipped={isEquipped}
+                                                        isOwned={isOwned}
+                                                        isFree={catalogItem?.isFree ?? false}
+                                                        cost={catalogItem?.cost ?? 0}
+                                                        rarity={catalogItem?.rarity ?? "COMMON"}
+                                                        isInCart={isInCart}
+                                                        onEquip={() => updateConfig("top", option.value)}
+                                                        onToggleCart={() => toggleCartItem(itemId)}
+                                                    />
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 ))}
@@ -753,7 +1305,6 @@ export function AvatarEditor({
                         {/* Tab 2: Face & Expression */}
                         {activeTab === "face" && (
                             <div className="space-y-5 animate-fade-in">
-                                {/* Subcategory Filter Pills */}
                                 <div className="flex items-center gap-1.5 pt-1">
                                     <SubcategoryPill
                                         active={faceFilter === "all"}
@@ -777,7 +1328,7 @@ export function AvatarEditor({
                                     />
                                 </div>
 
-                                {/* Eye Styles with Focused Eye Thumbnails */}
+                                {/* Eye Styles */}
                                 {(faceFilter === "all" || faceFilter === "eyes") && (
                                     <div className="space-y-2.5">
                                         <div className="flex items-center justify-between border-b border-border/50 pb-1">
@@ -791,19 +1342,24 @@ export function AvatarEditor({
                                         </div>
                                         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
                                             {EYES_OPTIONS.map((option) => (
-                                                <ThumbnailChoiceCard
+                                                <StoreItemCard
                                                     key={option.value}
-                                                    label={option.label}
+                                                    name={option.label}
                                                     thumbnailUri={getEyesThumbnail(option.value)}
-                                                    selected={currentConfig.eyes === option.value}
-                                                    onClick={() => updateConfig("eyes", option.value)}
+                                                    isEquipped={currentConfig.eyes === option.value}
+                                                    isOwned={true}
+                                                    isFree={true}
+                                                    cost={0}
+                                                    rarity="COMMON"
+                                                    isInCart={false}
+                                                    onEquip={() => updateConfig("eyes", option.value)}
                                                 />
                                             ))}
                                         </div>
                                     </div>
                                 )}
 
-                                {/* Eyebrows with Focused Eyebrow Thumbnails */}
+                                {/* Eyebrows */}
                                 {(faceFilter === "all" || faceFilter === "eyebrows") && (
                                     <div className="space-y-2.5">
                                         <div className="flex items-center justify-between border-b border-border/50 pb-1">
@@ -816,19 +1372,24 @@ export function AvatarEditor({
                                         </div>
                                         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
                                             {EYEBROWS_OPTIONS.map((option) => (
-                                                <ThumbnailChoiceCard
+                                                <StoreItemCard
                                                     key={option.value}
-                                                    label={option.label}
+                                                    name={option.label}
                                                     thumbnailUri={getEyebrowsThumbnail(option.value)}
-                                                    selected={currentConfig.eyebrows === option.value}
-                                                    onClick={() => updateConfig("eyebrows", option.value)}
+                                                    isEquipped={currentConfig.eyebrows === option.value}
+                                                    isOwned={true}
+                                                    isFree={true}
+                                                    cost={0}
+                                                    rarity="COMMON"
+                                                    isInCart={false}
+                                                    onEquip={() => updateConfig("eyebrows", option.value)}
                                                 />
                                             ))}
                                         </div>
                                     </div>
                                 )}
 
-                                {/* Mouth Expressions with Focused Mouth Thumbnails */}
+                                {/* Mouth Expressions */}
                                 {(faceFilter === "all" || faceFilter === "mouth") && (
                                     <div className="space-y-2.5">
                                         <div className="flex items-center justify-between border-b border-border/50 pb-1">
@@ -842,12 +1403,17 @@ export function AvatarEditor({
                                         </div>
                                         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
                                             {MOUTH_OPTIONS.map((option) => (
-                                                <ThumbnailChoiceCard
+                                                <StoreItemCard
                                                     key={option.value}
-                                                    label={option.label}
+                                                    name={option.label}
                                                     thumbnailUri={getMouthThumbnail(option.value)}
-                                                    selected={currentConfig.mouth === option.value}
-                                                    onClick={() => updateConfig("mouth", option.value)}
+                                                    isEquipped={currentConfig.mouth === option.value}
+                                                    isOwned={true}
+                                                    isFree={true}
+                                                    cost={0}
+                                                    rarity="COMMON"
+                                                    isInCart={false}
+                                                    onEquip={() => updateConfig("mouth", option.value)}
                                                 />
                                             ))}
                                         </div>
@@ -856,21 +1422,21 @@ export function AvatarEditor({
                             </div>
                         )}
 
-                        {/* Tab 3: Skin Tone (Non-duplicated, unified UI) */}
+                        {/* Tab 3: Skin Tone */}
                         {activeTab === "base" && (
                             <div className="space-y-5 animate-fade-in">
                                 <div className="rounded-xl border border-border/60 bg-space-950/40 p-4 sm:p-5">
                                     <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                                         <div>
                                             <label className="block text-xs font-bold uppercase tracking-wider text-gold-400">
-                                                Skin Complexion & Tone
+                                                Cadet Complexion & Skin Tone
                                             </label>
                                             <p className="text-[11px] text-starlight-400 mt-0.5">
-                                                Select a preset cadet complexion or pick a custom hex tone.
+                                                All 7 base cadet tones are free. Custom hex tones can be unlocked.
                                             </p>
                                         </div>
 
-                                        {/* Custom Color Trigger beside header */}
+                                        {/* Custom Color Trigger */}
                                         <div className="relative group">
                                             <div
                                                 className={cn(
@@ -933,8 +1499,8 @@ export function AvatarEditor({
                                                         <span className="block truncate text-xs font-medium text-starlight-100">
                                                             {color.label}
                                                         </span>
-                                                        <span className="block text-[10px] text-starlight-400 font-mono">
-                                                            {color.hex}
+                                                        <span className="block text-[10px] text-emerald-400 font-semibold">
+                                                            Free
                                                         </span>
                                                     </div>
                                                     {isSelected && (
@@ -953,42 +1519,63 @@ export function AvatarEditor({
                         {/* Tab 4: Clothing & Outfits */}
                         {activeTab === "clothing" && (
                             <div className="space-y-5 animate-fade-in">
-                                {/* Clothes Color with Custom Picker */}
-                                <ColorPickerSection
-                                    title="Clothing Hue"
+                                {/* Item-Specific Clothes Color Palette */}
+                                <ItemSpecificColorSection
+                                    itemId={`clothing:${currentConfig.clothing}`}
+                                    itemLabel="Outfit"
                                     currentColor={currentConfig.clothesColor}
                                     presets={CLOTHES_COLOR_OPTIONS}
+                                    freeHexes={DEFAULT_CLOTHES_FREE_HEXES}
+                                    ownedColorsMap={ownedColorsMap}
+                                    customColors={
+                                        customColorsByItem.get(`clothing:${currentConfig.clothing}`) ?? []
+                                    }
+                                    cartColors={selectedCartColors}
                                     onSelectColor={(hex) => updateConfig("clothesColor", hex)}
-                                    defaultColor="262e33"
+                                    onToggleCartColor={toggleCartColor}
                                 />
 
-                                {/* Clothing Styles with Focused Torso Thumbnails */}
+                                {/* Clothing Styles */}
                                 <div className="space-y-2.5">
                                     <div className="flex items-center justify-between border-b border-border/50 pb-1">
                                         <h4 className="text-xs font-semibold uppercase tracking-wider text-starlight-400">
-                                            Outfit & Style
+                                            Outfit Styles
                                         </h4>
                                         <span className="text-[10px] text-starlight-500 font-mono">
-                                            {CLOTHING_OPTIONS.length} styles
+                                            {filteredClothingOptions.length} styles
                                         </span>
                                     </div>
                                     <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-                                        {CLOTHING_OPTIONS.map((option) => (
-                                            <ThumbnailChoiceCard
-                                                key={option.value}
-                                                label={option.label}
-                                                thumbnailUri={getClothingThumbnail(
-                                                    option.value,
-                                                    thumbnailColors.clothesColor
-                                                )}
-                                                selected={currentConfig.clothing === option.value}
-                                                onClick={() => updateConfig("clothing", option.value)}
-                                            />
-                                        ))}
+                                        {filteredClothingOptions.map((option) => {
+                                            const itemId = `clothing:${option.value}`;
+                                            const catalogItem = getCatalogItemById(itemId);
+                                            const isOwned = checkItemIsOwned("clothing", option.value);
+                                            const isEquipped = currentConfig.clothing === option.value;
+                                            const isInCart = selectedCartItemIds.has(itemId);
+
+                                            return (
+                                                <StoreItemCard
+                                                    key={option.value}
+                                                    name={option.label}
+                                                    thumbnailUri={getClothingThumbnail(
+                                                        option.value,
+                                                        thumbnailColors.clothesColor
+                                                    )}
+                                                    isEquipped={isEquipped}
+                                                    isOwned={isOwned}
+                                                    isFree={catalogItem?.isFree ?? false}
+                                                    cost={catalogItem?.cost ?? 0}
+                                                    rarity={catalogItem?.rarity ?? "COMMON"}
+                                                    isInCart={isInCart}
+                                                    onEquip={() => updateConfig("clothing", option.value)}
+                                                    onToggleCart={() => toggleCartItem(itemId)}
+                                                />
+                                            );
+                                        })}
                                     </div>
                                 </div>
 
-                                {/* Graphic Shirt Badges (conditional when graphicShirt is selected) */}
+                                {/* Graphic Shirt Badges */}
                                 {isGraphicShirt && (
                                     <div className="space-y-2.5 rounded-xl border border-gold-500/30 bg-space-950/50 p-4">
                                         <div className="flex items-center justify-between border-b border-border/50 pb-1">
@@ -1001,20 +1588,36 @@ export function AvatarEditor({
                                             </span>
                                         </div>
                                         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
-                                            {CLOTHING_GRAPHIC_OPTIONS.map((option) => (
-                                                <ThumbnailChoiceCard
-                                                    key={option.value}
-                                                    label={option.label}
-                                                    thumbnailUri={getGraphicThumbnail(option.value)}
-                                                    selected={
-                                                        (currentConfig.clothingGraphic ?? "none") ===
-                                                        option.value
-                                                    }
-                                                    onClick={() =>
-                                                        updateConfig("clothingGraphic", option.value)
-                                                    }
-                                                />
-                                            ))}
+                                            {CLOTHING_GRAPHIC_OPTIONS.map((option) => {
+                                                const itemId = `clothingGraphic:${option.value}`;
+                                                const catalogItem = getCatalogItemById(itemId);
+                                                const isOwned = checkItemIsOwned(
+                                                    "clothingGraphic",
+                                                    option.value
+                                                );
+                                                const isEquipped =
+                                                    (currentConfig.clothingGraphic ?? "none") ===
+                                                    option.value;
+                                                const isInCart = selectedCartItemIds.has(itemId);
+
+                                                return (
+                                                    <StoreItemCard
+                                                        key={option.value}
+                                                        name={option.label}
+                                                        thumbnailUri={getGraphicThumbnail(option.value)}
+                                                        isEquipped={isEquipped}
+                                                        isOwned={isOwned}
+                                                        isFree={catalogItem?.isFree ?? false}
+                                                        cost={catalogItem?.cost ?? 0}
+                                                        rarity={catalogItem?.rarity ?? "COMMON"}
+                                                        isInCart={isInCart}
+                                                        onEquip={() =>
+                                                            updateConfig("clothingGraphic", option.value)
+                                                        }
+                                                        onToggleCart={() => toggleCartItem(itemId)}
+                                                    />
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 )}
@@ -1024,7 +1627,6 @@ export function AvatarEditor({
                         {/* Tab 5: Accessories & Details */}
                         {activeTab === "details" && (
                             <div className="space-y-5 animate-fade-in">
-                                {/* Subcategory Filter Pills */}
                                 <div className="flex items-center gap-1.5 pt-1">
                                     <SubcategoryPill
                                         active={detailsFilter === "all"}
@@ -1063,29 +1665,55 @@ export function AvatarEditor({
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-                                            {ACCESSORY_OPTIONS.map((option) => (
-                                                <ThumbnailChoiceCard
-                                                    key={option.value}
-                                                    label={option.label}
-                                                    thumbnailUri={getAccessoryThumbnail(
-                                                        option.value,
-                                                        thumbnailColors.accessoriesColor
-                                                    )}
-                                                    selected={currentConfig.accessories === option.value}
-                                                    onClick={() => updateConfig("accessories", option.value)}
-                                                />
-                                            ))}
+                                            {filteredAccessoryOptions.map((option) => {
+                                                const itemId = `accessories:${option.value}`;
+                                                const catalogItem = getCatalogItemById(itemId);
+                                                const isOwned = checkItemIsOwned("accessories", option.value);
+                                                const isEquipped =
+                                                    currentConfig.accessories === option.value;
+                                                const isInCart = selectedCartItemIds.has(itemId);
+
+                                                return (
+                                                    <StoreItemCard
+                                                        key={option.value}
+                                                        name={option.label}
+                                                        thumbnailUri={getAccessoryThumbnail(
+                                                            option.value,
+                                                            thumbnailColors.accessoriesColor
+                                                        )}
+                                                        isEquipped={isEquipped}
+                                                        isOwned={isOwned}
+                                                        isFree={catalogItem?.isFree ?? false}
+                                                        cost={catalogItem?.cost ?? 0}
+                                                        rarity={catalogItem?.rarity ?? "COMMON"}
+                                                        isInCart={isInCart}
+                                                        onEquip={() =>
+                                                            updateConfig("accessories", option.value)
+                                                        }
+                                                        onToggleCart={() => toggleCartItem(itemId)}
+                                                    />
+                                                );
+                                            })}
                                         </div>
 
                                         {currentConfig.accessories !== "none" && (
-                                            <ColorPickerSection
-                                                title="Frame Color"
+                                            <ItemSpecificColorSection
+                                                itemId={`accessories:${currentConfig.accessories}`}
+                                                itemLabel="Eyewear Frame"
                                                 currentColor={currentConfig.accessoriesColor}
                                                 presets={ACCESSORIES_COLOR_OPTIONS}
+                                                freeHexes={DEFAULT_ACCESSORIES_FREE_HEXES}
+                                                ownedColorsMap={ownedColorsMap}
+                                                customColors={
+                                                    customColorsByItem.get(
+                                                        `accessories:${currentConfig.accessories}`
+                                                    ) ?? []
+                                                }
+                                                cartColors={selectedCartColors}
                                                 onSelectColor={(hex) =>
                                                     updateConfig("accessoriesColor", hex)
                                                 }
-                                                defaultColor="262e33"
+                                                onToggleCartColor={toggleCartColor}
                                                 className="mt-3"
                                             />
                                         )}
@@ -1112,29 +1740,55 @@ export function AvatarEditor({
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-                                            {FACIAL_HAIR_OPTIONS.map((option) => (
-                                                <ThumbnailChoiceCard
-                                                    key={option.value}
-                                                    label={option.label}
-                                                    thumbnailUri={getFacialHairThumbnail(
-                                                        option.value,
-                                                        thumbnailColors.facialHairColor
-                                                    )}
-                                                    selected={currentConfig.facialHair === option.value}
-                                                    onClick={() => updateConfig("facialHair", option.value)}
-                                                />
-                                            ))}
+                                            {filteredFacialHairOptions.map((option) => {
+                                                const itemId = `facialHair:${option.value}`;
+                                                const catalogItem = getCatalogItemById(itemId);
+                                                const isOwned = checkItemIsOwned("facialHair", option.value);
+                                                const isEquipped =
+                                                    currentConfig.facialHair === option.value;
+                                                const isInCart = selectedCartItemIds.has(itemId);
+
+                                                return (
+                                                    <StoreItemCard
+                                                        key={option.value}
+                                                        name={option.label}
+                                                        thumbnailUri={getFacialHairThumbnail(
+                                                            option.value,
+                                                            thumbnailColors.facialHairColor
+                                                        )}
+                                                        isEquipped={isEquipped}
+                                                        isOwned={isOwned}
+                                                        isFree={catalogItem?.isFree ?? false}
+                                                        cost={catalogItem?.cost ?? 0}
+                                                        rarity={catalogItem?.rarity ?? "COMMON"}
+                                                        isInCart={isInCart}
+                                                        onEquip={() =>
+                                                            updateConfig("facialHair", option.value)
+                                                        }
+                                                        onToggleCart={() => toggleCartItem(itemId)}
+                                                    />
+                                                );
+                                            })}
                                         </div>
 
                                         {currentConfig.facialHair !== "none" && (
-                                            <ColorPickerSection
-                                                title="Facial Hair Color"
+                                            <ItemSpecificColorSection
+                                                itemId={`facialHair:${currentConfig.facialHair}`}
+                                                itemLabel="Beard / Moustache"
                                                 currentColor={currentConfig.facialHairColor}
                                                 presets={HAIR_COLOR_OPTIONS}
+                                                freeHexes={DEFAULT_HAIR_FREE_HEXES}
+                                                ownedColorsMap={ownedColorsMap}
+                                                customColors={
+                                                    customColorsByItem.get(
+                                                        `facialHair:${currentConfig.facialHair}`
+                                                    ) ?? []
+                                                }
+                                                cartColors={selectedCartColors}
                                                 onSelectColor={(hex) =>
                                                     updateConfig("facialHairColor", hex)
                                                 }
-                                                defaultColor="2c1b18"
+                                                onToggleCartColor={toggleCartColor}
                                                 className="mt-3"
                                             />
                                         )}
@@ -1146,47 +1800,80 @@ export function AvatarEditor({
 
                     {/* Mobile Bottom Save & Close Actions */}
                     <div className="flex items-center gap-2 pt-3 border-t border-border/60 lg:hidden">
-                        <button
-                            type="button"
-                            onClick={handleSave}
-                            disabled={isSaving || !isDirty}
-                            className={cn(
-                                "flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold shadow-gold transition-all",
-                                isDirty
-                                    ? "bg-gradient-to-r from-gold-500 via-gold-400 to-gold-600 text-space-950 active:scale-95"
-                                    : "bg-space-850 text-starlight-400 border border-border/70 cursor-not-allowed"
-                            )}
-                        >
-                            {isSaving ? (
-                                <>
-                                    <Loader2 className="size-3.5 animate-spin" />
-                                    <span>Saving...</span>
-                                </>
-                            ) : (
-                                <>
-                                    <Save className="size-3.5" />
-                                    <span>{isDirty ? "Save Avatar" : "Saved"}</span>
-                                </>
-                            )}
-                        </button>
-
-                        {onCancel && (
+                        {hasUnownedEquipped ? (
                             <button
                                 type="button"
-                                onClick={onCancel}
-                                className="rounded-xl border border-border/70 bg-space-850 px-4 py-2.5 text-xs font-medium text-starlight-300 hover:bg-space-800"
+                                onClick={addAllUnownedToCart}
+                                className="flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold bg-amber-500 text-space-950 shadow-gold"
                             >
-                                Close
+                                <ShoppingBag className="size-3.5" />
+                                <span>
+                                    Purchase ({unownedEquippedList.reduce((s, i) => s + i.cost, 0)} ST)
+                                </span>
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={handleSave}
+                                disabled={isSaving || !isDirty}
+                                className={cn(
+                                    "flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold shadow-gold transition-all",
+                                    isDirty
+                                        ? "bg-gradient-to-r from-gold-500 via-gold-400 to-gold-600 text-space-950 active:scale-95"
+                                        : "bg-space-850 text-starlight-400 border border-border/70 cursor-not-allowed"
+                                )}
+                            >
+                                {isSaving ? (
+                                    <>
+                                        <Loader2 className="size-3.5 animate-spin" />
+                                        <span>Saving...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Save className="size-3.5" />
+                                        <span>{isDirty ? "Save Avatar" : "Saved"}</span>
+                                    </>
+                                )}
                             </button>
                         )}
+
+                        <button
+                            type="button"
+                            onClick={handleAttemptClose}
+                            className="rounded-xl border border-border/70 bg-space-850 px-4 py-2.5 text-xs font-medium text-starlight-300 hover:bg-space-800"
+                        >
+                            Close
+                        </button>
                     </div>
                 </div>
             </div>
+
+            {/* Live Purchase Review Dialog */}
+            <PurchaseReviewDialog
+                open={isCartDialogOpen}
+                onOpenChange={setIsCartDialogOpen}
+                selectedItems={cartSelectedItems}
+                selectedColors={cartSelectedColors}
+                onRemoveItem={removeCartItem}
+                onRemoveColor={removeCartColor}
+                spendableBalance={spendableBalance}
+                onConfirmPurchase={handleConfirmBulkPurchase}
+                isPurchasing={isPurchasing}
+            />
+
+            {/* Unsaved Changes Confirmation Dialog */}
+            <UnsavedChangesDialog
+                open={isExitDialogOpen}
+                onStay={() => setIsExitDialogOpen(false)}
+                onConfirmLeave={handleConfirmExit}
+            />
         </div>
     );
 }
 
-// Subcomponents for AvatarEditor
+// -----------------------------------------------------------------------------
+// Subcomponents
+// -----------------------------------------------------------------------------
 
 function TabButton({
     active,
@@ -1241,118 +1928,309 @@ function SubcategoryPill({
     );
 }
 
-interface ThumbnailChoiceCardProps {
-    label: string;
-    thumbnailUri: string;
-    selected: boolean;
-    onClick: () => void;
-}
-
-const ThumbnailChoiceCard = React.memo(function ThumbnailChoiceCard({
-    label,
-    thumbnailUri,
-    selected,
+function FilterChip({
+    active,
     onClick,
-}: ThumbnailChoiceCardProps) {
+    label,
+}: {
+    active: boolean;
+    onClick: () => void;
+    label: string;
+}) {
     return (
         <button
             type="button"
             onClick={onClick}
-            aria-pressed={selected}
             className={cn(
-                "group relative flex flex-col items-center justify-between rounded-xl border p-2 text-center transition-all duration-150 select-none",
-                selected
-                    ? "border-gold-400 bg-gold-500/15 text-gold-200 shadow-gold ring-2 ring-gold-400/50 font-semibold"
-                    : "border-border/60 bg-space-850/60 text-starlight-300 hover:border-gold-500/30 hover:bg-space-850 hover:text-starlight-100"
+                "rounded-md px-2 py-0.5 text-[10px] font-medium transition-all select-none border",
+                active
+                    ? "border-gold-500/50 bg-gold-500/20 text-gold-300 font-bold"
+                    : "border-transparent text-starlight-400 hover:text-starlight-200 hover:bg-space-850"
             )}
         >
-            <div className="relative mb-1.5 flex size-14 sm:size-16 items-center justify-center overflow-hidden rounded-lg bg-space-900/80 p-0.5">
+            {label}
+        </button>
+    );
+}
+
+interface StoreItemCardProps {
+    name: string;
+    thumbnailUri: string;
+    isEquipped: boolean;
+    isOwned: boolean;
+    isFree: boolean;
+    cost: number;
+    rarity: "COMMON" | "RARE" | "EPIC";
+    isInCart?: boolean;
+    onEquip: () => void;
+    onToggleCart?: () => void;
+}
+
+const StoreItemCard = React.memo(function StoreItemCard({
+    name,
+    thumbnailUri,
+    isEquipped,
+    isOwned,
+    isFree,
+    cost,
+    rarity,
+    isInCart,
+    onEquip,
+    onToggleCart,
+}: StoreItemCardProps) {
+    return (
+        <div
+            className={cn(
+                "group relative flex flex-col items-center justify-between rounded-xl border p-2 text-center transition-all duration-150 select-none",
+                isEquipped
+                    ? "border-gold-400 bg-gold-500/15 shadow-gold ring-2 ring-gold-400/50"
+                    : isInCart
+                    ? "border-amber-400/80 bg-amber-500/10 shadow-xs"
+                    : "border-border/60 bg-space-850/60 hover:border-gold-500/40 hover:bg-space-850"
+            )}
+        >
+            {/* Top badges bar */}
+            <div className="w-full flex items-center justify-between mb-1 px-0.5">
+                <span
+                    className={cn(
+                        "rounded-xs px-1 py-0.2 text-[8px] font-bold uppercase",
+                        rarity === "EPIC"
+                            ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
+                            : rarity === "RARE"
+                            ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                            : "bg-starlight-500/10 text-starlight-400"
+                    )}
+                >
+                    {rarity}
+                </span>
+
+                {isFree ? (
+                    <span className="text-[9px] font-bold text-emerald-400">Free</span>
+                ) : isOwned ? (
+                    <span className="text-[9px] font-bold text-emerald-400 flex items-center gap-0.5">
+                        <Check className="size-2.5 stroke-[3]" /> Owned
+                    </span>
+                ) : (
+                    <span className="font-mono text-[9px] font-bold text-gold-400">
+                        {cost} ST
+                    </span>
+                )}
+            </div>
+
+            {/* Clickable thumbnail area for instant preview */}
+            <button
+                type="button"
+                onClick={onEquip}
+                className="relative mb-1 flex size-14 sm:size-16 items-center justify-center overflow-hidden rounded-lg bg-space-900/80 p-0.5 w-full cursor-pointer hover:scale-102 transition-transform"
+                title={`Preview ${name}`}
+            >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                     src={thumbnailUri}
-                    alt={label}
+                    alt={name}
                     loading="lazy"
                     className="size-full select-none object-contain"
                 />
-                {selected && (
+
+                {isEquipped && (
                     <span className="absolute top-1 right-1 flex size-4 items-center justify-center rounded-full bg-gold-400 text-space-950 shadow-xs">
                         <Check className="size-2.5 stroke-[3]" />
                     </span>
                 )}
-            </div>
-            <span className="w-full truncate text-[11px] leading-tight font-medium">
-                {label}
+            </button>
+
+            {/* Item Name */}
+            <span className="w-full truncate text-[11px] leading-tight font-medium text-starlight-200">
+                {name}
             </span>
-        </button>
+
+            {/* Cart toggle action for unowned items */}
+            {!isOwned && !isFree && onToggleCart && (
+                <div className="w-full mt-1.5 pt-1 border-t border-border/40">
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleCart();
+                        }}
+                        className={cn(
+                            "w-full rounded-md py-0.5 text-[10px] font-bold transition-all flex items-center justify-center gap-1",
+                            isInCart
+                                ? "bg-amber-400/20 text-amber-300 border border-amber-400/40"
+                                : "bg-space-800 text-gold-300 border border-gold-500/30 hover:bg-gold-500/20"
+                        )}
+                    >
+                        {isInCart ? (
+                            <>
+                                <Check className="size-2.5" />
+                                <span>In Cart</span>
+                            </>
+                        ) : (
+                            <>
+                                <Plus className="size-2.5" />
+                                <span>Select</span>
+                            </>
+                        )}
+                    </button>
+                </div>
+            )}
+        </div>
     );
 });
 
-interface ColorPickerSectionProps<T extends string = string> {
-    title: string;
+interface ItemSpecificColorSectionProps<T extends string = string> {
+    itemId: string;
+    itemLabel: string;
     currentColor: string;
     presets: readonly ColorOption<T>[];
-    onSelectColor: (hexWithoutHash: string) => void;
-    defaultColor?: string;
+    freeHexes: Set<string>;
+    ownedColorsMap: Set<string>;
+    customColors: string[];
+    cartColors: Map<string, SelectedColorCartItem>;
+    onSelectColor: (hex: string) => void;
+    onToggleCartColor: (item: SelectedColorCartItem) => void;
     className?: string;
 }
 
-function ColorPickerSection<T extends string = string>({
-    title,
+function ItemSpecificColorSection<T extends string = string>({
+    itemId,
+    itemLabel,
     currentColor,
     presets,
+    freeHexes,
+    ownedColorsMap,
+    customColors,
+    cartColors,
     onSelectColor,
-    defaultColor,
+    onToggleCartColor,
     className,
-}: ColorPickerSectionProps<T>) {
-    const isPreset = presets.some(
-        (p) => p.value.toLowerCase() === currentColor.toLowerCase()
-    );
+}: ItemSpecificColorSectionProps<T>) {
+    const cleanCurrent = currentColor.toLowerCase();
+    const isFree = freeHexes.has(cleanCurrent);
+    const isOwned = isFree || ownedColorsMap.has(`${itemId}:${cleanCurrent}`);
+    const cartKey = `${itemId}:${cleanCurrent}`;
+    const isInCart = cartColors.has(cartKey);
 
-    const handleCustomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const clean = normalizeHexColor(e.target.value);
-        if (clean) {
-            onSelectColor(clean);
-        }
-    };
+    const activePreset = presets.find((p) => p.value.toLowerCase() === cleanCurrent);
+    const colorLabel = activePreset?.label ?? `#${currentColor.toUpperCase()}`;
+    const colorCost = isOwned ? 0 : activePreset ? 15 : CUSTOM_COLOR_PRICE;
 
     return (
         <div className={cn("rounded-xl border border-border/60 bg-space-950/40 p-4", className)}>
-            <div className="mb-2.5 flex items-center justify-between">
-                <label className="block text-xs font-bold uppercase tracking-wider text-gold-400">
-                    {title}
-                </label>
-                {!isPreset && defaultColor && (
-                    <button
-                        type="button"
-                        onClick={() => onSelectColor(defaultColor)}
-                        className="text-[10px] text-starlight-400 hover:text-gold-300 transition-colors underline-offset-2 hover:underline"
-                    >
-                        Reset to default preset
-                    </button>
-                )}
+            <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-gold-400">
+                        {itemLabel} Colors
+                    </label>
+                    <span className="text-[10px] text-starlight-400">
+                        Colors are item-specific. 3–4 basic tones are free on each style.
+                    </span>
+                </div>
+
+                {/* Selected Color Status Badge & Cart Action */}
+                <div className="flex items-center gap-2">
+                    {isOwned ? (
+                        <span className="flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
+                            <Check className="size-2.5" />
+                            {isFree ? "Free Color" : "Owned Color"}
+                        </span>
+                    ) : (
+                        <div className="flex items-center gap-1.5">
+                            <span className="font-mono text-xs font-bold text-gold-400">
+                                {colorCost} ST
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    onToggleCartColor({
+                                        itemId,
+                                        itemLabel,
+                                        colorHex: cleanCurrent,
+                                        colorLabel,
+                                        cost: colorCost,
+                                        isCustom: !activePreset,
+                                    })
+                                }
+                                className={cn(
+                                    "rounded-lg px-2 py-1 text-[10px] font-bold transition-all shadow-xs",
+                                    isInCart
+                                        ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                                        : "bg-gold-500 text-space-950 hover:brightness-110"
+                                )}
+                            >
+                                {isInCart ? "In Cart (Remove)" : "Add Color to Cart"}
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
 
-            {/* Presets and Custom Color Picker */}
+            {/* Presets and Custom Picker */}
             <div className="flex flex-wrap items-center gap-2.5">
-                {presets.map((color) => (
-                    <ColorSwatch
-                        key={color.value}
-                        color={color}
-                        selected={currentColor.toLowerCase() === color.value.toLowerCase()}
-                        onClick={() => onSelectColor(color.value)}
-                    />
-                ))}
+                {presets.map((color) => {
+                    const hex = color.value.toLowerCase();
+                    const itemIsFree = freeHexes.has(hex);
+                    const itemIsOwned = itemIsFree || ownedColorsMap.has(`${itemId}:${hex}`);
+                    const isSelected = cleanCurrent === hex;
 
-                {/* Custom Color Trigger */}
+                    return (
+                        <button
+                            key={color.value}
+                            type="button"
+                            onClick={() => onSelectColor(color.value)}
+                            title={`${color.label} ${itemIsFree ? "(Free)" : itemIsOwned ? "(Owned)" : "(15 ST)"}`}
+                            className={cn(
+                                "group relative size-8 shrink-0 rounded-full border border-black/30 transition-transform duration-150 focus:outline-hidden",
+                                isSelected
+                                    ? "scale-115 ring-2 ring-gold-400 ring-offset-2 ring-offset-space-950 shadow-gold"
+                                    : "hover:scale-105"
+                            )}
+                            style={{ backgroundColor: color.hex }}
+                        >
+                            {isSelected && (
+                                <Check className="mx-auto size-3.5 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]" />
+                            )}
+                            {!itemIsOwned && (
+                                <span className="absolute -top-1 -right-1 size-2 rounded-full bg-gold-400 ring-1 ring-space-950" />
+                            )}
+                        </button>
+                    );
+                })}
+
+                {/* Previously purchased custom colors for this item */}
+                {customColors.map((hex) => {
+                    const isSelected = cleanCurrent === hex.toLowerCase();
+                    return (
+                        <button
+                            key={`custom-${hex}`}
+                            type="button"
+                            onClick={() => onSelectColor(hex)}
+                            title={`Custom Color #${hex.toUpperCase()} (Owned)`}
+                            className={cn(
+                                "group relative size-8 shrink-0 rounded-full border border-gold-400/60 transition-transform duration-150",
+                                isSelected
+                                    ? "scale-115 ring-2 ring-gold-400 ring-offset-2 ring-offset-space-950 shadow-gold"
+                                    : "hover:scale-105"
+                            )}
+                            style={{ backgroundColor: `#${hex}` }}
+                        >
+                            {isSelected && (
+                                <Check className="mx-auto size-3.5 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]" />
+                            )}
+                        </button>
+                    );
+                })}
+
+                {/* Custom Color Picker Button */}
                 <div className="relative group">
                     <div
                         className={cn(
                             "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-all duration-150 cursor-pointer",
-                            !isPreset
+                            !activePreset
                                 ? "border-gold-400 bg-gold-500/15 text-gold-300 ring-2 ring-gold-400/50 shadow-gold font-semibold"
                                 : "border-border/60 bg-space-850/80 text-starlight-300 hover:border-gold-500/40 hover:text-starlight-100"
                         )}
-                        title="Pick custom hex color"
+                        title="Pick custom hex color (25 ST)"
                     >
                         <span
                             className="size-4 rounded-full border border-black/30 shrink-0 shadow-xs"
@@ -1365,43 +2243,16 @@ function ColorPickerSection<T extends string = string>({
                         <input
                             type="color"
                             value={`#${currentColor}`}
-                            onChange={handleCustomChange}
+                            onChange={(e) => {
+                                const clean = normalizeHexColor(e.target.value);
+                                if (clean) onSelectColor(clean);
+                            }}
                             className="absolute inset-0 size-full cursor-pointer opacity-0"
-                            aria-label={`Custom ${title} picker`}
+                            aria-label={`Custom ${itemLabel} picker`}
                         />
                     </div>
                 </div>
             </div>
         </div>
-    );
-}
-
-function ColorSwatch<T extends string>({
-    color,
-    selected,
-    onClick,
-}: {
-    color: { value: T; label: string; hex: string };
-    selected: boolean;
-    onClick: () => void;
-}) {
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            title={color.label}
-            className={cn(
-                "group relative size-8 shrink-0 rounded-full border border-black/30 transition-transform duration-150 focus:outline-hidden",
-                selected
-                    ? "scale-115 ring-2 ring-gold-400 ring-offset-2 ring-offset-space-950 shadow-gold"
-                    : "hover:scale-105"
-            )}
-            style={{ backgroundColor: color.hex }}
-        >
-            {selected && (
-                <Check className="mx-auto size-3.5 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]" />
-            )}
-            <span className="sr-only">{color.label}</span>
-        </button>
     );
 }
