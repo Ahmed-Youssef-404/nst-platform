@@ -573,6 +573,30 @@ export async function saveStudentAvatarAction(
             }
         }
 
+        // Verify eyes
+        if (!checkItemOwnership("eyes", config.eyes)) {
+            return {
+                success: false,
+                error: `You do not own the eye expression: ${config.eyes}. Please purchase it first.`,
+            };
+        }
+
+        // Verify eyebrows
+        if (!checkItemOwnership("eyebrows", config.eyebrows)) {
+            return {
+                success: false,
+                error: `You do not own the eyebrow expression: ${config.eyebrows}. Please purchase it first.`,
+            };
+        }
+
+        // Verify mouth
+        if (!checkItemOwnership("mouth", config.mouth)) {
+            return {
+                success: false,
+                error: `You do not own the mouth expression: ${config.mouth}. Please purchase it first.`,
+            };
+        }
+
         // Ownership verified — persist to student record
         await prisma.student.update({
             where: { id: studentId },

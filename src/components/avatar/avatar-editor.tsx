@@ -73,15 +73,12 @@ import {
     saveStudentAvatarAction,
     getStudentAvatarEntitlementsAction,
     purchaseAvatarSelectionAction,
-    type StudentEntitlementsResult,
 } from "@/lib/actions/avatar";
 import {
-    AVATAR_CATALOG,
     getCatalogItemById,
     getCatalogItemBySlotValue,
     isItemInherentFree,
     isColorInherentFreeForItem,
-    getAuthoritativeItemPrice,
     getAuthoritativeColorPrice,
     type CatalogItem,
     type AvatarSlotName,
@@ -376,6 +373,24 @@ export function AvatarEditor({
                 const cost = getAuthoritativeColorPrice(fhId, currentConfig.facialHairColor);
                 list.push({ type: "color", name: `Facial Hair Color (#${currentConfig.facialHairColor})`, cost, id: fhId });
             }
+        }
+
+        // Check eyes
+        if (!checkItemIsOwned("eyes", currentConfig.eyes)) {
+            const item = getCatalogItemBySlotValue("eyes", currentConfig.eyes);
+            if (item) list.push({ type: "item", name: item.name, cost: item.cost, id: item.id });
+        }
+
+        // Check eyebrows
+        if (!checkItemIsOwned("eyebrows", currentConfig.eyebrows)) {
+            const item = getCatalogItemBySlotValue("eyebrows", currentConfig.eyebrows);
+            if (item) list.push({ type: "item", name: item.name, cost: item.cost, id: item.id });
+        }
+
+        // Check mouth
+        if (!checkItemIsOwned("mouth", currentConfig.mouth)) {
+            const item = getCatalogItemBySlotValue("mouth", currentConfig.mouth);
+            if (item) list.push({ type: "item", name: item.name, cost: item.cost, id: item.id });
         }
 
         return list;
@@ -754,6 +769,33 @@ export function AvatarEditor({
         if (ownershipFilter === "all") return FACIAL_HAIR_OPTIONS;
         return FACIAL_HAIR_OPTIONS.filter((opt) => {
             const isOwned = checkItemIsOwned("facialHair", opt.value);
+            return ownershipFilter === "owned" ? isOwned : !isOwned;
+        });
+    }, [ownershipFilter, checkItemIsOwned]);
+
+    // Filtering eyes by ownership filter
+    const filteredEyesOptions = React.useMemo(() => {
+        if (ownershipFilter === "all") return EYES_OPTIONS;
+        return EYES_OPTIONS.filter((opt) => {
+            const isOwned = checkItemIsOwned("eyes", opt.value);
+            return ownershipFilter === "owned" ? isOwned : !isOwned;
+        });
+    }, [ownershipFilter, checkItemIsOwned]);
+
+    // Filtering eyebrows by ownership filter
+    const filteredEyebrowsOptions = React.useMemo(() => {
+        if (ownershipFilter === "all") return EYEBROWS_OPTIONS;
+        return EYEBROWS_OPTIONS.filter((opt) => {
+            const isOwned = checkItemIsOwned("eyebrows", opt.value);
+            return ownershipFilter === "owned" ? isOwned : !isOwned;
+        });
+    }, [ownershipFilter, checkItemIsOwned]);
+
+    // Filtering mouth by ownership filter
+    const filteredMouthOptions = React.useMemo(() => {
+        if (ownershipFilter === "all") return MOUTH_OPTIONS;
+        return MOUTH_OPTIONS.filter((opt) => {
+            const isOwned = checkItemIsOwned("mouth", opt.value);
             return ownershipFilter === "owned" ? isOwned : !isOwned;
         });
     }, [ownershipFilter, checkItemIsOwned]);
@@ -1314,17 +1356,17 @@ export function AvatarEditor({
                                     <SubcategoryPill
                                         active={faceFilter === "eyes"}
                                         onClick={() => setFaceFilter("eyes")}
-                                        label="Eyes (12)"
+                                        label={`Eyes (${filteredEyesOptions.length})`}
                                     />
                                     <SubcategoryPill
                                         active={faceFilter === "eyebrows"}
                                         onClick={() => setFaceFilter("eyebrows")}
-                                        label="Eyebrows (13)"
+                                        label={`Eyebrows (${filteredEyebrowsOptions.length})`}
                                     />
                                     <SubcategoryPill
                                         active={faceFilter === "mouth"}
                                         onClick={() => setFaceFilter("mouth")}
-                                        label="Mouth (12)"
+                                        label={`Mouth (${filteredMouthOptions.length})`}
                                     />
                                 </div>
 
@@ -1337,24 +1379,33 @@ export function AvatarEditor({
                                                 Eye Expression
                                             </h4>
                                             <span className="text-[10px] text-starlight-500 font-mono">
-                                                {EYES_OPTIONS.length} shapes
+                                                {filteredEyesOptions.length} shapes
                                             </span>
                                         </div>
                                         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
-                                            {EYES_OPTIONS.map((option) => (
-                                                <StoreItemCard
-                                                    key={option.value}
-                                                    name={option.label}
-                                                    thumbnailUri={getEyesThumbnail(option.value)}
-                                                    isEquipped={currentConfig.eyes === option.value}
-                                                    isOwned={true}
-                                                    isFree={true}
-                                                    cost={0}
-                                                    rarity="COMMON"
-                                                    isInCart={false}
-                                                    onEquip={() => updateConfig("eyes", option.value)}
-                                                />
-                                            ))}
+                                            {filteredEyesOptions.map((option) => {
+                                                const itemId = `eyes:${option.value}`;
+                                                const catalogItem = getCatalogItemById(itemId);
+                                                const isOwned = checkItemIsOwned("eyes", option.value);
+                                                const isEquipped = currentConfig.eyes === option.value;
+                                                const isInCart = selectedCartItemIds.has(itemId);
+
+                                                return (
+                                                    <StoreItemCard
+                                                        key={option.value}
+                                                        name={option.label}
+                                                        thumbnailUri={getEyesThumbnail(option.value)}
+                                                        isEquipped={isEquipped}
+                                                        isOwned={isOwned}
+                                                        isFree={catalogItem?.isFree ?? false}
+                                                        cost={catalogItem?.cost ?? 0}
+                                                        rarity={catalogItem?.rarity ?? "COMMON"}
+                                                        isInCart={isInCart}
+                                                        onEquip={() => updateConfig("eyes", option.value)}
+                                                        onToggleCart={() => toggleCartItem(itemId)}
+                                                    />
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 )}
@@ -1367,24 +1418,33 @@ export function AvatarEditor({
                                                 Eyebrow Attitude
                                             </h4>
                                             <span className="text-[10px] text-starlight-500 font-mono">
-                                                {EYEBROWS_OPTIONS.length} styles
+                                                {filteredEyebrowsOptions.length} styles
                                             </span>
                                         </div>
                                         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
-                                            {EYEBROWS_OPTIONS.map((option) => (
-                                                <StoreItemCard
-                                                    key={option.value}
-                                                    name={option.label}
-                                                    thumbnailUri={getEyebrowsThumbnail(option.value)}
-                                                    isEquipped={currentConfig.eyebrows === option.value}
-                                                    isOwned={true}
-                                                    isFree={true}
-                                                    cost={0}
-                                                    rarity="COMMON"
-                                                    isInCart={false}
-                                                    onEquip={() => updateConfig("eyebrows", option.value)}
-                                                />
-                                            ))}
+                                            {filteredEyebrowsOptions.map((option) => {
+                                                const itemId = `eyebrows:${option.value}`;
+                                                const catalogItem = getCatalogItemById(itemId);
+                                                const isOwned = checkItemIsOwned("eyebrows", option.value);
+                                                const isEquipped = currentConfig.eyebrows === option.value;
+                                                const isInCart = selectedCartItemIds.has(itemId);
+
+                                                return (
+                                                    <StoreItemCard
+                                                        key={option.value}
+                                                        name={option.label}
+                                                        thumbnailUri={getEyebrowsThumbnail(option.value)}
+                                                        isEquipped={isEquipped}
+                                                        isOwned={isOwned}
+                                                        isFree={catalogItem?.isFree ?? false}
+                                                        cost={catalogItem?.cost ?? 0}
+                                                        rarity={catalogItem?.rarity ?? "COMMON"}
+                                                        isInCart={isInCart}
+                                                        onEquip={() => updateConfig("eyebrows", option.value)}
+                                                        onToggleCart={() => toggleCartItem(itemId)}
+                                                    />
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 )}
@@ -1398,24 +1458,33 @@ export function AvatarEditor({
                                                 Mouth Expression
                                             </h4>
                                             <span className="text-[10px] text-starlight-500 font-mono">
-                                                {MOUTH_OPTIONS.length} expressions
+                                                {filteredMouthOptions.length} expressions
                                             </span>
                                         </div>
                                         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
-                                            {MOUTH_OPTIONS.map((option) => (
-                                                <StoreItemCard
-                                                    key={option.value}
-                                                    name={option.label}
-                                                    thumbnailUri={getMouthThumbnail(option.value)}
-                                                    isEquipped={currentConfig.mouth === option.value}
-                                                    isOwned={true}
-                                                    isFree={true}
-                                                    cost={0}
-                                                    rarity="COMMON"
-                                                    isInCart={false}
-                                                    onEquip={() => updateConfig("mouth", option.value)}
-                                                />
-                                            ))}
+                                            {filteredMouthOptions.map((option) => {
+                                                const itemId = `mouth:${option.value}`;
+                                                const catalogItem = getCatalogItemById(itemId);
+                                                const isOwned = checkItemIsOwned("mouth", option.value);
+                                                const isEquipped = currentConfig.mouth === option.value;
+                                                const isInCart = selectedCartItemIds.has(itemId);
+
+                                                return (
+                                                    <StoreItemCard
+                                                        key={option.value}
+                                                        name={option.label}
+                                                        thumbnailUri={getMouthThumbnail(option.value)}
+                                                        isEquipped={isEquipped}
+                                                        isOwned={isOwned}
+                                                        isFree={catalogItem?.isFree ?? false}
+                                                        cost={catalogItem?.cost ?? 0}
+                                                        rarity={catalogItem?.rarity ?? "COMMON"}
+                                                        isInCart={isInCart}
+                                                        onEquip={() => updateConfig("mouth", option.value)}
+                                                        onToggleCart={() => toggleCartItem(itemId)}
+                                                    />
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 )}

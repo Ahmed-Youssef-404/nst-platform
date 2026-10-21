@@ -127,15 +127,15 @@ export function isHeadwearTop(top: Top): boolean {
 }
 
 export const CLOTHING_OPTIONS: ChoiceOption<Clothing>[] = [
-    { value: "hoodie", label: "Tech Hoodie" },
-    { value: "graphicShirt", label: "Graphic Tee" },
-    { value: "shirtCrewNeck", label: "Crewneck T-Shirt" },
     { value: "shirtScoopNeck", label: "Scoopneck T-Shirt" },
     { value: "shirtVNeck", label: "V-Neck T-Shirt" },
+    { value: "shirtCrewNeck", label: "Crewneck T-Shirt" },
+    { value: "overall", label: "Overalls" },
     { value: "collarAndSweater", label: "Collar & Sweater" },
     { value: "blazerAndShirt", label: "Blazer & Shirt" },
     { value: "blazerAndSweater", label: "Blazer & Knit" },
-    { value: "overall", label: "Overalls" },
+    { value: "hoodie", label: "Tech Hoodie" },
+    // { value: "graphicShirt", label: "Graphic Tee" },
 ];
 
 export const CLOTHING_GRAPHIC_OPTIONS: ChoiceOption<ClothingGraphic>[] = [
@@ -222,9 +222,9 @@ export const ACCESSORY_OPTIONS: ChoiceOption<Accessory>[] = [
     { value: "prescription01", label: "Standard Frames" },
     { value: "prescription02", label: "Square Glasses" },
     { value: "round", label: "Round Glasses" },
+    { value: "kurt", label: "Retro Oval" },
     { value: "sunglasses", label: "Dark Shades" },
     { value: "wayfarers", label: "Wayfarer Glasses" },
-    { value: "kurt", label: "Retro Oval" },
     { value: "eyepatch", label: "Cyber Eyepatch" },
 ];
 
@@ -241,9 +241,9 @@ export const ACCESSORIES_COLOR_OPTIONS: ColorOption<AccessoriesColor>[] = [
 
 export const FACIAL_HAIR_OPTIONS: ChoiceOption<FacialHair>[] = [
     { value: "none", label: "Clean Shaven" },
-    { value: "beardLight", label: "Light Stubble" },
-    { value: "beardMedium", label: "Trimmed Beard" },
     { value: "beardMajestic", label: "Majestic Beard" },
+    { value: "beardMedium", label: "Trimmed Beard" },
+    { value: "beardLight", label: "Light Stubble" },
     { value: "moustacheFancy", label: "Fancy Moustache" },
     { value: "moustacheMagnum", label: "Magnum Moustache" },
 ];

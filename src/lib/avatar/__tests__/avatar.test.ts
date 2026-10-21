@@ -251,12 +251,21 @@ const hairItems = AVATAR_CATALOG.filter((i) => i.slot === "top");
 const clothingItems = AVATAR_CATALOG.filter((i) => i.slot === "clothing");
 const accessoryItems = AVATAR_CATALOG.filter((i) => i.slot === "accessories");
 const facialHairItems = AVATAR_CATALOG.filter((i) => i.slot === "facialHair");
+const eyeItems = AVATAR_CATALOG.filter((i) => i.slot === "eyes");
+const eyebrowItems = AVATAR_CATALOG.filter((i) => i.slot === "eyebrows");
+const mouthItems = AVATAR_CATALOG.filter((i) => i.slot === "mouth");
 
 assert.ok(hairItems.some((i) => i.isFree), "Hair category must have free options");
 assert.ok(clothingItems.some((i) => i.isFree), "Clothing category must have free options");
 assert.ok(accessoryItems.some((i) => i.isFree), "Accessories category must have free options");
 assert.ok(facialHairItems.some((i) => i.isFree), "Facial hair category must have free options");
-console.log("✔ Every avatar category has accessible free options.");
+assert.ok(eyeItems.some((i) => i.isFree), "Eyes category must have free options");
+assert.ok(eyeItems.some((i) => !i.isFree), "Eyes category must have paid store options");
+assert.ok(eyebrowItems.some((i) => i.isFree), "Eyebrows category must have free options");
+assert.ok(eyebrowItems.some((i) => !i.isFree), "Eyebrows category must have paid store options");
+assert.ok(mouthItems.some((i) => i.isFree), "Mouth category must have free options");
+assert.ok(mouthItems.some((i) => !i.isFree), "Mouth category must have paid store options");
+console.log("✔ Every avatar category has accessible free options and store items.");
 
 // Test 14: Item-specific color pricing and ownership rules
 console.log("Test 14: Testing item-specific color rules...");
@@ -285,9 +294,12 @@ console.log("✔ Colors belong to individual items and do not bleed into other i
 
 // Test 16: Bulk purchase price calculation
 console.log("Test 16: Testing bulk purchase price calculations...");
-const selectedItemIds = ["top:theCaesar", "clothing:hoodie"]; // 20 ST + 25 ST = 45 ST
-const selectedColors = [{ itemId: "top:theCaesar", colorHex: "c93305" }]; // 15 ST
-const totalExpected = 20 + 25 + 15; // 60 ST
+const selectedItemIds = ["top:theCaesar", "clothing:hoodie"];
+const selectedColors = [{ itemId: "top:theCaesar", colorHex: "c93305" }];
+const expectedCaesarPrice = getAuthoritativeItemPrice("top:theCaesar");
+const expectedHoodiePrice = getAuthoritativeItemPrice("clothing:hoodie");
+const expectedColorPrice = getAuthoritativeColorPrice("top:theCaesar", "c93305");
+const totalExpected = expectedCaesarPrice + expectedHoodiePrice + expectedColorPrice;
 
 const calculatedTotal =
     selectedItemIds.reduce((sum, id) => sum + getAuthoritativeItemPrice(id), 0) +
@@ -296,5 +308,31 @@ const calculatedTotal =
 assert.strictEqual(calculatedTotal, totalExpected, `Expected ${totalExpected} ST total`);
 console.log("✔ Bulk purchase calculations correctly aggregate items and item-specific colors.");
 
-console.log("\n🎉 ALL AVATAR UNIT TESTS PASSED SUCCESSFULLY! (16/16)");
+// Test 17: Expression store items and pricing
+console.log("Test 17: Testing expression store items and pricing...");
+const freeEye = getCatalogItemById("eyes:default")!;
+const paidEye = getCatalogItemById("eyes:hearts")!;
+assert.strictEqual(freeEye.isFree, true, "eyes:default must be free");
+assert.strictEqual(freeEye.cost, 0, "eyes:default cost must be 0");
+assert.strictEqual(paidEye.isFree, false, "eyes:hearts must be paid");
+assert.ok(paidEye.cost > 0, "eyes:hearts must have a positive price");
+assert.strictEqual(isItemInherentFree("eyes", "default"), true);
+assert.strictEqual(isItemInherentFree("eyes", "hearts"), false);
+
+const freeEyebrow = getCatalogItemById("eyebrows:defaultNatural")!;
+const paidEyebrow = getCatalogItemById("eyebrows:raisedExcited")!;
+assert.strictEqual(freeEyebrow.isFree, true, "eyebrows:defaultNatural must be free");
+assert.strictEqual(paidEyebrow.isFree, false, "eyebrows:raisedExcited must be paid");
+assert.strictEqual(isItemInherentFree("eyebrows", "defaultNatural"), true);
+assert.strictEqual(isItemInherentFree("eyebrows", "raisedExcited"), false);
+
+const freeMouth = getCatalogItemById("mouth:default")!;
+const paidMouth = getCatalogItemById("mouth:screamOpen")!;
+assert.strictEqual(freeMouth.isFree, true, "mouth:default must be free");
+assert.strictEqual(paidMouth.isFree, false, "mouth:screamOpen must be paid");
+assert.strictEqual(isItemInherentFree("mouth", "default"), true);
+assert.strictEqual(isItemInherentFree("mouth", "screamOpen"), false);
+console.log("✔ Expression catalog items, free baselines, and store pricing verified.");
+
+console.log("\n🎉 ALL AVATAR UNIT TESTS PASSED SUCCESSFULLY! (17/17)");
 
