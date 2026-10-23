@@ -128,9 +128,9 @@ export function isHeadwearTop(top: Top): boolean {
 
 export const CLOTHING_OPTIONS: ChoiceOption<Clothing>[] = [
     { value: "shirtScoopNeck", label: "Scoopneck T-Shirt" },
+    { value: "overall", label: "Overalls" },
     { value: "shirtVNeck", label: "V-Neck T-Shirt" },
     { value: "shirtCrewNeck", label: "Crewneck T-Shirt" },
-    { value: "overall", label: "Overalls" },
     { value: "collarAndSweater", label: "Collar & Sweater" },
     { value: "blazerAndShirt", label: "Blazer & Shirt" },
     { value: "blazerAndSweater", label: "Blazer & Knit" },
@@ -155,6 +155,7 @@ export const CLOTHING_GRAPHIC_OPTIONS: ChoiceOption<ClothingGraphic>[] = [
 export const CLOTHES_COLOR_OPTIONS: ColorOption<ClothesColor>[] = [
     { value: "262e33", label: "Space Obsidian", hex: "#262e33" },
     { value: "3c4f5c", label: "Slate Navy", hex: "#3c4f5c" },
+    { value: "e6e6e6", label: "Moon Dust", hex: "#e6e6e6" },
     { value: "25557c", label: "Deep Cobalt", hex: "#25557c" },
     { value: "5199e4", label: "Starlight Blue", hex: "#5199e4" },
     { value: "65c9ff", label: "Cyan Aura", hex: "#65c9ff" },
@@ -164,9 +165,6 @@ export const CLOTHES_COLOR_OPTIONS: ColorOption<ClothesColor>[] = [
     { value: "ffafb9", label: "Blush Coral", hex: "#ffafb9" },
     { value: "ff488e", label: "Electric Pink", hex: "#ff488e" },
     { value: "ff5c5c", label: "Flame Amber", hex: "#ff5c5c" },
-    { value: "929598", label: "Steel Grey", hex: "#929598" },
-    { value: "e6e6e6", label: "Moon Dust", hex: "#e6e6e6" },
-    { value: "ffffff", label: "Pure Starlight", hex: "#ffffff" },
 ];
 
 export const HAT_COLOR_OPTIONS = CLOTHES_COLOR_OPTIONS;
