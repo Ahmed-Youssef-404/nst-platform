@@ -39,14 +39,14 @@ export const SKIN_COLOR_OPTIONS: ColorOption<SkinColor>[] = [
 ];
 
 export const HAIR_COLOR_OPTIONS: ColorOption<HairColor>[] = [
-    { value: "2c1b18", label: "Midnight Black", hex: "#2c1b18" },
-    { value: "4a312c", label: "Dark Brown", hex: "#4a312c" },
-    { value: "724133", label: "Chestnut", hex: "#724133" },
-    { value: "a55728", label: "Auburn", hex: "#a55728" },
     { value: "b58143", label: "Honey Brown", hex: "#b58143" },
     { value: "d6b370", label: "Golden Blonde", hex: "#d6b370" },
     { value: "ecdcbf", label: "Platinum", hex: "#ecdcbf" },
     { value: "c93305", label: "Crimson Red", hex: "#c93305" },
+    { value: "a55728", label: "Auburn", hex: "#a55728" },
+    { value: "724133", label: "Chestnut", hex: "#724133" },
+    { value: "4a312c", label: "Dark Brown", hex: "#4a312c" },
+    { value: "2c1b18", label: "Midnight Black", hex: "#2c1b18" },
     { value: "f59797", label: "Pastel Rose", hex: "#f59797" },
     { value: "e8e1e1", label: "Cyber Silver", hex: "#e8e1e1" },
 ];
@@ -64,9 +64,9 @@ export const TOP_OPTIONS: {
         {
             category: "Short & Clean",
             options: [
-                { value: "theCaesar", label: "Caesar" },
                 { value: "sides", label: "Buzz Sides" },
                 { value: "theCaesarAndSidePart", label: "Caesar Part" },
+                { value: "theCaesar", label: "Caesar" },
                 { value: "dreads01", label: "Short Dreads" },
                 { value: "shortRound", label: "Short Round" },
                 { value: "shortFlat", label: "Short Flat" },
@@ -80,34 +80,34 @@ export const TOP_OPTIONS: {
         {
             category: "Medium & Long",
             options: [
-                { value: "bob", label: "Classic Bob" },
-                { value: "bun", label: "Top Bun" },
                 { value: "frizzle", label: "Frizz Wave" },
-                { value: "curly", label: "Curly Cascade" },
-                { value: "curvy", label: "Wavy Medium" },
-                { value: "dreads", label: "Long Dreads" },
                 { value: "dreads02", label: "Braided Dreads" },
+                { value: "dreads", label: "Long Dreads" },
+                { value: "curly", label: "Curly Cascade" },
+                { value: "bun", label: "Top Bun" },
+                { value: "curvy", label: "Wavy Medium" },
                 { value: "fro", label: "Afro" },
                 { value: "froBand", label: "Afro Band" },
+                { value: "bigHair", label: "Voluminous" },
                 { value: "longButNotTooLong", label: "Shoulder Flow" },
                 { value: "miaWallace", label: "Sharp Bangs" },
+                { value: "bob", label: "Classic Bob" },
                 { value: "straight02", label: "Straight Long" },
                 { value: "straight01", label: "Straight Flow" },
                 { value: "straightAndStrand", label: "Strand Accent" },
-                { value: "bigHair", label: "Voluminous" },
                 { value: "frida", label: "Floral Frida" },
             ],
         },
         {
             category: "Headwear & Wraps",
             options: [
+                { value: "winterHat1", label: "Winter Beanie" },
                 { value: "hijab", label: "Hijab" },
                 { value: "turban", label: "Turban" },
-                { value: "winterHat1", label: "Winter Beanie" },
                 { value: "winterHat02", label: "Ribbed Beanie" },
-                { value: "hat", label: "Casual Cap" },
                 { value: "winterHat03", label: "Pompom Beanie" },
                 { value: "winterHat04", label: "Knit Cap" },
+                { value: "hat", label: "Casual Cap" },
             ],
         },
     ];

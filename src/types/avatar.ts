@@ -226,7 +226,7 @@ export interface StudentAvatarConfig {
 // Clean, gender-neutral default cadet avatar
 export const DEFAULT_AVATAR_CONFIG: StudentAvatarConfig = {
     skinColor: "edb98a",
-    hairColor: "2c1b18",
+    hairColor: "b58143",
     top: "none",
     hatColor: "262e33",
     clothing: "shirtScoopNeck",
