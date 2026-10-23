@@ -18,7 +18,7 @@ const prisma = new PrismaClient({ adapter });
 
 
 // Expected format: "NST-" followed by digits
-const STUDENT_ID_PATTERN = /^NST-\d+$/;
+const STUDENT_ID_PATTERN = /^\d+$/;
 
 export async function createStudent(input: CreateStudentInput) {
     const { id, email, name, groupId } = input;
@@ -26,7 +26,7 @@ export async function createStudent(input: CreateStudentInput) {
     // 1. Validate the ID format before doing anything else
     if (!STUDENT_ID_PATTERN.test(id)) {
         throw new Error(
-            `Invalid student ID format: "${id}". Expected format: NST-1001`
+            `Invalid student ID format: "${id}". Expected only digits (e.g., 1001)`
         );
     }
 

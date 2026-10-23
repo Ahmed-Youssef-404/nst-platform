@@ -938,11 +938,11 @@ function StudentCreationForm({ groups }: { groups: GroupOption[] }) {
             return;
         }
 
-        const trimmedId = id.trim();
-        if (!/^NST-\d+$/.test(trimmedId)) {
-            setError('Student ID must follow format "NST-1001" (NST- followed by numbers).');
-            return;
-        }
+        // const trimmedId = id.trim();
+        // if (!/^NST-\d+$/.test(trimmedId)) {
+        //     setError('Student ID must follow format "NST-1001" (NST- followed by numbers).');
+        //     return;
+        // }
 
         setIsSubmitting(true);
 
