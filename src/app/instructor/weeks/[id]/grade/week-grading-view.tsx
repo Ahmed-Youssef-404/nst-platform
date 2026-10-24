@@ -173,7 +173,7 @@ export function WeekGradingView({ data }: { data: WeekGradingViewData }) {
                                 Enrolled Students ({filteredStudents.length})
                             </CardTitle>
                         </CardHeader>
-                        <div className="divide-y divide-border/60 max-h-[70vh] overflow-y-auto">
+                        <div className="divide-y divide-border/60 max-h-[90vh] overflow-y-auto">
                             {filteredStudents.length === 0 ? (
                                 <p className="text-xs text-starlight-400 p-6 text-center italic">
                                     No students found matching search.
