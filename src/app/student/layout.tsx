@@ -8,6 +8,8 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { getCurrentStudentId } from "@/lib/auth/get-current-user";
 import { getStudentProfile } from "@/lib/data/get-student-name";
+import { getMaintenanceState } from "@/lib/data/get-maintenance-state";
+import { MaintenanceScreen } from "@/components/maintenance/maintenance-screen";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { StudentSidebar } from "@/components/student-sidebar";
 import { StudentTopBar } from "./student-top-bar";
@@ -24,6 +26,20 @@ export default async function StudentLayout({
 
     if (!studentId) {
         redirect("/login");
+    }
+
+    // Maintenance Mode: replace the whole student shell (and `children`) at this
+    // server boundary. Nothing below is rendered while maintenance is on, or
+    // while the setting cannot be read. Super Admin / Instructor never reach
+    // this layout, so their experience is unaffected.
+    const maintenance = await getMaintenanceState();
+    if (maintenance.enabled || maintenance.unknown) {
+        return (
+            <MaintenanceScreen
+                message={maintenance.message}
+                statusUnknown={maintenance.unknown}
+            />
+        );
     }
 
     const profile = await getStudentProfile(studentId);

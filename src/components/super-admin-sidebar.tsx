@@ -11,6 +11,7 @@ import {
     Shield,
     Crown,
     GraduationCap,
+    Settings,
 } from "lucide-react";
 import {
     Sidebar,
@@ -50,6 +51,13 @@ const NAV_ITEMS = [
         label: "Levels & Progression",
         icon: Sparkles,
         description: "Active levels per group",
+        exact: true,
+    },
+    {
+        href: "/super-admin/settings",
+        label: "Platform Settings",
+        icon: Settings,
+        description: "Availability & maintenance",
         exact: true,
     },
 ];

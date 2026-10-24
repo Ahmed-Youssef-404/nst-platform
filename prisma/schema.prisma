@@ -65,7 +65,6 @@ model Student {
   levelStBalances         LevelStBalance[] // INTERMEDIATE فقط
   weekResourceSubmissions WeekResourceSubmission[] // BEGINNER فقط
   sessionFeedbacks        SessionFeedback[]
-  itemColors              StudentItemColor[]
 
   @@map("students")
 }
@@ -784,29 +783,6 @@ model StudentInventory {
 }
 
 // ============================================
-// STUDENT ITEM COLOR
-// ============================================
-// Entitlements for item-specific colors (both predefined paid colors
-// and custom hex color picker choices).
-// (studentId, itemId, colorHex) is unique — a student only purchases
-// a specific color for a specific item once.
-
-model StudentItemColor {
-  id          String   @id @default(uuid())
-  studentId   String
-  itemId      String   // Item identifier, e.g. "top_theCaesar", "clothing_hoodie"
-  colorHex    String   // Normalized 6-character hex string (e.g. "c93305")
-  isCustom    Boolean  @default(false)
-  purchasedAt DateTime @default(now())
-
-  // Relations
-  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-
-  @@unique([studentId, itemId, colorHex])
-  @@map("student_item_colors")
-}
-
-// ============================================
 // إضافات مطلوبة على schema.prisma
 // ============================================
 
@@ -866,3 +842,18 @@ enum StoreRarity {
 // "قبل ما تعمل isEquipped=true لأي item، دور على أي item تاني
 // نفس الـ slot عند نفس الطالب وisEquipped=true، وحطله false"
 // ============================================
+
+// ============================================
+// PLATFORM SETTINGS (singleton row, id = "platform")
+// Global switches controlled by the Super Admin.
+// ============================================
+
+model PlatformSetting {
+  id                 String   @id @default("platform")
+  maintenanceMode    Boolean  @default(false)
+  maintenanceMessage String?
+  updatedById        String?
+  updatedAt          DateTime @updatedAt
+
+  @@map("platform_settings")
+}
