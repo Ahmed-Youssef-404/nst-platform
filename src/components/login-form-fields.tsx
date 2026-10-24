@@ -98,7 +98,7 @@ export function LoginFormFields() {
                         <Label htmlFor="student-code">Student Code</Label>
                         <Input
                             id="student-code"
-                            type="text"
+                            type="password"
                             placeholder="NST-0000"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
