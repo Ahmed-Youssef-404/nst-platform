@@ -267,7 +267,7 @@ export function MarkdownEditor({
                     ) : (
                         /* Preview Quick-Add Actions */
                         <div className="flex items-center gap-1.5 text-xs">
-                            <span className="text-[11px] text-starlight-400 font-medium hidden sm:inline">
+                            {/* <span className="text-[11px] text-starlight-400 font-medium hidden sm:inline">
                                 Quick add to preview:
                             </span>
                             <button
@@ -285,7 +285,7 @@ export function MarkdownEditor({
                             >
                                 <CheckSquare className="size-3 text-gold-600 dark:text-gold-400" />
                                 <span>Add Task</span>
-                            </button>
+                            </button> */}
                         </div>
                     )}
                 </div>

@@ -145,7 +145,7 @@ export function HintUnlockDialog({
                     </div>
                 )}
 
-                <DialogFooter className="gap-2 sm:gap-0 pt-2">
+                <DialogFooter className="gap-2 sm:gap-1 pt-2">
                     <Button
                         type="button"
                         variant="outline"
@@ -170,7 +170,7 @@ export function HintUnlockDialog({
                             </>
                         ) : (
                             <>
-                                <Sparkles className="size-3.5 mr-1.5" />
+                                {/* <Sparkles className="size-3.5 mr-1.5" /> */}
                                 Confirm & Deduct {hint.cost} ST
                             </>
                         )}

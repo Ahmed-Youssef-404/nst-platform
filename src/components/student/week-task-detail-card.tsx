@@ -63,7 +63,7 @@ export function WeekTaskDetailCard({
     // Mode selection state
     const allowedMode = task.allowedSubmissionMode;
     const defaultMode: SubmissionModeCode =
-        allowedMode ?? task.submission?.mode ?? "FILE";
+        allowedMode ?? task.submission?.mode ?? "TEXT";
     const [selectedMode, setSelectedMode] = useState<SubmissionModeCode>(defaultMode);
 
     // Draft form inputs
@@ -273,7 +273,7 @@ export function WeekTaskDetailCard({
             </div>
 
             {/* Rubric Criteria Breakdown (Instructor's custom rubric fields) */}
-            {task.rubricFields.length > 0 && (
+            {/* {task.rubricFields.length > 0 && (
                 <div className="rounded-xl border border-border/60 bg-space-900/40 p-4 space-y-2.5">
                     <div className="text-[11px] font-bold uppercase tracking-wider text-starlight-400 flex items-center gap-1.5">
                         <Layers className="size-3 text-gold-400" />
@@ -295,7 +295,7 @@ export function WeekTaskDetailCard({
                         ))}
                     </div>
                 </div>
-            )}
+            )} */}
 
             {/* Task Description (Markdown) */}
             <div className="rounded-xl border border-border/50 bg-space-950/40 p-5 space-y-3">
@@ -539,18 +539,17 @@ export function WeekTaskDetailCard({
                                             Submission Method
                                         </Label>
                                         <div className="flex gap-2">
-                                            {(["FILE", "LINK", "TEXT"] as const).map((mode) => (
+                                            {(["TEXT", "LINK", "FILE"] as const).map((mode) => (
                                                 <Button
                                                     key={mode}
                                                     type="button"
                                                     variant="outline"
                                                     size="sm"
                                                     onClick={() => setSelectedMode(mode)}
-                                                    className={`rounded-xl text-xs h-8 px-3.5 transition-all ${
-                                                        selectedMode === mode
-                                                            ? "bg-gold-500/20 text-gold-300 border-gold-500/50 shadow-gold"
-                                                            : "bg-space-850 border-border/70 text-starlight-400 hover:text-starlight-200"
-                                                    }`}
+                                                    className={`rounded-xl text-xs h-8 px-3.5 transition-all ${selectedMode === mode
+                                                        ? "bg-gold-500/20 text-gold-300 border-gold-500/50 shadow-gold"
+                                                        : "bg-space-850 border-border/70 text-starlight-400 hover:text-starlight-200"
+                                                        }`}
                                                 >
                                                     {mode === "FILE" && "Upload File (PDF/ZIP)"}
                                                     {mode === "LINK" && "External Link (URL)"}
