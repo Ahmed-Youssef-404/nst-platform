@@ -157,23 +157,29 @@ export async function getWeekGradingData(
         week.resourceSubmissions.map((r) => [r.studentId, r])
     );
 
-    const studentIds = week.group.students.map((s) => s.id);
-    const finalizedTransactions = await prisma.sTTransaction.findMany({
-        where: { weekId, studentId: { in: studentIds } },
-        select: { studentId: true },
-        distinct: ["studentId"],
-    });
-    const finalizedStudentIds = new Set(finalizedTransactions.map((t) => t.studentId));
+    // const studentIds = week.group.students.map((s) => s.id);
+    // const finalizedTransactions = await prisma.sTTransaction.findMany({
+    //     where: { weekId, studentId: { in: studentIds } },
+    //     select: { studentId: true },
+    //     distinct: ["studentId"],
+    // });
+    // const finalizedStudentIds = new Set(finalizedTransactions.map((t) => t.studentId));
 
     const students: StudentGradingRow[] = week.group.students.map((student) => {
         const resource = resourceMap.get(student.id) ?? null;
         const studentSubmissions = submissions.filter((s) => s.studentId === student.id);
 
+        // ST transactions can come from purchases, hints, and other economy actions.
+        // Only finalized grading records determine whether grading is complete.
         const isFinalized =
-            finalizedStudentIds.has(student.id) ||
-            studentSubmissions.some(
-                (s) => s.taskGrade?.finalizedAt !== null && s.taskGrade?.finalizedAt !== undefined
-            );
+            week.tasks.length > 0 &&
+            week.tasks.every((task) => {
+                const taskSubmission = studentSubmissions.find(
+                    (submission) => submission.taskId === task.id
+                );
+
+                return taskSubmission?.taskGrade?.finalizedAt != null;
+            });
 
         const tasksData: StudentTaskGradingData[] = week.tasks.map((task) => {
             const sub = studentSubmissions.find((s) => s.taskId === task.id) ?? null;

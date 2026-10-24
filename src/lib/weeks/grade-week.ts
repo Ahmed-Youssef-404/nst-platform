@@ -174,19 +174,10 @@ export async function saveDraftGrade(
 
     await assertInstructorAssignedToGroup(input.gradedBy, task.week!.groupId);
 
-    const studentSubmission = await prisma.submission.findUnique({
-        where: { id: submissionId },
-        select: { studentId: true },
-    });
-    if (studentSubmission && task.weekId) {
-        const finalizedTx = await prisma.sTTransaction.findFirst({
-            where: { studentId: studentSubmission.studentId, weekId: task.weekId },
-        });
-        if (finalizedTx || taskGrade?.finalizedAt) {
-            throw new Error(
-                "This student's Week has already been finalized. Grading can no longer be changed here - use a manual correction instead."
-            );
-        }
+    if (taskGrade?.finalizedAt) {
+        throw new Error(
+            "This student's Week has already been finalized. Grading can no longer be changed here - use a manual correction instead."
+        );
     }
 
     if (!input.markedInvalid) {
@@ -391,11 +382,9 @@ export async function finalizeWeekGrading(
 
     const submissionByTask = new Map(submissions.map((s) => [s.taskId, s]));
 
-    const existingTransaction = await prisma.sTTransaction.findFirst({
-        where: { studentId: input.studentId, weekId: week.id },
-    });
-
-    if (existingTransaction || submissions.some((s) => s.taskGrade?.finalizedAt)) {
+    // ST transactions may come from purchases, hints, or other economy events.
+    // They do not indicate that instructor grading has been finalized.
+    if (submissions.some((s) => s.taskGrade?.finalizedAt != null)) {
         throw new Error(
             "This student's Week grading has already been finalized."
         );
@@ -509,8 +498,8 @@ export async function finalizeWeekGrading(
             const totalPoints =
                 taskResult.rubricPoints !== null
                     ? taskResult.rubricPoints +
-                      taskResult.bonusPoints +
-                      taskResult.firstSolverPoints
+                    taskResult.bonusPoints +
+                    taskResult.firstSolverPoints
                     : -NOT_SUBMITTED_PENALTY;
 
             await tx.taskGrade.upsert({
