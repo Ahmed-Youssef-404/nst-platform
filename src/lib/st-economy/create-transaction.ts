@@ -55,8 +55,8 @@ async function recomputeAvgSt(
         balances.length === 0
             ? 50
             : Math.round(
-                  balances.reduce((sum, b) => sum + b.balance, 0) / balances.length
-              );
+                balances.reduce((sum, b) => sum + b.balance, 0) / balances.length
+            );
 
     await tx.student.update({
         where: { id: studentId },
@@ -70,7 +70,7 @@ export async function applySTChange(
     input: ApplySTChangeInput,
     tx?: Prisma.TransactionClient
 ): Promise<STTransactionResult> {
-    if (!Number.isInteger(input.amount) || input.amount <= 0) {
+    if (!Number.isInteger(input.amount) || input.amount < 0) {
         throw new Error(
             "ST amount must be a positive integer. Sign is derived from `type`, not from the amount itself."
         );

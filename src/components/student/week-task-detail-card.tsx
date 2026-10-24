@@ -365,7 +365,7 @@ export function WeekTaskDetailCard({
                                 </div>
 
                                 {hint.content && (
-                                    <div className="mt-3 pt-3 border-t border-border/50 text-xs text-starlight-200">
+                                    <div dir="auto" className="mt-3 pt-3 border-t border-border/50 text-xs text-starlight-200">
                                         <MarkdownContent content={hint.content} />
                                     </div>
                                 )}
