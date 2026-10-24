@@ -103,9 +103,14 @@ export interface AvatarEditorProps {
 }
 
 type MainCategory = "hair" | "face" | "base" | "clothing" | "details";
-type HairSubcategory = "all" | "short" | "medium-long" | "headwear" | "bald";
+type HairSubcategory =
+    | "all"
+    | "short"
+    | "medium-long"
+    | "facial-hair"
+    | "headwear"
+    | "bald";
 type FaceSubcategory = "all" | "eyes" | "eyebrows" | "mouth";
-type DetailsSubcategory = "all" | "eyewear" | "facial-hair";
 type OwnershipFilter = "all" | "owned" | "not-owned";
 
 export function AvatarEditor({
@@ -129,7 +134,6 @@ export function AvatarEditor({
     const [activeTab, setActiveTab] = React.useState<MainCategory>("hair");
     const [hairFilter, setHairFilter] = React.useState<HairSubcategory>("all");
     const [faceFilter, setFaceFilter] = React.useState<FaceSubcategory>("all");
-    const [detailsFilter, setDetailsFilter] = React.useState<DetailsSubcategory>("all");
     const [ownershipFilter, setOwnershipFilter] = React.useState<OwnershipFilter>("all");
 
     // Scrollable customization panel ref
@@ -727,6 +731,8 @@ export function AvatarEditor({
             groups = TOP_OPTIONS.filter((g) => g.category.includes("Short"));
         } else if (hairFilter === "medium-long") {
             groups = TOP_OPTIONS.filter((g) => g.category.includes("Medium"));
+        } else if (hairFilter === "facial-hair") {
+            groups = [];
         } else if (hairFilter === "headwear") {
             groups = TOP_OPTIONS.filter((g) => g.category.includes("Headwear"));
         } else if (hairFilter === "bald") {
@@ -1253,23 +1259,6 @@ export function AvatarEditor({
                                     onToggleCartColor={toggleCartColor}
                                 />
 
-                                {/* Hat Color (conditional when headwear selected) */}
-                                {hasHeadwear && (
-                                    <ItemSpecificColorSection
-                                        itemId={`top:${currentConfig.top}`}
-                                        itemLabel="Headwear / Hat"
-                                        currentColor={currentConfig.hatColor ?? "262e33"}
-                                        presets={HAT_COLOR_OPTIONS}
-                                        freeHexes={DEFAULT_CLOTHES_FREE_HEXES}
-                                        ownedColorsMap={ownedColorsMap}
-                                        customColors={
-                                            customColorsByItem.get(`top:${currentConfig.top}`) ?? []
-                                        }
-                                        cartColors={selectedCartColors}
-                                        onSelectColor={(hex) => updateConfig("hatColor", hex)}
-                                        onToggleCartColor={toggleCartColor}
-                                    />
-                                )}
 
                                 {/* Subcategory Filter Pills */}
                                 <div className="flex flex-wrap items-center gap-1.5 pt-1">
@@ -1289,6 +1278,11 @@ export function AvatarEditor({
                                         label="Medium & Long"
                                     />
                                     <SubcategoryPill
+                                        active={hairFilter === "facial-hair"}
+                                        onClick={() => setHairFilter("facial-hair")}
+                                        label="Facial Hair"
+                                    />
+                                    <SubcategoryPill
                                         active={hairFilter === "headwear"}
                                         onClick={() => setHairFilter("headwear")}
                                         label="Headwear & Wraps"
@@ -1300,32 +1294,154 @@ export function AvatarEditor({
                                     />
                                 </div>
 
-                                {/* Hairstyle Groups with Item Cards */}
-                                {filteredTopGroups.map((group) => (
-                                    <div key={group.category} className="space-y-2.5">
-                                        <div className="flex items-center justify-between border-b border-border/50 pb-1">
-                                            <h4 className="text-xs font-semibold uppercase tracking-wider text-starlight-400">
-                                                {group.category}
-                                            </h4>
-                                            <span className="text-[10px] text-starlight-500 font-mono">
-                                                {group.options.length} styles
-                                            </span>
+                                {/* Hairstyle Groups (excluding Headwear & Wraps) */}
+                                {filteredTopGroups
+                                    .filter((group) => group.category !== "Headwear & Wraps")
+                                    .map((group) => (
+                                        <div key={group.category} className="space-y-2.5">
+                                            <div className="flex items-center justify-between border-b border-border/50 pb-1">
+                                                <h4 className="text-xs font-semibold uppercase tracking-wider text-starlight-400">
+                                                    {group.category}
+                                                </h4>
+                                                <span className="text-[10px] text-starlight-500 font-mono">
+                                                    {group.options.length} styles
+                                                </span>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
+                                                {group.options.map((option) => {
+                                                    const itemId = `top:${option.value}`;
+                                                    const catalogItem = getCatalogItemById(itemId);
+                                                    const isOwned = checkItemIsOwned("top", option.value);
+                                                    const isEquipped = currentConfig.top === option.value;
+                                                    const isInCart = selectedCartItemIds.has(itemId);
+
+                                                    return (
+                                                        <StoreItemCard
+                                                            key={option.value}
+                                                            name={option.label}
+                                                            thumbnailUri={getTopThumbnail(
+                                                                option.value,
+                                                                thumbnailColors.hairColor
+                                                            )}
+                                                            isEquipped={isEquipped}
+                                                            isOwned={isOwned}
+                                                            isFree={catalogItem?.isFree ?? false}
+                                                            cost={catalogItem?.cost ?? 0}
+                                                            rarity={catalogItem?.rarity ?? "COMMON"}
+                                                            isInCart={isInCart}
+                                                            onEquip={() => updateConfig("top", option.value)}
+                                                            onToggleCart={() => toggleCartItem(itemId)}
+                                                        />
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
+                                    ))}
+
+                                {/* Headwear & Wraps Group */}
+                                {filteredTopGroups
+                                    .filter((group) => group.category === "Headwear & Wraps")
+                                    .map((group) => (
+                                        <div key={group.category} className="space-y-2.5">
+                                            <div className="flex items-center justify-between border-b border-border/50 pb-1">
+                                                <h4 className="text-xs font-semibold uppercase tracking-wider text-starlight-400">
+                                                    {group.category}
+                                                </h4>
+                                                <span className="text-[10px] text-starlight-500 font-mono">
+                                                    {group.options.length} styles
+                                                </span>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
+                                                {group.options.map((option) => {
+                                                    const itemId = `top:${option.value}`;
+                                                    const catalogItem = getCatalogItemById(itemId);
+                                                    const isOwned = checkItemIsOwned("top", option.value);
+                                                    const isEquipped = currentConfig.top === option.value;
+                                                    const isInCart = selectedCartItemIds.has(itemId);
+
+                                                    return (
+                                                        <StoreItemCard
+                                                            key={option.value}
+                                                            name={option.label}
+                                                            thumbnailUri={getTopThumbnail(
+                                                                option.value,
+                                                                thumbnailColors.hairColor
+                                                            )}
+                                                            isEquipped={isEquipped}
+                                                            isOwned={isOwned}
+                                                            isFree={catalogItem?.isFree ?? false}
+                                                            cost={catalogItem?.cost ?? 0}
+                                                            rarity={catalogItem?.rarity ?? "COMMON"}
+                                                            isInCart={isInCart}
+                                                            onEquip={() => updateConfig("top", option.value)}
+                                                            onToggleCart={() => toggleCartItem(itemId)}
+                                                        />
+                                                    );
+                                                })}
+                                            </div>
+
+                                            {/* Hat Color (conditional when headwear selected) */}
+                                            {hasHeadwear && (
+                                                <ItemSpecificColorSection
+                                                    itemId={`top:${currentConfig.top}`}
+                                                    itemLabel="Headwear / Hat"
+                                                    currentColor={currentConfig.hatColor ?? "262e33"}
+                                                    presets={HAT_COLOR_OPTIONS}
+                                                    freeHexes={DEFAULT_CLOTHES_FREE_HEXES}
+                                                    ownedColorsMap={ownedColorsMap}
+                                                    customColors={
+                                                        customColorsByItem.get(`top:${currentConfig.top}`) ?? []
+                                                    }
+                                                    cartColors={selectedCartColors}
+                                                    onSelectColor={(hex) => updateConfig("hatColor", hex)}
+                                                    onToggleCartColor={toggleCartColor}
+                                                    className="mt-3"
+                                                />
+                                            )}
+                                        </div>
+                                    ))}
+
+
+                                {/* Facial Hair & Grooming Section (Placed Above Headwear & Wraps) */}
+                                {(hairFilter === "all" || hairFilter === "facial-hair") && (
+                                    <div className="space-y-3 pt-3 border-t border-border/50">
+                                        <div className="flex items-center justify-between border-b border-border/50 pb-1">
+                                            <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-starlight-400">
+                                                <UserCheck className="size-3.5 text-gold-400" />
+                                                Facial Hair & Grooming
+                                            </h4>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[10px] text-starlight-500 font-mono">
+                                                    {filteredFacialHairOptions.length} styles
+                                                </span>
+                                                {currentConfig.facialHair !== "none" && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => updateConfig("facialHair", "none")}
+                                                        className="text-[11px] text-starlight-400 hover:text-gold-300 transition-colors"
+                                                    >
+                                                        Clean Shaven
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+
                                         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
-                                            {group.options.map((option) => {
-                                                const itemId = `top:${option.value}`;
+                                            {filteredFacialHairOptions.map((option) => {
+                                                const itemId = `facialHair:${option.value}`;
                                                 const catalogItem = getCatalogItemById(itemId);
-                                                const isOwned = checkItemIsOwned("top", option.value);
-                                                const isEquipped = currentConfig.top === option.value;
+                                                const isOwned = checkItemIsOwned("facialHair", option.value);
+                                                const isEquipped =
+                                                    currentConfig.facialHair === option.value;
                                                 const isInCart = selectedCartItemIds.has(itemId);
 
                                                 return (
                                                     <StoreItemCard
                                                         key={option.value}
                                                         name={option.label}
-                                                        thumbnailUri={getTopThumbnail(
+                                                        thumbnailUri={getFacialHairThumbnail(
                                                             option.value,
-                                                            thumbnailColors.hairColor
+                                                            thumbnailColors.facialHairColor
                                                         )}
                                                         isEquipped={isEquipped}
                                                         isOwned={isOwned}
@@ -1333,14 +1449,38 @@ export function AvatarEditor({
                                                         cost={catalogItem?.cost ?? 0}
                                                         rarity={catalogItem?.rarity ?? "COMMON"}
                                                         isInCart={isInCart}
-                                                        onEquip={() => updateConfig("top", option.value)}
+                                                        onEquip={() =>
+                                                            updateConfig("facialHair", option.value)
+                                                        }
                                                         onToggleCart={() => toggleCartItem(itemId)}
                                                     />
                                                 );
                                             })}
                                         </div>
+
+                                        {currentConfig.facialHair !== "none" && (
+                                            <ItemSpecificColorSection
+                                                itemId={`facialHair:${currentConfig.facialHair}`}
+                                                itemLabel="Beard / Moustache"
+                                                currentColor={currentConfig.facialHairColor}
+                                                presets={HAIR_COLOR_OPTIONS}
+                                                freeHexes={DEFAULT_HAIR_FREE_HEXES}
+                                                ownedColorsMap={ownedColorsMap}
+                                                customColors={
+                                                    customColorsByItem.get(
+                                                        `facialHair:${currentConfig.facialHair}`
+                                                    ) ?? []
+                                                }
+                                                cartColors={selectedCartColors}
+                                                onSelectColor={(hex) =>
+                                                    updateConfig("facialHairColor", hex)
+                                                }
+                                                onToggleCartColor={toggleCartColor}
+                                                className="mt-3"
+                                            />
+                                        )}
                                     </div>
-                                ))}
+                                )}
                             </div>
                         )}
 
@@ -1696,32 +1836,17 @@ export function AvatarEditor({
                         {/* Tab 5: Accessories & Details */}
                         {activeTab === "details" && (
                             <div className="space-y-5 animate-fade-in">
-                                <div className="flex items-center gap-1.5 pt-1">
-                                    <SubcategoryPill
-                                        active={detailsFilter === "all"}
-                                        onClick={() => setDetailsFilter("all")}
-                                        label="All Details"
-                                    />
-                                    <SubcategoryPill
-                                        active={detailsFilter === "eyewear"}
-                                        onClick={() => setDetailsFilter("eyewear")}
-                                        label="Eyewear (8)"
-                                    />
-                                    <SubcategoryPill
-                                        active={detailsFilter === "facial-hair"}
-                                        onClick={() => setDetailsFilter("facial-hair")}
-                                        label="Facial Hair (6)"
-                                    />
-                                </div>
-
                                 {/* Glasses / Eyewear */}
-                                {(detailsFilter === "all" || detailsFilter === "eyewear") && (
-                                    <div className="space-y-3">
-                                        <div className="flex items-center justify-between border-b border-border/50 pb-1">
-                                            <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-starlight-400">
-                                                <Glasses className="size-3.5 text-gold-400" />
-                                                Eyewear & Accessories
-                                            </h4>
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between border-b border-border/50 pb-1">
+                                        <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-starlight-400">
+                                            <Glasses className="size-3.5 text-gold-400" />
+                                            Eyewear & Accessories
+                                        </h4>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] text-starlight-500 font-mono">
+                                                {filteredAccessoryOptions.length} styles
+                                            </span>
                                             {currentConfig.accessories !== "none" && (
                                                 <button
                                                     type="button"
@@ -1732,137 +1857,62 @@ export function AvatarEditor({
                                                 </button>
                                             )}
                                         </div>
-
-                                        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-                                            {filteredAccessoryOptions.map((option) => {
-                                                const itemId = `accessories:${option.value}`;
-                                                const catalogItem = getCatalogItemById(itemId);
-                                                const isOwned = checkItemIsOwned("accessories", option.value);
-                                                const isEquipped =
-                                                    currentConfig.accessories === option.value;
-                                                const isInCart = selectedCartItemIds.has(itemId);
-
-                                                return (
-                                                    <StoreItemCard
-                                                        key={option.value}
-                                                        name={option.label}
-                                                        thumbnailUri={getAccessoryThumbnail(
-                                                            option.value,
-                                                            thumbnailColors.accessoriesColor
-                                                        )}
-                                                        isEquipped={isEquipped}
-                                                        isOwned={isOwned}
-                                                        isFree={catalogItem?.isFree ?? false}
-                                                        cost={catalogItem?.cost ?? 0}
-                                                        rarity={catalogItem?.rarity ?? "COMMON"}
-                                                        isInCart={isInCart}
-                                                        onEquip={() =>
-                                                            updateConfig("accessories", option.value)
-                                                        }
-                                                        onToggleCart={() => toggleCartItem(itemId)}
-                                                    />
-                                                );
-                                            })}
-                                        </div>
-
-                                        {currentConfig.accessories !== "none" && (
-                                            <ItemSpecificColorSection
-                                                itemId={`accessories:${currentConfig.accessories}`}
-                                                itemLabel="Eyewear Frame"
-                                                currentColor={currentConfig.accessoriesColor}
-                                                presets={ACCESSORIES_COLOR_OPTIONS}
-                                                freeHexes={DEFAULT_ACCESSORIES_FREE_HEXES}
-                                                ownedColorsMap={ownedColorsMap}
-                                                customColors={
-                                                    customColorsByItem.get(
-                                                        `accessories:${currentConfig.accessories}`
-                                                    ) ?? []
-                                                }
-                                                cartColors={selectedCartColors}
-                                                onSelectColor={(hex) =>
-                                                    updateConfig("accessoriesColor", hex)
-                                                }
-                                                onToggleCartColor={toggleCartColor}
-                                                className="mt-3"
-                                            />
-                                        )}
                                     </div>
-                                )}
 
-                                {/* Facial Hair */}
-                                {(detailsFilter === "all" || detailsFilter === "facial-hair") && (
-                                    <div className="space-y-3 pt-3 border-t border-border/50">
-                                        <div className="flex items-center justify-between border-b border-border/50 pb-1">
-                                            <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-starlight-400">
-                                                <UserCheck className="size-3.5 text-gold-400" />
-                                                Facial Hair & Grooming
-                                            </h4>
-                                            {currentConfig.facialHair !== "none" && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => updateConfig("facialHair", "none")}
-                                                    className="text-[11px] text-starlight-400 hover:text-gold-300 transition-colors"
-                                                >
-                                                    Clean Shaven
-                                                </button>
-                                            )}
-                                        </div>
+                                    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                                        {filteredAccessoryOptions.map((option) => {
+                                            const itemId = `accessories:${option.value}`;
+                                            const catalogItem = getCatalogItemById(itemId);
+                                            const isOwned = checkItemIsOwned("accessories", option.value);
+                                            const isEquipped =
+                                                currentConfig.accessories === option.value;
+                                            const isInCart = selectedCartItemIds.has(itemId);
 
-                                        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-                                            {filteredFacialHairOptions.map((option) => {
-                                                const itemId = `facialHair:${option.value}`;
-                                                const catalogItem = getCatalogItemById(itemId);
-                                                const isOwned = checkItemIsOwned("facialHair", option.value);
-                                                const isEquipped =
-                                                    currentConfig.facialHair === option.value;
-                                                const isInCart = selectedCartItemIds.has(itemId);
-
-                                                return (
-                                                    <StoreItemCard
-                                                        key={option.value}
-                                                        name={option.label}
-                                                        thumbnailUri={getFacialHairThumbnail(
-                                                            option.value,
-                                                            thumbnailColors.facialHairColor
-                                                        )}
-                                                        isEquipped={isEquipped}
-                                                        isOwned={isOwned}
-                                                        isFree={catalogItem?.isFree ?? false}
-                                                        cost={catalogItem?.cost ?? 0}
-                                                        rarity={catalogItem?.rarity ?? "COMMON"}
-                                                        isInCart={isInCart}
-                                                        onEquip={() =>
-                                                            updateConfig("facialHair", option.value)
-                                                        }
-                                                        onToggleCart={() => toggleCartItem(itemId)}
-                                                    />
-                                                );
-                                            })}
-                                        </div>
-
-                                        {currentConfig.facialHair !== "none" && (
-                                            <ItemSpecificColorSection
-                                                itemId={`facialHair:${currentConfig.facialHair}`}
-                                                itemLabel="Beard / Moustache"
-                                                currentColor={currentConfig.facialHairColor}
-                                                presets={HAIR_COLOR_OPTIONS}
-                                                freeHexes={DEFAULT_HAIR_FREE_HEXES}
-                                                ownedColorsMap={ownedColorsMap}
-                                                customColors={
-                                                    customColorsByItem.get(
-                                                        `facialHair:${currentConfig.facialHair}`
-                                                    ) ?? []
-                                                }
-                                                cartColors={selectedCartColors}
-                                                onSelectColor={(hex) =>
-                                                    updateConfig("facialHairColor", hex)
-                                                }
-                                                onToggleCartColor={toggleCartColor}
-                                                className="mt-3"
-                                            />
-                                        )}
+                                            return (
+                                                <StoreItemCard
+                                                    key={option.value}
+                                                    name={option.label}
+                                                    thumbnailUri={getAccessoryThumbnail(
+                                                        option.value,
+                                                        thumbnailColors.accessoriesColor
+                                                    )}
+                                                    isEquipped={isEquipped}
+                                                    isOwned={isOwned}
+                                                    isFree={catalogItem?.isFree ?? false}
+                                                    cost={catalogItem?.cost ?? 0}
+                                                    rarity={catalogItem?.rarity ?? "COMMON"}
+                                                    isInCart={isInCart}
+                                                    onEquip={() =>
+                                                        updateConfig("accessories", option.value)
+                                                    }
+                                                    onToggleCart={() => toggleCartItem(itemId)}
+                                                />
+                                            );
+                                        })}
                                     </div>
-                                )}
+
+                                    {currentConfig.accessories !== "none" && (
+                                        <ItemSpecificColorSection
+                                            itemId={`accessories:${currentConfig.accessories}`}
+                                            itemLabel="Eyewear Frame"
+                                            currentColor={currentConfig.accessoriesColor}
+                                            presets={ACCESSORIES_COLOR_OPTIONS}
+                                            freeHexes={DEFAULT_ACCESSORIES_FREE_HEXES}
+                                            ownedColorsMap={ownedColorsMap}
+                                            customColors={
+                                                customColorsByItem.get(
+                                                    `accessories:${currentConfig.accessories}`
+                                                ) ?? []
+                                            }
+                                            cartColors={selectedCartColors}
+                                            onSelectColor={(hex) =>
+                                                updateConfig("accessoriesColor", hex)
+                                            }
+                                            onToggleCartColor={toggleCartColor}
+                                            className="mt-3"
+                                        />
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>
@@ -2054,33 +2104,34 @@ const StoreItemCard = React.memo(function StoreItemCard({
                 isEquipped
                     ? "border-gold-400 bg-gold-500/15 shadow-gold ring-2 ring-gold-400/50"
                     : isInCart
-                    ? "border-amber-400/80 bg-amber-500/10 shadow-xs"
-                    : "border-border/60 bg-space-850/60 hover:border-gold-500/40 hover:bg-space-850"
+                        ? "border-amber-400/80 bg-amber-500/10 shadow-xs"
+                        : "border-border/60 bg-space-850/60 hover:border-gold-500/40 hover:bg-space-850"
             )}
         >
             {/* Top badges bar */}
             <div className="w-full flex items-center justify-between mb-1 px-0.5">
-                <span
+                {/* <span
                     className={cn(
                         "rounded-xs px-1 py-0.2 text-[8px] font-bold uppercase",
                         rarity === "EPIC"
                             ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
                             : rarity === "RARE"
-                            ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
-                            : "bg-starlight-500/10 text-starlight-400"
+                                ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                                : "bg-starlight-500/10 text-starlight-400"
                     )}
-                >
-                    {rarity}
+                > */}
+                <span>
+                    {/* {rarity} */}
                 </span>
 
                 {isFree ? (
-                    <span className="text-[9px] font-bold text-emerald-400">Free</span>
+                    <span className="text-[12px] font-bold text-emerald-400">Free</span>
                 ) : isOwned ? (
-                    <span className="text-[9px] font-bold text-emerald-400 flex items-center gap-0.5">
+                    <span className="text-[12px] font-bold text-emerald-400 flex items-center gap-0.5">
                         <Check className="size-2.5 stroke-[3]" /> Owned
                     </span>
                 ) : (
-                    <span className="font-mono text-[9px] font-bold text-gold-400">
+                    <span className="font-mono text-[12px] font-bold text-gold-400">
                         {cost} ST
                     </span>
                 )}

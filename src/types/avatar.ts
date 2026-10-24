@@ -238,7 +238,7 @@ export const DEFAULT_AVATAR_CONFIG: StudentAvatarConfig = {
     accessories: "none",
     accessoriesColor: "262e33",
     facialHair: "none",
-    facialHairColor: "2c1b18",
+    facialHairColor: "b58143",
 };
 
 export function isValidValue<T extends string>(value: unknown, allowedList: readonly T[]): value is T {

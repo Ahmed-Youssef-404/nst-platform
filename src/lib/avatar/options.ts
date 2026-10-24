@@ -217,13 +217,13 @@ export const MOUTH_OPTIONS: ChoiceOption<Mouth>[] = [
 
 export const ACCESSORY_OPTIONS: ChoiceOption<Accessory>[] = [
     { value: "none", label: "None" },
+    { value: "eyepatch", label: "Cyber Eyepatch" },
     { value: "prescription01", label: "Standard Frames" },
     { value: "prescription02", label: "Square Glasses" },
     { value: "round", label: "Round Glasses" },
     { value: "kurt", label: "Retro Oval" },
     { value: "sunglasses", label: "Dark Shades" },
     { value: "wayfarers", label: "Wayfarer Glasses" },
-    { value: "eyepatch", label: "Cyber Eyepatch" },
 ];
 
 export const ACCESSORIES_COLOR_OPTIONS: ColorOption<AccessoriesColor>[] = [
