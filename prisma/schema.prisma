@@ -682,6 +682,9 @@ enum STReason {
   // student gets a new LevelStBalance row for that Level, starting at
   // 50; logged here for audit purposes)
   LEVEL_RESET
+
+  // Instructor adds/deducts ST for a student in one of their groups
+  INSTRUCTOR_ADJUSTMENT
 }
 
 // ============================================
@@ -728,6 +731,9 @@ model STTransaction {
   avgStBalance               Int? // snapshot بعد الحركة (Student.avgSt) - INTERMEDIATE فقط
   beginnerStBalance          Int? // snapshot بعد الحركة (Student.beginnerSt) - BEGINNER فقط
   wasHalvedDueToLateResource Boolean           @default(false) // BEGINNER فقط: true لو الملف المطلوب بتاع الـ Week كان مش accepted وقت الـ grading submit، وبالتالي amount اتضرب ×0.5
+  actorId                    String? // الـ Instructor اللي نفّذ الحركة (INSTRUCTOR_ADJUSTMENT فقط)
+  note                       String? // سبب اختياري من الـ Instructor
+  idempotencyKey             String?           @unique // بيمنع تكرار نفس الطلب (retry / double-click)
   createdAt                  DateTime          @default(now())
 
   // Relations

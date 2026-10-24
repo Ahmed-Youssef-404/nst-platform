@@ -23,6 +23,7 @@ export const ST_REASON_LABELS: Record<STReasonCode, string> = {
     STORE_PURCHASE: "Store purchase",
     MANUAL_ADJUSTMENT: "Manual adjustment",
     LEVEL_RESET: "Level reset",
+    INSTRUCTOR_ADJUSTMENT: "From Instructor",
 };
 
 // Fallback for any reason code not yet in the map above (defensive - keeps

@@ -24,6 +24,7 @@ import {
     TrendingDown,
     Filter,
     Loader2,
+    GraduationCap,
     type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,7 @@ const REASON_ICONS: Record<STReasonCode, LucideIcon> = {
     STORE_PURCHASE: ShoppingBag,
     MANUAL_ADJUSTMENT: SlidersHorizontal,
     LEVEL_RESET: RotateCcw,
+    INSTRUCTOR_ADJUSTMENT: GraduationCap,
 };
 
 type FilterType = "ALL" | "REWARDS" | "PENALTIES";
@@ -238,6 +240,12 @@ function STHistoryRow({ transaction }: { transaction: STTransactionResult }) {
     const isReward = transaction.type === "REWARD";
     const Icon = REASON_ICONS[transaction.reason] ?? Coins;
     const signedAmount = isReward ? `+${transaction.amount}` : `-${transaction.amount}`;
+    const isInstructor = transaction.reason === "INSTRUCTOR_ADJUSTMENT";
+    const title = isInstructor
+        ? isReward
+            ? "ST added by Instructor"
+            : "ST deducted by Instructor"
+        : getReasonLabel(transaction.reason);
 
     return (
         <div className="flex items-center justify-between gap-4 px-5 py-4 transition-colors hover:bg-muted/40 dark:hover:bg-space-850/50">
@@ -254,11 +262,16 @@ function STHistoryRow({ transaction }: { transaction: STTransactionResult }) {
 
                 <div className="min-w-0 space-y-0.5">
                     <p className="truncate text-sm font-semibold text-foreground dark:text-starlight-100">
-                        {getReasonLabel(transaction.reason)}
+                        {title}
                     </p>
                     <p className="text-xs text-muted-foreground dark:text-starlight-400 font-mono">
                         {formatDateTime(transaction.createdAt)}
                     </p>
+                    {isInstructor && transaction.note && (
+                        <p className="line-clamp-2 break-words text-xs text-muted-foreground dark:text-starlight-400">
+                            Reason: {transaction.note}
+                        </p>
+                    )}
                 </div>
             </div>
 

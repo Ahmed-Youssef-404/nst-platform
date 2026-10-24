@@ -102,7 +102,8 @@ export type STReasonCode =
     | "TASK_NOT_SUBMITTED"
     | "STORE_PURCHASE"
     | "MANUAL_ADJUSTMENT"
-    | "LEVEL_RESET";
+    | "LEVEL_RESET"
+    | "INSTRUCTOR_ADJUSTMENT";
 
 // Input to the one central function allowed to move ST balances.
 // amount must always be a positive integer - sign comes from `type`.
@@ -124,6 +125,9 @@ export type ApplySTChangeInput =
         reason: STReasonCode;
         amount: number; // always positive
         relatedEntityId?: string | null; // taskId / hintId / sessionId / storeItemId / etc.
+        actorId?: string | null;
+        note?: string | null;
+        idempotencyKey?: string | null;
     }
     | {
         track: "BEGINNER";
@@ -133,6 +137,9 @@ export type ApplySTChangeInput =
         reason: STReasonCode;
         amount: number; // always positive
         relatedEntityId?: string | null;
+        actorId?: string | null;
+        note?: string | null;
+        idempotencyKey?: string | null;
         wasHalvedDueToLateResource?: boolean; // BEGINNER-only halving flag
     };
 
@@ -146,6 +153,7 @@ export type STTransactionResult =
         reason: STReasonCode;
         amount: number;
         relatedEntityId: string | null;
+        note?: string | null;
         levelStBalance: number;
         avgStBalance: number;
         createdAt: Date;
@@ -159,6 +167,7 @@ export type STTransactionResult =
         reason: STReasonCode;
         amount: number;
         relatedEntityId: string | null;
+        note?: string | null;
         beginnerStBalance: number;
         wasHalvedDueToLateResource: boolean;
         createdAt: Date;

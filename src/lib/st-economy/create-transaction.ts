@@ -128,6 +128,9 @@ export async function applySTChange(
                 relatedEntityId: input.relatedEntityId ?? null,
                 levelStBalance: updatedBalance.balance,
                 avgStBalance: avgSt,
+                actorId: input.actorId ?? null,
+                note: input.note ?? null,
+                idempotencyKey: input.idempotencyKey ?? null,
             },
         });
 
@@ -140,6 +143,7 @@ export async function applySTChange(
             reason: transaction.reason,
             amount: transaction.amount,
             relatedEntityId: transaction.relatedEntityId,
+            note: transaction.note,
             levelStBalance: updatedBalance.balance,
             avgStBalance: avgSt,
             createdAt: transaction.createdAt,
@@ -188,6 +192,9 @@ async function applySTChangeBeginner(
                 relatedEntityId: input.relatedEntityId ?? null,
                 beginnerStBalance: updatedStudent.beginnerSt,
                 wasHalvedDueToLateResource: input.wasHalvedDueToLateResource ?? false,
+                actorId: input.actorId ?? null,
+                note: input.note ?? null,
+                idempotencyKey: input.idempotencyKey ?? null,
             },
         });
 
@@ -200,6 +207,7 @@ async function applySTChangeBeginner(
             reason: transaction.reason,
             amount: transaction.amount,
             relatedEntityId: transaction.relatedEntityId,
+            note: transaction.note,
             beginnerStBalance: updatedStudent.beginnerSt,
             wasHalvedDueToLateResource: transaction.wasHalvedDueToLateResource,
             createdAt: transaction.createdAt,

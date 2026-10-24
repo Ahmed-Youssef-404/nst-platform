@@ -11,6 +11,7 @@ import {
     GraduationCap,
     BookOpen,
     PlusCircle,
+    Coins,
 } from "lucide-react";
 import {
     Sidebar,
@@ -36,6 +37,12 @@ const NAV_ITEMS = [
         label: "Groups & Tracks",
         icon: Compass,
         description: "Dashboard & assigned tracks",
+    },
+    {
+        href: "/instructor/students",
+        label: "Student ST",
+        icon: Coins,
+        description: "Add or deduct ST",
     },
 ];
 
@@ -161,13 +168,15 @@ export function InstructorSidebar({
 
                 <SidebarMenu className="gap-1.5">
                     {NAV_ITEMS.map((item) => {
-                        const subLinks = getInstructorSubLinks(pathname);
+                        // sub-links belong to the main dashboard item only
+                        const subLinks = item.href === "/instructor" ? getInstructorSubLinks(pathname) : [];
                         const isExactActive = pathname === item.href;
                         const isParentActive =
                             pathname.startsWith(item.href) &&
                             !isExactActive &&
                             // the profile page has its own highlight in the footer
-                            pathname !== "/instructor/profile";
+                            pathname !== "/instructor/profile" &&
+                            (item.href !== "/instructor" || !pathname.startsWith("/instructor/students"));
                         const isHighlighted = isExactActive || isParentActive;
 
                         return (
