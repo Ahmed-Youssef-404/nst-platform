@@ -163,7 +163,7 @@ export async function getStudentWeeks(
     return {
         groupName: student.group.name,
         batchName: student.group.batch.name,
-        beginnerSt: student.beginnerSt ?? 0,
+        beginnerSt: student.beginnerSt ?? 50,
         weeks,
     };
 }
@@ -402,7 +402,7 @@ export async function getStudentWeekDetail(
         status,
         isLocked,
         canWrite,
-        beginnerSt: student.beginnerSt ?? 0,
+        beginnerSt: student.beginnerSt ?? 50,
         resource,
         tasks,
     };

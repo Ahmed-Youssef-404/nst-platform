@@ -211,7 +211,7 @@ export async function getWeekGradingData(
         return {
             studentId: student.id,
             studentName: student.name,
-            beginnerSt: student.beginnerSt ?? 0,
+            beginnerSt: student.beginnerSt ?? 50,
             avatarConfig: (student.avatarConfig as unknown as StudentAvatarConfig) ?? null,
             resource: resource
                 ? {

@@ -519,7 +519,7 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
                                                             <Coins className="size-3.5 text-gold-400" />
                                                             <span className="font-mono font-bold text-starlight-100">
                                                                 {s.groupType === "BEGINNER"
-                                                                    ? s.beginnerSt ?? 0
+                                                                    ? s.beginnerSt ?? 50
                                                                     : s.avgSt}
                                                             </span>
                                                             <span className="text-[10px] text-starlight-400">

@@ -80,14 +80,14 @@ export async function getBeginnerStudentRanking(
 
     // beginnerSt is nullable in the schema (null for INTERMEDIATE
     // students) - a BEGINNER Group should only ever contain BEGINNER
-    // students, but coalesce to 0 defensively rather than let a stray
+    // students, but coalesce to 50 defensively rather than let a stray
     // null break the sort/rank.
-    const ranked = denseRank(groupmates, (s) => s.beginnerSt ?? 0);
+    const ranked = denseRank(groupmates, (s) => s.beginnerSt ?? 50);
 
     const students: RankedBeginnerStudent[] = ranked.map(({ item, rank }) => ({
         id: item.id,
         name: item.name,
-        beginnerSt: item.beginnerSt ?? 0,
+        beginnerSt: item.beginnerSt ?? 50,
         rank,
         isCurrentStudent: item.id === studentId,
         avatarConfig: (item.avatarConfig as unknown as StudentAvatarConfig) ?? null,

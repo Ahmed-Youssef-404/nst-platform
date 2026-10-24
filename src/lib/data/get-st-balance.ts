@@ -43,7 +43,7 @@ export async function getStudentBalance(studentId: string) {
     const avatarConfig = (student.avatarConfig as unknown as StudentAvatarConfig) ?? null;
 
     if (student.group.type === "BEGINNER") {
-        const beginnerSt = student.beginnerSt ?? 0;
+        const beginnerSt = student.beginnerSt ?? 50;
         return {
             name: student.name,
             avatarConfig,

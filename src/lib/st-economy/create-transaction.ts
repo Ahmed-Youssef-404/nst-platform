@@ -170,11 +170,11 @@ async function applySTChangeBeginner(
 
         // beginnerSt is nullable in the schema (null for INTERMEDIATE
         // students) - a BEGINNER student should always have it initialized
-        // to 0 when created, but guard rather than write a corrupt snapshot
+        // to 50 when created, but guard rather than write a corrupt snapshot
         // if that invariant was ever violated upstream.
         if (updatedStudent.beginnerSt === null) {
             throw new Error(
-                `Student ${input.studentId} has no beginnerSt value set - cannot apply a BEGINNER-track ST change. Ensure beginnerSt is initialized to 0 when a BEGINNER student is created.`
+                `Student ${input.studentId} has no beginnerSt value set - cannot apply a BEGINNER-track ST change. Ensure beginnerSt is initialized to 50 when a BEGINNER student is created.`
             );
         }
 

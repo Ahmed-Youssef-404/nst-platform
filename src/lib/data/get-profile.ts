@@ -154,7 +154,7 @@ export async function getStudentProfileData(
         avgSt: student.avgSt,
         ongoingWeek: isBeginner ? (student.group.weeks[0] ?? null) : null,
         // Same fallback getStudentBalance() uses for a BEGINNER student
-        beginnerSt: student.beginnerSt ?? 0,
+        beginnerSt: student.beginnerSt ?? (isBeginner ? 50 : 0),
         avatarConfig: (student.avatarConfig as unknown as StudentProfileData["avatarConfig"]) ?? null,
     };
 }

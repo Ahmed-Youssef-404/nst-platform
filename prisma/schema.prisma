@@ -50,7 +50,7 @@ model Student {
   name       String
   groupId    String
   avgSt      Int      @default(50) // متوسط (Math.round) كل LevelStBalance.balance بتاعة الطالب عبر كل الـ Levels (المجمدة + الحالية) - عمود cache محسوب، بيتحدث atomically جوه applySTChange - INTERMEDIATE فقط، يفضل 50 لطالب BEGINNER (بيتجاهل)
-  beginnerSt Int? // BEGINNER فقط - رقم واحد بيتراكم طول الـ course كله، مفيش تجميد ولا متوسط زي levelSt. null لطالب INTERMEDIATE
+  beginnerSt Int? // BEGINNER فقط - رقم واحد بيتراكم طول الـ course كله، مفيش تجميد ولا متوسط زي levelSt (يبدأ بـ 50 عند إنشاء الحساب). null لطالب INTERMEDIATE
   avatarConfig Json? // Phase 1: Avatar customization settings (DiceBear Avataaars JSON config)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt

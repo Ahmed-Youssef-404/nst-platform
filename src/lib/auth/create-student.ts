@@ -39,7 +39,19 @@ export async function createStudent(input: CreateStudentInput) {
         throw new Error(`Student ID "${id}" is already in use.`);
     }
 
-    // 3. Create the user in Supabase Auth
+    // 3. Verify the group exists and check its track type (BEGINNER vs INTERMEDIATE)
+    const group = await prisma.group.findUnique({
+        where: { id: groupId },
+        select: { type: true },
+    });
+
+    if (!group) {
+        throw new Error(`Group with ID "${groupId}" does not exist.`);
+    }
+
+    const isBeginner = group.type === "BEGINNER";
+
+    // 4. Create the user in Supabase Auth
     // Note: we use the student's `id` as their password
     const { data: authUser, error: authError } =
         await supabaseAdmin.auth.admin.createUser({
@@ -55,10 +67,12 @@ export async function createStudent(input: CreateStudentInput) {
         throw new Error(`Failed to create user in Auth: ${authError.message}`);
     }
 
-    // 4. Create the corresponding record in the students table
+    // 5. Create the corresponding record in the students table
     // Important: we use the SAME `id` here (the student's code),
     // NOT authUser.user.id - this keeps the login code consistent
-    // between what the student types and what's stored in our table
+    // between what the student types and what's stored in our table.
+    // Beginner students start with 50 ST, intermediate students start with null
+    // (their balance is tracked via LevelStBalance, starting at 50 per level).
     try {
         const student = await prisma.student.create({
             data: {
@@ -66,6 +80,7 @@ export async function createStudent(input: CreateStudentInput) {
                 email,
                 name,
                 groupId,
+                beginnerSt: isBeginner ? 50 : null,
             },
         });
 
