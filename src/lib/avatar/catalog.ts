@@ -53,10 +53,7 @@ export interface CatalogItem {
 // Each colorable item has 3–4 free colors by default, with additional colors priced at 10–15 ST.
 // -----------------------------------------------------------------------------
 
-// export const DEFAULT_HAIR_FREE_HEXES = new Set(["2c1b18", "4a312c", "724133", "a55728"]);
-// export const DEFAULT_ACCESSORIES_FREE_HEXES = new Set(["262e33", "929598", "ffffff"]);
-// export const DEFAULT_CLOTHES_FREE_HEXES = new Set(["262e33", "3c4f5c", "929598", "e6e6e6"]);
-export const DEFAULT_HAIR_FREE_HEXES = new Set(["ecdcbf", "b58143", "c93305", "d6b370"]);
+export const DEFAULT_HAIR_FREE_HEXES = new Set(["d6b370", "ecdcbf", "b58143"]);
 export const DEFAULT_CLOTHES_FREE_HEXES = new Set(["262e33", "3c4f5c", "929598", "e6e6e6"]);
 export const DEFAULT_ACCESSORIES_FREE_HEXES = new Set(["262e33", "929598", "ffffff"]);
 
@@ -70,7 +67,7 @@ function buildHairColorOptions(): CatalogColorOption[] {
             hex,
             label: c.label,
             isFree,
-            cost: isFree ? 0 : 25,
+            cost: isFree ? 0 : 15,
         };
     });
 }

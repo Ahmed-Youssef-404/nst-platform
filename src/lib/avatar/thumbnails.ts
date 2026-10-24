@@ -16,6 +16,7 @@ import type {
     Accessory,
     FacialHair,
 } from "@/types/avatar";
+import type { AvatarSlotName } from "@/lib/avatar/catalog";
 
 const topCache = new Map<string, string>();
 const eyesCache = new Map<string, string>();
@@ -258,4 +259,35 @@ export function getFacialHairThumbnail(facialHair: FacialHair, facialHairColor =
     const uri = toCroppedDataUri(avatar, "50 135 180 105");
     facialHairCache.set(key, uri);
     return uri;
+}
+
+/**
+ * Resolves a visual thumbnail for any catalog item by its slot and value,
+ * optionally applying an item-specific colorHex for colorable items.
+ */
+export function getItemThumbnail(
+    slot: AvatarSlotName,
+    value: string,
+    colorHex?: string
+): string {
+    switch (slot) {
+        case "top":
+            return getTopThumbnail(value as Top, colorHex);
+        case "clothing":
+            return getClothingThumbnail(value as Clothing, colorHex);
+        case "clothingGraphic":
+            return getGraphicThumbnail(value as ClothingGraphic);
+        case "accessories":
+            return getAccessoryThumbnail(value as Accessory, colorHex);
+        case "facialHair":
+            return getFacialHairThumbnail(value as FacialHair, colorHex);
+        case "eyes":
+            return getEyesThumbnail(value as Eyes);
+        case "eyebrows":
+            return getEyebrowsThumbnail(value as Eyebrows);
+        case "mouth":
+            return getMouthThumbnail(value as Mouth);
+        default:
+            return "";
+    }
 }

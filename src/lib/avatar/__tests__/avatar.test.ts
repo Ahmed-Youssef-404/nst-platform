@@ -319,11 +319,11 @@ assert.ok(paidEye.cost > 0, "eyes:hearts must have a positive price");
 assert.strictEqual(isItemInherentFree("eyes", "default"), true);
 assert.strictEqual(isItemInherentFree("eyes", "hearts"), false);
 
-const freeEyebrow = getCatalogItemById("eyebrows:defaultNatural")!;
+const freeEyebrow = getCatalogItemById("eyebrows:default")!;
 const paidEyebrow = getCatalogItemById("eyebrows:raisedExcited")!;
-assert.strictEqual(freeEyebrow.isFree, true, "eyebrows:defaultNatural must be free");
+assert.strictEqual(freeEyebrow.isFree, true, "eyebrows:default must be free");
 assert.strictEqual(paidEyebrow.isFree, false, "eyebrows:raisedExcited must be paid");
-assert.strictEqual(isItemInherentFree("eyebrows", "defaultNatural"), true);
+assert.strictEqual(isItemInherentFree("eyebrows", "default"), true);
 assert.strictEqual(isItemInherentFree("eyebrows", "raisedExcited"), false);
 
 const freeMouth = getCatalogItemById("mouth:default")!;

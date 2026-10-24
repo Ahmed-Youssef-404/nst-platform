@@ -109,7 +109,7 @@ export function TaskDetailCard({
             </div>
 
             {/* Rubric Criteria Breakdown */}
-            {task.rubricFields && task.rubricFields.length > 0 && (
+            {/* {task.rubricFields && task.rubricFields.length > 0 && (
                 <div className="rounded-xl border border-border/60 bg-space-900/40 p-4 space-y-2.5">
                     <div className="text-[11px] font-bold uppercase tracking-wider text-starlight-400 flex items-center gap-1.5">
                         <Layers className="size-3 text-gold-400" />
@@ -131,7 +131,7 @@ export function TaskDetailCard({
                         ))}
                     </div>
                 </div>
-            )}
+            )} */}
 
             {/* Task Description (Markdown) */}
             <div className="rounded-xl border border-border/50 bg-space-950/40 p-5">
@@ -363,11 +363,11 @@ function SubmissionPanel({
             mode === "FILE"
                 ? await submitFileAction(buildFileFormData(task.id, file as File))
                 : await submitTextOrLinkAction({
-                      taskId: task.id,
-                      mode: mode as Extract<SubmissionModeCode, "TEXT" | "LINK">,
-                      textContent: mode === "TEXT" ? textContent : undefined,
-                      externalLink: mode === "LINK" ? externalLink : undefined,
-                  });
+                    taskId: task.id,
+                    mode: mode as Extract<SubmissionModeCode, "TEXT" | "LINK">,
+                    textContent: mode === "TEXT" ? textContent : undefined,
+                    externalLink: mode === "LINK" ? externalLink : undefined,
+                });
 
         setIsSubmitting(false);
 
@@ -628,8 +628,8 @@ function SubmissionPanel({
                         {isSubmitting
                             ? "Transmitting..."
                             : submission
-                            ? "Resubmit Solution"
-                            : "Submit Solution"}
+                                ? "Resubmit Solution"
+                                : "Submit Solution"}
                     </Button>
                 </form>
             )}

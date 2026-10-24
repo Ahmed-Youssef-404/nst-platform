@@ -343,24 +343,41 @@ export async function purchaseAvatarSelectionAction(
                 });
             }
 
-            // B. Create StudentInventory records
+            // B. Upsert StudentInventory records
             for (const item of itemsToCharge) {
-                await tx.studentInventory.create({
-                    data: {
+                await tx.studentInventory.upsert({
+                    where: {
+                        studentId_storeItemId: {
+                            studentId,
+                            storeItemId: item.id,
+                        },
+                    },
+                    create: {
                         studentId,
                         storeItemId: item.id,
                         isEquipped: false,
                     },
+                    update: {},
                 });
             }
 
-            // C. Create StudentItemColor records
+            // C. Upsert StudentItemColor records
             for (const col of colorsToCharge) {
-                await tx.studentItemColor.create({
-                    data: {
+                await tx.studentItemColor.upsert({
+                    where: {
+                        studentId_itemId_colorHex: {
+                            studentId,
+                            itemId: col.itemId,
+                            colorHex: col.colorHex,
+                        },
+                    },
+                    create: {
                         studentId,
                         itemId: col.itemId,
                         colorHex: col.colorHex,
+                        isCustom: col.isCustom,
+                    },
+                    update: {
                         isCustom: col.isCustom,
                     },
                 });

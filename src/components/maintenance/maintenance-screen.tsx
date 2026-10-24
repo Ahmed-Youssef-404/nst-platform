@@ -80,7 +80,7 @@ export function MaintenanceScreen({ message, statusUnknown = false }: Maintenanc
                         <figcaption className="font-technical text-[10px] font-medium tracking-[0.24em] text-gold-500 uppercase">
                             A note from the NST team
                         </figcaption>
-                        <p className="mt-2 text-sm leading-relaxed [overflow-wrap:anywhere] whitespace-pre-line text-starlight-200 sm:text-base">
+                        <p dir="auto" className="mt-2 text-sm leading-relaxed [overflow-wrap:anywhere] whitespace-pre-line text-starlight-200 sm:text-base">
                             {message}
                         </p>
                     </figure>

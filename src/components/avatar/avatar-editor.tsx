@@ -251,6 +251,45 @@ export function AvatarEditor({
         };
     }, []);
 
+    const updateConfig = React.useCallback(
+        <K extends keyof StudentAvatarConfig>(
+            key: K,
+            value: StudentAvatarConfig[K]
+        ) => {
+            setCurrentConfig((prev) => {
+                if (prev[key] === value) return prev;
+                return { ...prev, [key]: value };
+            });
+            setStatusMessage({ type: null, text: "" });
+
+            if (
+                key === "hairColor" ||
+                key === "clothesColor" ||
+                key === "accessoriesColor" ||
+                key === "facialHairColor"
+            ) {
+                latestColorsRef.current = {
+                    ...latestColorsRef.current,
+                    [key]: value as string,
+                };
+                if (debounceTimerRef.current) {
+                    clearTimeout(debounceTimerRef.current);
+                }
+                debounceTimerRef.current = setTimeout(() => {
+                    const latest = latestColorsRef.current;
+                    setThumbnailColors({
+                        hairColor: latest.hairColor,
+                        clothesColor: latest.clothesColor,
+                        accessoriesColor: latest.accessoriesColor,
+                        facialHairColor: latest.facialHairColor,
+                    });
+                    debounceTimerRef.current = null;
+                }, 200);
+            }
+        },
+        []
+    );
+
     // Browser-native beforeunload protection for refresh and tab close
     React.useEffect(() => {
         function handleBeforeUnload(e: BeforeUnloadEvent) {
@@ -315,7 +354,13 @@ export function AvatarEditor({
 
     // Check if any equipped item or color in the draft is currently unowned
     const unownedEquippedList = React.useMemo(() => {
-        const list: { type: "item" | "color"; name: string; cost: number; id: string }[] = [];
+        const list: {
+            type: "item" | "color";
+            name: string;
+            cost: number;
+            id: string;
+            colorItem?: SelectedColorCartItem;
+        }[] = [];
 
         // Check top
         if (!checkItemIsOwned("top", currentConfig.top)) {
@@ -324,14 +369,50 @@ export function AvatarEditor({
         }
         if (currentConfig.top !== "none") {
             const topId = `top:${currentConfig.top}`;
+            const topItem = getCatalogItemById(topId);
+            const topLabel = topItem?.name ?? "Hairstyle";
             if (!checkColorIsOwned(topId, currentConfig.hairColor)) {
-                const cost = getAuthoritativeColorPrice(topId, currentConfig.hairColor);
-                list.push({ type: "color", name: `Hair Color (#${currentConfig.hairColor})`, cost, id: topId });
+                const clean = normalizeHexColor(currentConfig.hairColor);
+                if (clean) {
+                    const cost = getAuthoritativeColorPrice(topId, clean);
+                    const preset = HAIR_COLOR_OPTIONS.find((p) => p.value.toLowerCase() === clean.toLowerCase());
+                    list.push({
+                        type: "color",
+                        name: `Hair Color (#${clean.toUpperCase()})`,
+                        cost,
+                        id: topId,
+                        colorItem: {
+                            itemId: topId,
+                            itemLabel: topLabel,
+                            colorHex: clean.toLowerCase(),
+                            colorLabel: preset?.label ?? `#${clean.toUpperCase()}`,
+                            cost,
+                            isCustom: !preset,
+                        },
+                    });
+                }
             }
             if (isHeadwearTop(currentConfig.top) && currentConfig.hatColor) {
                 if (!checkColorIsOwned(topId, currentConfig.hatColor)) {
-                    const cost = getAuthoritativeColorPrice(topId, currentConfig.hatColor);
-                    list.push({ type: "color", name: `Headwear Color (#${currentConfig.hatColor})`, cost, id: topId });
+                    const clean = normalizeHexColor(currentConfig.hatColor);
+                    if (clean) {
+                        const cost = getAuthoritativeColorPrice(topId, clean);
+                        const preset = HAT_COLOR_OPTIONS.find((p) => p.value.toLowerCase() === clean.toLowerCase());
+                        list.push({
+                            type: "color",
+                            name: `Headwear Color (#${clean.toUpperCase()})`,
+                            cost,
+                            id: topId,
+                            colorItem: {
+                                itemId: topId,
+                                itemLabel: `${topLabel} (Headwear)`,
+                                colorHex: clean.toLowerCase(),
+                                colorLabel: preset?.label ?? `#${clean.toUpperCase()}`,
+                                cost,
+                                isCustom: !preset,
+                            },
+                        });
+                    }
                 }
             }
         }
@@ -342,9 +423,28 @@ export function AvatarEditor({
             if (item) list.push({ type: "item", name: item.name, cost: item.cost, id: item.id });
         }
         const clothingId = `clothing:${currentConfig.clothing}`;
+        const clothingItem = getCatalogItemById(clothingId);
+        const clothingLabel = clothingItem?.name ?? "Outfit";
         if (!checkColorIsOwned(clothingId, currentConfig.clothesColor)) {
-            const cost = getAuthoritativeColorPrice(clothingId, currentConfig.clothesColor);
-            list.push({ type: "color", name: `Clothing Color (#${currentConfig.clothesColor})`, cost, id: clothingId });
+            const clean = normalizeHexColor(currentConfig.clothesColor);
+            if (clean) {
+                const cost = getAuthoritativeColorPrice(clothingId, clean);
+                const preset = CLOTHES_COLOR_OPTIONS.find((p) => p.value.toLowerCase() === clean.toLowerCase());
+                list.push({
+                    type: "color",
+                    name: `Clothing Color (#${clean.toUpperCase()})`,
+                    cost,
+                    id: clothingId,
+                    colorItem: {
+                        itemId: clothingId,
+                        itemLabel: clothingLabel,
+                        colorHex: clean.toLowerCase(),
+                        colorLabel: preset?.label ?? `#${clean.toUpperCase()}`,
+                        cost,
+                        isCustom: !preset,
+                    },
+                });
+            }
         }
         if (currentConfig.clothing === "graphicShirt" && currentConfig.clothingGraphic) {
             if (!checkItemIsOwned("clothingGraphic", currentConfig.clothingGraphic)) {
@@ -360,9 +460,28 @@ export function AvatarEditor({
                 if (item) list.push({ type: "item", name: item.name, cost: item.cost, id: item.id });
             }
             const accId = `accessories:${currentConfig.accessories}`;
+            const accItem = getCatalogItemById(accId);
+            const accLabel = accItem?.name ?? "Eyewear";
             if (!checkColorIsOwned(accId, currentConfig.accessoriesColor)) {
-                const cost = getAuthoritativeColorPrice(accId, currentConfig.accessoriesColor);
-                list.push({ type: "color", name: `Frame Color (#${currentConfig.accessoriesColor})`, cost, id: accId });
+                const clean = normalizeHexColor(currentConfig.accessoriesColor);
+                if (clean) {
+                    const cost = getAuthoritativeColorPrice(accId, clean);
+                    const preset = ACCESSORIES_COLOR_OPTIONS.find((p) => p.value.toLowerCase() === clean.toLowerCase());
+                    list.push({
+                        type: "color",
+                        name: `Frame Color (#${clean.toUpperCase()})`,
+                        cost,
+                        id: accId,
+                        colorItem: {
+                            itemId: accId,
+                            itemLabel: accLabel,
+                            colorHex: clean.toLowerCase(),
+                            colorLabel: preset?.label ?? `#${clean.toUpperCase()}`,
+                            cost,
+                            isCustom: !preset,
+                        },
+                    });
+                }
             }
         }
 
@@ -373,9 +492,28 @@ export function AvatarEditor({
                 if (item) list.push({ type: "item", name: item.name, cost: item.cost, id: item.id });
             }
             const fhId = `facialHair:${currentConfig.facialHair}`;
+            const fhItem = getCatalogItemById(fhId);
+            const fhLabel = fhItem?.name ?? "Facial Hair";
             if (!checkColorIsOwned(fhId, currentConfig.facialHairColor)) {
-                const cost = getAuthoritativeColorPrice(fhId, currentConfig.facialHairColor);
-                list.push({ type: "color", name: `Facial Hair Color (#${currentConfig.facialHairColor})`, cost, id: fhId });
+                const clean = normalizeHexColor(currentConfig.facialHairColor);
+                if (clean) {
+                    const cost = getAuthoritativeColorPrice(fhId, clean);
+                    const preset = HAIR_COLOR_OPTIONS.find((p) => p.value.toLowerCase() === clean.toLowerCase());
+                    list.push({
+                        type: "color",
+                        name: `Facial Hair Color (#${clean.toUpperCase()})`,
+                        cost,
+                        id: fhId,
+                        colorItem: {
+                            itemId: fhId,
+                            itemLabel: fhLabel,
+                            colorHex: clean.toLowerCase(),
+                            colorLabel: preset?.label ?? `#${clean.toUpperCase()}`,
+                            cost,
+                            isCustom: !preset,
+                        },
+                    });
+                }
             }
         }
 
@@ -408,8 +546,27 @@ export function AvatarEditor({
             const next = new Set(prev);
             if (next.has(itemId)) {
                 next.delete(itemId);
+                // Also clean up any unowned color for this item if removing
+                setSelectedCartColors((prevColors) => {
+                    const nextColors = new Map(prevColors);
+                    for (const [k, v] of nextColors.entries()) {
+                        if (v.itemId === itemId) nextColors.delete(k);
+                    }
+                    return nextColors;
+                });
             } else {
                 next.add(itemId);
+                // If item is equipped and its color is unowned, also add that color to cart
+                for (const unowned of unownedEquippedList) {
+                    if (unowned.type === "color" && unowned.colorItem?.itemId === itemId) {
+                        setSelectedCartColors((prevColors) => {
+                            const nextColors = new Map(prevColors);
+                            const k = `${itemId}:${unowned.colorItem!.colorHex.toLowerCase()}`;
+                            nextColors.set(k, unowned.colorItem!);
+                            return nextColors;
+                        });
+                    }
+                }
             }
             return next;
         });
@@ -421,6 +578,45 @@ export function AvatarEditor({
             next.delete(itemId);
             return next;
         });
+
+        // If the student does not own itemId, remove its associated color from selectedCartColors
+        // (if the student already owned itemId, we do not touch independently selected color purchases)
+        const [slot, value] = itemId.split(":") as [AvatarSlotName, string];
+        const isItemOwned = checkItemIsOwned(slot, value);
+        if (!isItemOwned) {
+            setSelectedCartColors((prev) => {
+                const next = new Map(prev);
+                for (const [k, v] of next.entries()) {
+                    if (v.itemId === itemId) {
+                        next.delete(k);
+                    }
+                }
+                return next;
+            });
+        }
+
+        // If currently equipped, revert that slot to baseline
+        if (slot && currentConfig[slot] === value) {
+            setCurrentConfig((prev) => {
+                const reverted: Partial<StudentAvatarConfig> = {
+                    [slot]: savedBaseline[slot],
+                };
+                if (slot === "top") {
+                    reverted.hairColor = savedBaseline.hairColor;
+                    reverted.hatColor = savedBaseline.hatColor;
+                } else if (slot === "clothing") {
+                    reverted.clothesColor = savedBaseline.clothesColor;
+                    if (savedBaseline.clothing === "graphicShirt") {
+                        reverted.clothingGraphic = savedBaseline.clothingGraphic;
+                    }
+                } else if (slot === "accessories") {
+                    reverted.accessoriesColor = savedBaseline.accessoriesColor;
+                } else if (slot === "facialHair") {
+                    reverted.facialHairColor = savedBaseline.facialHairColor;
+                }
+                return { ...prev, ...reverted };
+            });
+        }
     };
 
     const toggleCartColor = (colorItem: SelectedColorCartItem) => {
@@ -429,6 +625,27 @@ export function AvatarEditor({
             const next = new Map(prev);
             if (next.has(key)) {
                 next.delete(key);
+                // If removing equipped color from cart, revert slot to savedBaseline
+                const [slot] = colorItem.itemId.split(":") as [AvatarSlotName, string];
+                const cleanHex = colorItem.colorHex.toLowerCase();
+                setCurrentConfig((current) => {
+                    const reverted: Partial<StudentAvatarConfig> = {};
+                    if (slot === "top") {
+                        if (current.hairColor.toLowerCase() === cleanHex) {
+                            reverted.hairColor = savedBaseline.hairColor;
+                        }
+                        if (current.hatColor?.toLowerCase() === cleanHex) {
+                            reverted.hatColor = savedBaseline.hatColor;
+                        }
+                    } else if (slot === "clothing" && current.clothesColor.toLowerCase() === cleanHex) {
+                        reverted.clothesColor = savedBaseline.clothesColor;
+                    } else if (slot === "accessories" && current.accessoriesColor.toLowerCase() === cleanHex) {
+                        reverted.accessoriesColor = savedBaseline.accessoriesColor;
+                    } else if (slot === "facialHair" && current.facialHairColor.toLowerCase() === cleanHex) {
+                        reverted.facialHairColor = savedBaseline.facialHairColor;
+                    }
+                    return { ...current, ...reverted };
+                });
             } else {
                 next.set(key, colorItem);
             }
@@ -443,7 +660,83 @@ export function AvatarEditor({
             next.delete(key);
             return next;
         });
+
+        // Revert equipped color if this removed color is currently equipped
+        const [slot] = itemId.split(":") as [AvatarSlotName, string];
+        const cleanHex = colorHex.toLowerCase();
+        setCurrentConfig((prev) => {
+            const reverted: Partial<StudentAvatarConfig> = {};
+            if (slot === "top") {
+                if (prev.hairColor.toLowerCase() === cleanHex) {
+                    reverted.hairColor = savedBaseline.hairColor;
+                }
+                if (prev.hatColor?.toLowerCase() === cleanHex) {
+                    reverted.hatColor = savedBaseline.hatColor;
+                }
+            } else if (slot === "clothing" && prev.clothesColor.toLowerCase() === cleanHex) {
+                reverted.clothesColor = savedBaseline.clothesColor;
+            } else if (slot === "accessories" && prev.accessoriesColor.toLowerCase() === cleanHex) {
+                reverted.accessoriesColor = savedBaseline.accessoriesColor;
+            } else if (slot === "facialHair" && prev.facialHairColor.toLowerCase() === cleanHex) {
+                reverted.facialHairColor = savedBaseline.facialHairColor;
+            }
+            return { ...prev, ...reverted };
+        });
     };
+
+    // Unified handler for selecting a color in ItemSpecificColorSection or color picker:
+    // Updates draft avatar and immediately tracks/syncs paid color selection in cart & review.
+    const handleSelectColor = React.useCallback(
+        (
+            slotColorKey:
+                | "hairColor"
+                | "hatColor"
+                | "clothesColor"
+                | "accessoriesColor"
+                | "facialHairColor",
+            hex: string,
+            itemId: string,
+            itemLabel: string,
+            presets: readonly ColorOption[]
+        ) => {
+            const cleanHex = normalizeHexColor(hex);
+            if (!cleanHex) return;
+            updateConfig(slotColorKey, cleanHex);
+
+            const isFree = isColorInherentFreeForItem(itemId, cleanHex);
+            const isOwned = isFree || ownedColorsMap.has(`${itemId}:${cleanHex.toLowerCase()}`);
+            const prevHex = currentConfig[slotColorKey];
+
+            setSelectedCartColors((prev) => {
+                const next = new Map(prev);
+                // Remove previous color on this item if it was in cart
+                if (prevHex) {
+                    next.delete(`${itemId}:${prevHex.toLowerCase()}`);
+                }
+
+                // If not owned, add the new paid color to cart
+                if (!isOwned) {
+                    const activePreset = presets.find(
+                        (p) => p.value.toLowerCase() === cleanHex.toLowerCase()
+                    );
+                    const cost = getAuthoritativeColorPrice(itemId, cleanHex);
+                    const colorLabel = activePreset?.label ?? `#${cleanHex.toUpperCase()}`;
+                    const isCustom = !activePreset;
+                    const newKey = `${itemId}:${cleanHex.toLowerCase()}`;
+                    next.set(newKey, {
+                        itemId,
+                        itemLabel,
+                        colorHex: cleanHex.toLowerCase(),
+                        colorLabel,
+                        cost,
+                        isCustom,
+                    });
+                }
+                return next;
+            });
+        },
+        [ownedColorsMap, currentConfig, updateConfig]
+    );
 
     // Calculate total cost for cart
     const cartSelectedItems = React.useMemo(() => {
@@ -463,11 +756,27 @@ export function AvatarEditor({
 
     // Auto-add unowned equipped items to cart when requested
     const addAllUnownedToCart = () => {
-        for (const item of unownedEquippedList) {
-            if (item.type === "item") {
-                setSelectedCartItemIds((prev) => new Set(prev).add(item.id));
+        setSelectedCartItemIds((prev) => {
+            const next = new Set(prev);
+            for (const item of unownedEquippedList) {
+                if (item.type === "item") {
+                    next.add(item.id);
+                }
             }
-        }
+            return next;
+        });
+
+        setSelectedCartColors((prev) => {
+            const next = new Map(prev);
+            for (const item of unownedEquippedList) {
+                if (item.type === "color" && item.colorItem) {
+                    const key = `${item.colorItem.itemId}:${item.colorItem.colorHex.toLowerCase()}`;
+                    next.set(key, item.colorItem);
+                }
+            }
+            return next;
+        });
+
         setIsCartDialogOpen(true);
     };
 
@@ -546,42 +855,6 @@ export function AvatarEditor({
             });
         } finally {
             setIsPurchasing(false);
-        }
-    };
-
-    const updateConfig = <K extends keyof StudentAvatarConfig>(
-        key: K,
-        value: StudentAvatarConfig[K]
-    ) => {
-        setCurrentConfig((prev) => {
-            if (prev[key] === value) return prev;
-            return { ...prev, [key]: value };
-        });
-        setStatusMessage({ type: null, text: "" });
-
-        if (
-            key === "hairColor" ||
-            key === "clothesColor" ||
-            key === "accessoriesColor" ||
-            key === "facialHairColor"
-        ) {
-            latestColorsRef.current = {
-                ...latestColorsRef.current,
-                [key]: value as string,
-            };
-            if (debounceTimerRef.current) {
-                clearTimeout(debounceTimerRef.current);
-            }
-            debounceTimerRef.current = setTimeout(() => {
-                const latest = latestColorsRef.current;
-                setThumbnailColors({
-                    hairColor: latest.hairColor,
-                    clothesColor: latest.clothesColor,
-                    accessoriesColor: latest.accessoriesColor,
-                    facialHairColor: latest.facialHairColor,
-                });
-                debounceTimerRef.current = null;
-            }, 200);
         }
     };
 
@@ -1255,7 +1528,15 @@ export function AvatarEditor({
                                     ownedColorsMap={ownedColorsMap}
                                     customColors={customColorsByItem.get(`top:${currentConfig.top}`) ?? []}
                                     cartColors={selectedCartColors}
-                                    onSelectColor={(hex) => updateConfig("hairColor", hex)}
+                                    onSelectColor={(hex) =>
+                                        handleSelectColor(
+                                            "hairColor",
+                                            hex,
+                                            `top:${currentConfig.top}`,
+                                            "Hairstyle",
+                                            HAIR_COLOR_OPTIONS
+                                        )
+                                    }
                                     onToggleCartColor={toggleCartColor}
                                 />
 
@@ -1393,7 +1674,15 @@ export function AvatarEditor({
                                                         customColorsByItem.get(`top:${currentConfig.top}`) ?? []
                                                     }
                                                     cartColors={selectedCartColors}
-                                                    onSelectColor={(hex) => updateConfig("hatColor", hex)}
+                                                    onSelectColor={(hex) =>
+                                                        handleSelectColor(
+                                                            "hatColor",
+                                                            hex,
+                                                            `top:${currentConfig.top}`,
+                                                            "Headwear / Hat",
+                                                            HAT_COLOR_OPTIONS
+                                                        )
+                                                    }
                                                     onToggleCartColor={toggleCartColor}
                                                     className="mt-3"
                                                 />
@@ -1473,7 +1762,13 @@ export function AvatarEditor({
                                                 }
                                                 cartColors={selectedCartColors}
                                                 onSelectColor={(hex) =>
-                                                    updateConfig("facialHairColor", hex)
+                                                    handleSelectColor(
+                                                        "facialHairColor",
+                                                        hex,
+                                                        `facialHair:${currentConfig.facialHair}`,
+                                                        "Beard / Moustache",
+                                                        HAIR_COLOR_OPTIONS
+                                                    )
                                                 }
                                                 onToggleCartColor={toggleCartColor}
                                                 className="mt-3"
@@ -1740,7 +2035,15 @@ export function AvatarEditor({
                                         customColorsByItem.get(`clothing:${currentConfig.clothing}`) ?? []
                                     }
                                     cartColors={selectedCartColors}
-                                    onSelectColor={(hex) => updateConfig("clothesColor", hex)}
+                                    onSelectColor={(hex) =>
+                                        handleSelectColor(
+                                            "clothesColor",
+                                            hex,
+                                            `clothing:${currentConfig.clothing}`,
+                                            "Outfit",
+                                            CLOTHES_COLOR_OPTIONS
+                                        )
+                                    }
                                     onToggleCartColor={toggleCartColor}
                                 />
 
@@ -1906,7 +2209,13 @@ export function AvatarEditor({
                                             }
                                             cartColors={selectedCartColors}
                                             onSelectColor={(hex) =>
-                                                updateConfig("accessoriesColor", hex)
+                                                handleSelectColor(
+                                                    "accessoriesColor",
+                                                    hex,
+                                                    `accessories:${currentConfig.accessories}`,
+                                                    "Eyewear Frame",
+                                                    ACCESSORIES_COLOR_OPTIONS
+                                                )
                                             }
                                             onToggleCartColor={toggleCartColor}
                                             className="mt-3"

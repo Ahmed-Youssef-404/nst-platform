@@ -8,8 +8,8 @@ import {
     Trash2,
     Loader2,
     AlertCircle,
-    CheckCircle2,
     Sparkles,
+    X,
 } from "lucide-react";
 import {
     AlertDialog,
@@ -21,7 +21,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { CatalogItem } from "@/lib/avatar/catalog";
+import { getCatalogItemById, type CatalogItem } from "@/lib/avatar/catalog";
+import { getItemThumbnail } from "@/lib/avatar/thumbnails";
 
 export interface SelectedColorCartItem {
     itemId: string;
@@ -55,7 +56,6 @@ export function PurchaseReviewDialog({
     spendableBalance,
     onConfirmPurchase,
     isPurchasing,
-    purchaseSuccess,
 }: PurchaseReviewDialogProps) {
     const totalItemsCount = selectedItems.length + selectedColors.length;
 
@@ -69,31 +69,92 @@ export function PurchaseReviewDialog({
     const isInsufficient = remainingBalance < 0;
     const shortfall = Math.abs(remainingBalance);
 
+    // Guard against outside clicks and mobile back dismissals.
+    // Only explicit intentional actions (close button, Cancel, or successful checkout) close the panel.
+    const handleOpenChange = React.useCallback(
+        (nextOpen: boolean, eventDetails?: { reason?: string }) => {
+            if (!nextOpen) {
+                const reason = eventDetails?.reason;
+                if (
+                    reason === "outside-press" ||
+                    reason === "close-watcher" ||
+                    reason === "escape-key"
+                ) {
+                    return;
+                }
+            }
+            onOpenChange(nextOpen);
+        },
+        [onOpenChange]
+    );
+
+    // Mobile Back navigation protection:
+    // When the review panel is open, push a history entry so mobile Back does not navigate away from the editor
+    // or dismiss the panel. The student remains in the avatar editor with the review panel intact.
+    React.useEffect(() => {
+        if (!open) return;
+
+        const currentState = window.history.state;
+        window.history.pushState({ ...currentState, nstDialog: "purchase-review" }, "");
+
+        let isExplicitClose = false;
+
+        const handlePopState = () => {
+            if (!isExplicitClose) {
+                // User pressed mobile back while review dialog is open; re-push to preserve dialog & editor state
+                window.history.pushState({ ...currentState, nstDialog: "purchase-review" }, "");
+            }
+        };
+
+        window.addEventListener("popstate", handlePopState);
+
+        return () => {
+            isExplicitClose = true;
+            window.removeEventListener("popstate", handlePopState);
+            if (window.history.state?.nstDialog === "purchase-review") {
+                window.history.back();
+            }
+        };
+    }, [open]);
+
     return (
-        <AlertDialog open={open} onOpenChange={onOpenChange}>
+        <AlertDialog open={open} onOpenChange={handleOpenChange}>
             <AlertDialogContent className="border border-gold-500/30 bg-space-900/98 backdrop-blur-xl text-starlight-100 shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col p-4 sm:p-6 overflow-hidden">
                 <AlertDialogHeader className="border-b border-border/60 pb-3 shrink-0 text-left">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <div className="flex size-9 items-center justify-center rounded-xl bg-gold-500/15 text-gold-400 border border-gold-500/30">
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gold-500/15 text-gold-400 border border-gold-500/30">
                                 <ShoppingBag className="size-4" />
                             </div>
-                            <div>
-                                <AlertDialogTitle className="font-display text-base font-bold text-starlight-100">
+                            <div className="min-w-0">
+                                <AlertDialogTitle className="font-display text-base font-bold text-starlight-100 truncate">
                                     Review Avatar Purchase
                                 </AlertDialogTitle>
-                                <AlertDialogDescription className="text-xs text-starlight-400">
+                                <AlertDialogDescription className="text-xs text-starlight-400 truncate">
                                     {totalItemsCount} {totalItemsCount === 1 ? "product" : "products"} selected for bulk checkout
                                 </AlertDialogDescription>
                             </div>
                         </div>
 
-                        {/* Current spendable balance badge */}
-                        <div className="flex items-center gap-1.5 rounded-xl border border-gold-500/30 bg-space-850 px-2.5 py-1 shadow-xs">
-                            <Coins className="size-3.5 text-gold-400" />
-                            <span className="font-mono text-xs font-bold text-gold-300">
-                                {spendableBalance} ST
-                            </span>
+                        <div className="flex items-center gap-2 shrink-0">
+                            {/* Current spendable balance badge */}
+                            <div className="flex items-center gap-1.5 rounded-xl border border-gold-500/30 bg-space-850 px-2.5 py-1 shadow-xs">
+                                <Coins className="size-3.5 text-gold-400" />
+                                <span className="font-mono text-xs font-bold text-gold-300">
+                                    {spendableBalance} ST
+                                </span>
+                            </div>
+
+                            {/* Explicit intentional Close button */}
+                            <button
+                                type="button"
+                                onClick={() => onOpenChange(false)}
+                                disabled={isPurchasing}
+                                title="Close review"
+                                className="rounded-lg p-1.5 text-starlight-400 hover:bg-space-850 hover:text-starlight-100 transition-colors disabled:opacity-50"
+                            >
+                                <X className="size-4" />
+                            </button>
                         </div>
                     </div>
                 </AlertDialogHeader>
@@ -107,102 +168,154 @@ export function PurchaseReviewDialog({
                     ) : (
                         <>
                             {/* Selected Items */}
-                            {selectedItems.map((item) => (
-                                <div
-                                    key={item.id}
-                                    className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-space-850/60 p-2.5 transition-colors hover:border-gold-500/30 hover:bg-space-850"
-                                >
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-space-950 border border-border/40 text-gold-400 font-bold text-xs">
-                                            <Sparkles className="size-4 text-gold-400" />
-                                        </div>
-                                        <div className="min-w-0">
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="truncate text-xs font-semibold text-starlight-100">
-                                                    {item.name}
-                                                </span>
-                                                <span
-                                                    className={cn(
-                                                        "rounded-sm px-1.5 py-0.2 text-[9px] font-bold uppercase",
-                                                        item.rarity === "EPIC"
-                                                            ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
-                                                            : item.rarity === "RARE"
-                                                            ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
-                                                            : "bg-starlight-500/10 text-starlight-300 border border-starlight-500/20"
-                                                    )}
-                                                >
-                                                    {item.rarity}
+                            {selectedItems.map((item) => {
+                                const thumbnailUri = getItemThumbnail(item.slot, item.value);
+
+                                return (
+                                    <div
+                                        key={item.id}
+                                        className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-space-850/60 p-2.5 transition-colors hover:border-gold-500/30 hover:bg-space-850"
+                                    >
+                                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                                            {/* Accurate Item Visual Thumbnail */}
+                                            <div className="relative flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-space-950 border border-border/50 p-1">
+                                                {thumbnailUri ? (
+                                                    // eslint-disable-next-line @next/next/no-img-element
+                                                    <img
+                                                        src={thumbnailUri}
+                                                        alt={item.name}
+                                                        className="size-full select-none object-contain"
+                                                    />
+                                                ) : (
+                                                    <Sparkles className="size-4 text-gold-400" />
+                                                )}
+                                            </div>
+
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                    <span className="truncate text-xs font-semibold text-starlight-100">
+                                                        {item.name}
+                                                    </span>
+                                                    <span
+                                                        className={cn(
+                                                            "rounded-xs px-1.5 py-0.5 text-[9px] font-bold uppercase",
+                                                            item.rarity === "EPIC"
+                                                                ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
+                                                                : item.rarity === "RARE"
+                                                                ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                                                                : "bg-starlight-500/10 text-starlight-300 border border-starlight-500/20"
+                                                        )}
+                                                    >
+                                                        {item.rarity}
+                                                    </span>
+                                                </div>
+                                                <span className="block text-[10px] text-starlight-400 capitalize truncate">
+                                                    {item.slot} item
                                                 </span>
                                             </div>
-                                            <span className="block text-[10px] text-starlight-400 capitalize">
-                                                {item.slot} item
-                                            </span>
                                         </div>
-                                    </div>
 
-                                    <div className="flex items-center gap-3 shrink-0">
-                                        <div className="flex items-baseline gap-1">
-                                            <span className="font-mono text-xs font-bold text-gold-300">
-                                                {item.cost}
-                                            </span>
-                                            <span className="text-[10px] text-gold-500 font-semibold uppercase">
-                                                ST
-                                            </span>
+                                        <div className="flex items-center gap-2.5 shrink-0">
+                                            <div className="flex items-baseline gap-1">
+                                                <span className="font-mono text-xs font-bold text-gold-300">
+                                                    {item.cost}
+                                                </span>
+                                                <span className="text-[10px] text-gold-500 font-semibold uppercase">
+                                                    ST
+                                                </span>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => onRemoveItem(item.id)}
+                                                disabled={isPurchasing}
+                                                title="Remove item"
+                                                className="rounded-lg p-1.5 text-starlight-400 hover:bg-red-500/15 hover:text-red-400 transition-colors disabled:opacity-50"
+                                            >
+                                                <Trash2 className="size-3.5" />
+                                            </button>
                                         </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => onRemoveItem(item.id)}
-                                            title="Remove item"
-                                            className="rounded-lg p-1 text-starlight-400 hover:bg-red-500/15 hover:text-red-400 transition-colors"
-                                        >
-                                            <Trash2 className="size-3.5" />
-                                        </button>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
 
-                            {/* Selected Colors */}
-                            {selectedColors.map((color) => (
-                                <div
-                                    key={`${color.itemId}:${color.colorHex}`}
-                                    className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-space-850/60 p-2.5 transition-colors hover:border-gold-500/30 hover:bg-space-850"
-                                >
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        <span
-                                            className="size-8 shrink-0 rounded-full border border-black/40 shadow-xs"
-                                            style={{ backgroundColor: `#${color.colorHex}` }}
-                                        />
-                                        <div className="min-w-0">
-                                            <span className="truncate text-xs font-semibold text-starlight-100 block">
-                                                {color.colorLabel}
-                                                {color.isCustom ? " (Custom Color)" : ""}
-                                            </span>
-                                            <span className="block text-[10px] text-starlight-400 truncate">
-                                                For {color.itemLabel}
-                                            </span>
-                                        </div>
-                                    </div>
+                            {/* Selected Paid Colors */}
+                            {selectedColors.map((color) => {
+                                const associatedItem = getCatalogItemById(color.itemId);
+                                const colorThumbnailUri = associatedItem
+                                    ? getItemThumbnail(
+                                          associatedItem.slot,
+                                          associatedItem.value,
+                                          color.colorHex
+                                      )
+                                    : "";
 
-                                    <div className="flex items-center gap-3 shrink-0">
-                                        <div className="flex items-baseline gap-1">
-                                            <span className="font-mono text-xs font-bold text-gold-300">
-                                                {color.cost}
-                                            </span>
-                                            <span className="text-[10px] text-gold-500 font-semibold uppercase">
-                                                ST
-                                            </span>
+                                return (
+                                    <div
+                                        key={`${color.itemId}:${color.colorHex}`}
+                                        className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-space-850/60 p-2.5 transition-colors hover:border-gold-500/30 hover:bg-space-850"
+                                    >
+                                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                                            {/* Item Thumbnail with exact Color Swatch Badge */}
+                                            <div className="relative flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-space-950 border border-border/50 p-1">
+                                                {colorThumbnailUri ? (
+                                                    // eslint-disable-next-line @next/next/no-img-element
+                                                    <img
+                                                        src={colorThumbnailUri}
+                                                        alt={color.itemLabel}
+                                                        className="size-full select-none object-contain"
+                                                    />
+                                                ) : null}
+                                                <span
+                                                    className="absolute -bottom-1 -right-1 size-5 rounded-full border-2 border-space-900 shadow-md ring-1 ring-black/40 shrink-0"
+                                                    style={{ backgroundColor: `#${color.colorHex}` }}
+                                                    title={`#${color.colorHex.toUpperCase()}`}
+                                                />
+                                            </div>
+
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                    <span className="truncate text-xs font-semibold text-starlight-100">
+                                                        {color.colorLabel}
+                                                    </span>
+                                                    <span
+                                                        className={cn(
+                                                            "rounded-xs px-1.5 py-0.5 text-[9px] font-bold uppercase",
+                                                            color.isCustom
+                                                                ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                                                                : "bg-gold-500/20 text-gold-300 border border-gold-500/30"
+                                                        )}
+                                                    >
+                                                        {color.isCustom ? "Custom Color" : "Color"}
+                                                    </span>
+                                                </div>
+                                                <span className="block text-[10px] text-starlight-400 truncate">
+                                                    For {associatedItem?.name ?? color.itemLabel}
+                                                </span>
+                                            </div>
                                         </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => onRemoveColor(color.itemId, color.colorHex)}
-                                            title="Remove color"
-                                            className="rounded-lg p-1 text-starlight-400 hover:bg-red-500/15 hover:text-red-400 transition-colors"
-                                        >
-                                            <Trash2 className="size-3.5" />
-                                        </button>
+
+                                        <div className="flex items-center gap-2.5 shrink-0">
+                                            <div className="flex items-baseline gap-1">
+                                                <span className="font-mono text-xs font-bold text-gold-300">
+                                                    {color.cost}
+                                                </span>
+                                                <span className="text-[10px] text-gold-500 font-semibold uppercase">
+                                                    ST
+                                                </span>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => onRemoveColor(color.itemId, color.colorHex)}
+                                                disabled={isPurchasing}
+                                                title="Remove color"
+                                                className="rounded-lg p-1.5 text-starlight-400 hover:bg-red-500/15 hover:text-red-400 transition-colors disabled:opacity-50"
+                                            >
+                                                <Trash2 className="size-3.5" />
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </>
                     )}
                 </div>
@@ -218,7 +331,7 @@ export function PurchaseReviewDialog({
                         <span>Total Purchase Cost</span>
                         <div className="flex items-baseline gap-1">
                             <span className="font-mono text-sm text-gold-400">{totalCost}</span>
-                            <span className="text-[10px] text-gold-500">ST</span>
+                            <span className="text-[10px] text-gold-500 font-semibold uppercase">ST</span>
                         </div>
                     </div>
 
@@ -282,3 +395,4 @@ export function PurchaseReviewDialog({
         </AlertDialog>
     );
 }
+
