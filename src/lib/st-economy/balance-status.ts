@@ -12,7 +12,7 @@
 
 import { BalanceStatus, BalanceZone } from "@/types/types";
 
-export const DEFAULT_WARNING_THRESHOLD = 300;
+export const DEFAULT_WARNING_THRESHOLD = 0;
 
 export function getBalanceStatus(
     levelSt: number,
@@ -21,9 +21,9 @@ export function getBalanceStatus(
 ): BalanceStatus {
     let zone: BalanceZone = "normal";
 
-    if (levelSt <= 0) {
+    if (levelSt < 0) {
         zone = "danger";
-    } else if (levelSt <= warningThreshold) {
+    } else if (levelSt < warningThreshold) {
         zone = "warning";
     }
 
