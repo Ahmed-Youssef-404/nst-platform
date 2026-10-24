@@ -10,10 +10,7 @@ import type { Metadata } from "next";
 import {
     Calendar,
     CalendarCheck,
-    Hash,
     History,
-    Mail,
-    Sparkles,
     Trophy,
     UserRound,
     Compass,
@@ -23,7 +20,7 @@ import { getCurrentStudentId } from "@/lib/auth/get-current-user";
 import { getStudentProfileData } from "@/lib/data/get-profile";
 import { formatDate } from "@/lib/format-date";
 import type { StudentProfileData } from "@/types/types";
-import { ProfileHeader } from "@/components/profile/profile-header";
+import { StudentProfileHeader } from "@/components/profile/student-profile-header";
 import { ProfileSection } from "@/components/profile/profile-section";
 import { InfoList, InfoRow } from "@/components/profile/info-row";
 import { LearningJourneySection } from "@/components/profile/learning-journey-section";
@@ -71,27 +68,22 @@ export default async function StudentProfilePage() {
         ...(isBeginner
             ? []
             : [
-                  {
-                      href: "/student/levels",
-                      label: "Level History",
-                      description: "Past levels & archives",
-                      icon: History,
-                  },
-              ]),
+                {
+                    href: "/student/levels",
+                    label: "Level History",
+                    description: "Past levels & archives",
+                    icon: History,
+                },
+            ]),
     ];
 
     return (
-        <div className="mx-auto max-w-4xl space-y-6">
-            <ProfileHeader
+        <div className="mx-auto max-w-7xl space-y-6">
+            <StudentProfileHeader
                 name={profile.name}
-                roleLabel="Student Cadet"
-                roleIcon={Sparkles}
-                initialsFallback="ST"
-                description="Your place in the NST learning journey."
-                chips={[
-                    { icon: Hash, label: "Student code", value: profile.studentCode, mono: true },
-                    { icon: Mail, label: "Email", value: profile.email },
-                ]}
+                studentCode={profile.studentCode}
+                email={profile.email}
+                initialAvatarConfig={profile.avatarConfig}
             />
 
             <ProfileSection

@@ -13,6 +13,7 @@ import type {
     WeekResourceStatusCode,
     FirstSolverSuggestion,
 } from "@/types/types";
+import type { StudentAvatarConfig } from "@/types/avatar";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -69,6 +70,7 @@ export interface StudentGradingRow {
     } | null;
     isLocked: boolean;
     isFinalized: boolean;
+    avatarConfig?: StudentAvatarConfig | null;
     tasks: StudentTaskGradingData[];
 }
 
@@ -102,7 +104,7 @@ export async function getWeekGradingData(
                     batch: true,
                     students: {
                         orderBy: { name: "asc" },
-                        select: { id: true, name: true, beginnerSt: true },
+                        select: { id: true, name: true, beginnerSt: true, avatarConfig: true },
                     },
                 },
             },
@@ -210,6 +212,7 @@ export async function getWeekGradingData(
             studentId: student.id,
             studentName: student.name,
             beginnerSt: student.beginnerSt ?? 0,
+            avatarConfig: (student.avatarConfig as unknown as StudentAvatarConfig) ?? null,
             resource: resource
                 ? {
                     id: resource.id,

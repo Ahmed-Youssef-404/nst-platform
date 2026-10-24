@@ -10,6 +10,8 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { getBalanceStatus } from "@/lib/st-economy/balance-status";
 import type { STTransactionResult } from "@/types/types";
 
+import type { StudentAvatarConfig } from "@/types/avatar";
+
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
@@ -20,6 +22,7 @@ export async function getStudentBalance(studentId: string) {
             name: true,
             avgSt: true,
             beginnerSt: true,
+            avatarConfig: true,
             group: {
                 select: {
                     type: true,
@@ -37,10 +40,13 @@ export async function getStudentBalance(studentId: string) {
         },
     });
 
+    const avatarConfig = (student.avatarConfig as unknown as StudentAvatarConfig) ?? null;
+
     if (student.group.type === "BEGINNER") {
         const beginnerSt = student.beginnerSt ?? 0;
         return {
             name: student.name,
+            avatarConfig,
             ...getBalanceStatus(beginnerSt, student.avgSt),
         };
     }
@@ -56,6 +62,7 @@ export async function getStudentBalance(studentId: string) {
 
     return {
         name: student.name,
+        avatarConfig,
         ...getBalanceStatus(levelSt, student.avgSt),
     };
 }

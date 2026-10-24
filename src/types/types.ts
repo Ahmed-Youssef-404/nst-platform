@@ -1,6 +1,8 @@
 // src/types/types.ts
 // Centralized type definitions for the app
 
+import type { StudentAvatarConfig } from "@/types/avatar";
+
 export type UserRole = "super_admin" | "instructor" | "student";
 
 export interface CurrentUser {
@@ -675,6 +677,8 @@ export interface StudentProfileData {
     // BEGINNER only
     ongoingWeek: { id: string; name: string } | null;
     beginnerSt: number;
+    // Avatar
+    avatarConfig: StudentAvatarConfig | null;
 }
 
 export type ProfileActionResult<K extends string = string> =
@@ -706,6 +710,7 @@ export interface SessionFeedbackDetail {
     rating: number;
     comment: string | null;
     createdAt: Date;
+    avatarConfig?: StudentAvatarConfig | null;
 }
 
 export interface SessionFeedbackStats {

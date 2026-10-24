@@ -19,6 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { MarkdownEditor } from "@/components/ui/markdown-editor";
 import { MarkdownContent } from "@/components/markdown-content";
 import { formatDateTime } from "@/lib/format-date";
+import { StudentAvatar } from "@/components/avatar/student-avatar";
 import {
     Star,
     Search,
@@ -543,9 +544,12 @@ function RosterRow({
         <div className="rounded-xl border border-border/60 bg-space-950/40 p-3 hover:border-gold-500/25 transition-all">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
-                    <div className="size-8 rounded-full bg-space-850 border border-border/80 flex items-center justify-center font-mono text-xs font-bold text-starlight-200 shrink-0">
-                        {entry.studentName.slice(0, 2).toUpperCase()}
-                    </div>
+                    <StudentAvatar
+                        avatarConfig={entry.avatarConfig}
+                        name={entry.studentName}
+                        size="sm"
+                        className="size-8 shrink-0"
+                    />
                     <div>
                         <span className="text-xs font-bold text-starlight-100 block">
                             {entry.studentName}
@@ -692,6 +696,12 @@ function SubmissionsSection({
                                 disabled={!row.submission}
                             >
                                 <div className="flex items-center gap-2.5">
+                                    <StudentAvatar
+                                        avatarConfig={row.avatarConfig}
+                                        name={row.studentName}
+                                        size="xs"
+                                        className="size-6 shrink-0"
+                                    />
                                     <span className="text-xs font-semibold text-starlight-100">
                                         {row.studentName}
                                     </span>
@@ -1424,13 +1434,21 @@ function SessionFeedbackSection({
                                     className="flex flex-col justify-between rounded-xl border border-border/70 bg-space-950/60 p-4 space-y-3 hover:border-gold-500/30 transition-colors"
                                 >
                                     <div className="flex items-start justify-between gap-3">
-                                        <div>
-                                            <p className="text-xs font-bold text-starlight-100">
-                                                {fb.studentName}
-                                            </p>
-                                            <p className="text-[11px] text-starlight-400 font-mono">
-                                                {fb.studentEmail}
-                                            </p>
+                                        <div className="flex items-center gap-2.5 min-w-0">
+                                            <StudentAvatar
+                                                avatarConfig={fb.avatarConfig}
+                                                name={fb.studentName}
+                                                size="sm"
+                                                className="size-8 shrink-0"
+                                            />
+                                            <div className="min-w-0">
+                                                <p className="text-xs font-bold text-starlight-100 truncate">
+                                                    {fb.studentName}
+                                                </p>
+                                                <p className="text-[11px] text-starlight-400 font-mono truncate">
+                                                    {fb.studentEmail}
+                                                </p>
+                                            </div>
                                         </div>
 
                                         <span

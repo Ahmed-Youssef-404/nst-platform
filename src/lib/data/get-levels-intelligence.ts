@@ -14,6 +14,7 @@
 
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import type { StudentAvatarConfig } from "@/types/avatar";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -38,6 +39,7 @@ export interface LevelsIntelligenceStudentRow {
     // Task aggregates (scoped to their group's active level)
     tasksAvailable: number;
     tasksSubmitted: number;
+    avatarConfig?: StudentAvatarConfig | null;
 }
 
 export interface LevelsIntelligenceInstructorRow {
@@ -348,6 +350,7 @@ export async function getLevelsIntelligence(): Promise<LevelsIntelligenceData> {
                         beginnerSt: student.beginnerSt,
                         createdAt: student.createdAt,
                         currentLevelSt: currentLevelBalance,
+                        avatarConfig: (student.avatarConfig as unknown as StudentAvatarConfig) ?? null,
                         totalSubmissions: totalSubs,
                         gradedSubmissions: gradedSubs,
                         ungradedSubmissions: totalSubs - gradedSubs,

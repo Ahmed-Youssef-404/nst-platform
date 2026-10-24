@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { StudentAvatar } from "@/components/avatar/student-avatar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createLevelAction } from "@/lib/actions/level-management";
@@ -775,7 +776,6 @@ function StudentRow({ student, isIntermediate, onSelect }: {
     const progressPct = student.tasksAvailable > 0
         ? Math.round((student.tasksSubmitted / student.tasksAvailable) * 100)
         : null;
-    const initials = student.name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
 
     return (
         <button type="button" onClick={onSelect}
@@ -784,9 +784,12 @@ function StudentRow({ student, isIntermediate, onSelect }: {
             <div className="md:hidden space-y-2">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
-                        <Avatar className="size-8">
-                            <AvatarFallback className="bg-gold-500/15 text-gold-300 text-xs font-bold">{initials}</AvatarFallback>
-                        </Avatar>
+                        <StudentAvatar
+                            avatarConfig={student.avatarConfig}
+                            name={student.name}
+                            size="sm"
+                            className="size-8 shrink-0"
+                        />
                         <div>
                             <p className="text-sm font-semibold text-starlight-100 group-hover:text-gold-300 transition-colors">{student.name}</p>
                             <p className="text-[10px] text-starlight-400 font-mono">{student.id}</p>
@@ -803,9 +806,12 @@ function StudentRow({ student, isIntermediate, onSelect }: {
             {/* Desktop */}
             <div className="hidden md:grid grid-cols-[1fr_180px_100px_100px_40px] gap-4 items-center">
                 <div className="flex items-center gap-3 min-w-0">
-                    <Avatar className="size-8 shrink-0">
-                        <AvatarFallback className="bg-gold-500/15 text-gold-300 text-xs font-bold">{initials}</AvatarFallback>
-                    </Avatar>
+                    <StudentAvatar
+                        avatarConfig={student.avatarConfig}
+                        name={student.name}
+                        size="sm"
+                        className="size-8 shrink-0"
+                    />
                     <div className="min-w-0">
                         <p className="text-sm font-semibold text-starlight-100 group-hover:text-gold-300 transition-colors truncate">{student.name}</p>
                         <p className="text-[10px] text-starlight-400 font-mono truncate">{student.email}</p>
@@ -878,16 +884,18 @@ function StudentDetailView({ student, group }: { student: LevelsIntelligenceStud
     const progressPct = student.tasksAvailable > 0
         ? Math.round((student.tasksSubmitted / student.tasksAvailable) * 100)
         : null;
-    const initials = student.name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
 
     return (
         <div className="space-y-6">
             <Card className="border-border/70 bg-space-900/70">
                 <CardContent className="p-6">
                     <div className="flex flex-col sm:flex-row sm:items-start gap-5">
-                        <Avatar className="size-16 shrink-0">
-                            <AvatarFallback className="bg-gold-500/15 text-gold-300 text-2xl font-bold">{initials}</AvatarFallback>
-                        </Avatar>
+                        <StudentAvatar
+                            avatarConfig={student.avatarConfig}
+                            name={student.name}
+                            size="xl"
+                            className="size-42 shrink-0 border-2 border-gold-500/40 shadow-gold"
+                        />
                         <div className="flex-1 space-y-3">
                             <div>
                                 <h2 className="font-display text-xl font-bold text-starlight-100">{student.name}</h2>
