@@ -196,7 +196,7 @@ export function PurchaseReviewDialog({
                                                     <span className="truncate text-xs font-semibold text-starlight-100">
                                                         {item.name}
                                                     </span>
-                                                    <span
+                                                    {/* <span
                                                         className={cn(
                                                             "rounded-xs px-1.5 py-0.5 text-[9px] font-bold uppercase",
                                                             item.rarity === "EPIC"
@@ -207,7 +207,7 @@ export function PurchaseReviewDialog({
                                                         )}
                                                     >
                                                         {item.rarity}
-                                                    </span>
+                                                    </span> */}
                                                 </div>
                                                 <span className="block text-[10px] text-starlight-400 capitalize truncate">
                                                     {item.slot} item
@@ -243,10 +243,10 @@ export function PurchaseReviewDialog({
                                 const associatedItem = getCatalogItemById(color.itemId);
                                 const colorThumbnailUri = associatedItem
                                     ? getItemThumbnail(
-                                          associatedItem.slot,
-                                          associatedItem.value,
-                                          color.colorHex
-                                      )
+                                        associatedItem.slot,
+                                        associatedItem.value,
+                                        color.colorHex
+                                    )
                                     : "";
 
                                 return (
