@@ -12,6 +12,7 @@ import {
     BookOpen,
     PlusCircle,
     Coins,
+    Users,
 } from "lucide-react";
 import {
     Sidebar,
@@ -110,6 +111,21 @@ function getInstructorSubLinks(pathname: string) {
         }
     }
 
+    if (pathname.startsWith("/instructor/students/")) {
+        const parts = pathname.split("/");
+        const studentId = parts[3];
+        if (studentId) {
+            return [
+                {
+                    href: `/instructor/students/${studentId}`,
+                    label: "Student 360",
+                    icon: Coins,
+                    isActive: true,
+                },
+            ];
+        }
+    }
+
     return [];
 }
 
@@ -168,8 +184,19 @@ export function InstructorSidebar({
 
                 <SidebarMenu className="gap-1.5">
                     {NAV_ITEMS.map((item) => {
-                        // sub-links belong to the main dashboard item only
-                        const subLinks = item.href === "/instructor" ? getInstructorSubLinks(pathname) : [];
+                        const subLinks =
+                            item.href === "/instructor"
+                                ? getInstructorSubLinks(pathname)
+                                : item.href === "/instructor/students" && pathname.startsWith("/instructor/students/")
+                                  ? [
+                                        {
+                                            href: pathname,
+                                            label: "Student 360",
+                                            icon: Users,
+                                            isActive: true,
+                                        },
+                                    ]
+                                  : [];
                         const isExactActive = pathname === item.href;
                         const isParentActive =
                             pathname.startsWith(item.href) &&

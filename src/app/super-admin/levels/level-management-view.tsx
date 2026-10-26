@@ -6,7 +6,7 @@ import {
     Sparkles, Layers, Plus, AlertTriangle, Calendar,
     Search, BookOpen, Compass, Users, GraduationCap, ChevronRight,
     ChevronDown, FileText, X, ArrowLeft, Coins, Hash, Mail, Target,
-    Activity, Globe, Filter, SortAsc, SortDesc, Eye, CheckCircle2,
+    Activity, Globe, Filter, SortAsc, SortDesc, Eye, CheckCircle2, Loader2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -21,6 +21,9 @@ import { StudentAvatar } from "@/components/avatar/student-avatar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createLevelAction } from "@/lib/actions/level-management";
+import { Student360View } from "@/components/student-360/student-360-view";
+import { getStudent360Action } from "@/lib/actions/student-360";
+import type { Student360ProfileData } from "@/lib/data/get-student-360";
 import type { BatchWithGroupsAndLevels } from "@/types/types";
 import { formatDate } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
@@ -877,130 +880,61 @@ function InstructorCard({ instructor, onSelect }: { instructor: LevelsIntelligen
     );
 }
 
-// ── STUDENT DETAIL VIEW ───────────────────────────────────────────────────────
+// ── STUDENT DETAIL VIEW (360° PROFILE) ───────────────────────────────────────
 
 function StudentDetailView({ student, group }: { student: LevelsIntelligenceStudentRow; group: LevelsIntelligenceGroupRow }) {
-    const isIntermediate = group.type === "INTERMEDIATE";
-    const progressPct = student.tasksAvailable > 0
-        ? Math.round((student.tasksSubmitted / student.tasksAvailable) * 100)
-        : null;
+    const [profileData, setProfileData] = useState<Student360ProfileData | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const loadProfile = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await getStudent360Action(student.id);
+            if (!res.success) {
+                setError(res.error || "Failed to load student 360 profile.");
+            } else {
+                setProfileData(res.data);
+            }
+        } catch (err: any) {
+            setError(err.message || "An unexpected error occurred while loading profile.");
+        } finally {
+            setLoading(false);
+        }
+    }, [student.id]);
+
+    useEffect(() => {
+        loadProfile();
+    }, [loadProfile]);
+
+    if (loading) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[400px] rounded-2xl border border-border/70 bg-space-950/60 p-12 text-center">
+                <Loader2 className="size-10 animate-spin text-gold-400 mb-4" />
+                <h3 className="font-display text-lg font-bold text-starlight-100">Loading Student 360° Profile</h3>
+                <p className="text-xs text-starlight-400 mt-1">Aggregating ST transactions, grading rubrics, attendance records, and rankings...</p>
+            </div>
+        );
+    }
+
+    if (error || !profileData) {
+        return (
+            <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-8 text-center space-y-4">
+                <AlertTriangle className="size-8 text-red-400 mx-auto" />
+                <div>
+                    <h3 className="font-semibold text-red-200">Failed to Load Profile</h3>
+                    <p className="text-xs text-red-300/80 mt-1">{error || "Could not retrieve student records."}</p>
+                </div>
+                <Button size="sm" variant="outline" onClick={loadProfile} className="border-red-500/40 text-red-300 hover:bg-red-500/20">
+                    Try Again
+                </Button>
+            </div>
+        );
+    }
 
     return (
-        <div className="space-y-6">
-            <Card className="border-border/70 bg-space-900/70">
-                <CardContent className="p-6">
-                    <div className="flex flex-col sm:flex-row sm:items-start gap-5">
-                        <StudentAvatar
-                            avatarConfig={student.avatarConfig}
-                            name={student.name}
-                            size="xl"
-                            className="size-42 shrink-0 border-2 border-gold-500/40 shadow-gold"
-                        />
-                        <div className="flex-1 space-y-3">
-                            <div>
-                                <h2 className="font-display text-xl font-bold text-starlight-100">{student.name}</h2>
-                                <div className="flex items-center gap-3 mt-1 flex-wrap">
-                                    <span className="inline-flex items-center gap-1 text-[11px] text-starlight-400">
-                                        <Hash className="size-3.5 shrink-0" /><span className="font-mono">{student.id}</span>
-                                    </span>
-                                    <span className="inline-flex items-center gap-1 text-[11px] text-starlight-400">
-                                        <Mail className="size-3.5 shrink-0" /><span>{student.email}</span>
-                                    </span>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                <DetailStatCard label="Group" value={group.name} sub={group.batchName} />
-                                <DetailStatCard label="Track" value={isIntermediate ? "Intermediate" : "Beginner"} sub={isIntermediate ? "Level-based" : "Weekly"} />
-                                <DetailStatCard label="Enrolled Since" value={formatDate(student.createdAt)} sub="Join date" />
-                                {isIntermediate
-                                    ? <DetailStatCard label="Avg ST" value={`${student.avgSt}`} sub="All levels" highlight />
-                                    : <DetailStatCard label="Beginner ST" value={student.beginnerSt !== null ? `${student.beginnerSt}` : "—"} sub="Running total" highlight />}
-                            </div>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-            {isIntermediate && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <Card className="border-border/70 bg-space-900/70">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-semibold text-starlight-300 flex items-center gap-2">
-                                <Sparkles className="size-4 text-gold-400" />Current Level
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                            {group.activeLevel ? (
-                                <>
-                                    <div>
-                                        <p className="font-display text-lg font-bold text-starlight-100">Level {group.activeLevel.levelNumber}</p>
-                                        <p className="text-sm text-starlight-300">{group.activeLevel.name}</p>
-                                        <p className="text-[11px] text-starlight-400 mt-1">Since {formatDate(group.activeLevel.startDate)}</p>
-                                    </div>
-                                    {student.currentLevelSt !== null && (
-                                        <div className="rounded-lg bg-gold-500/10 border border-gold-500/25 p-3 flex items-center justify-between">
-                                            <span className="text-xs text-starlight-400">Level ST Balance</span>
-                                            <span className="font-display text-xl font-bold text-gold-300">{student.currentLevelSt} ST</span>
-                                        </div>
-                                    )}
-                                </>
-                            ) : <EmptyState icon={AlertTriangle} title="No active level" description="This group has no active level yet." compact />}
-                        </CardContent>
-                    </Card>
-                    <Card className="border-border/70 bg-space-900/70">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-semibold text-starlight-300 flex items-center gap-2">
-                                <Activity className="size-4 text-blue-400" />Learning Activity
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                            {progressPct !== null ? (
-                                <div>
-                                    <div className="flex items-center justify-between text-sm mb-2">
-                                        <span className="text-starlight-400">Task Progress</span>
-                                        <span className="font-bold text-starlight-100">{progressPct}%</span>
-                                    </div>
-                                    <div className="h-2 rounded-full bg-space-800 overflow-hidden">
-                                        <div className={cn("h-full rounded-full transition-all",
-                                            progressPct >= 75 ? "bg-success-400" : progressPct >= 40 ? "bg-gold-400" : "bg-amber-500")}
-                                            style={{ width: `${Math.min(100, progressPct)}%` }} />
-                                    </div>
-                                    <p className="text-[11px] text-starlight-400 mt-2">{student.tasksSubmitted} of {student.tasksAvailable} tasks submitted</p>
-                                </div>
-                            ) : <p className="text-sm text-starlight-400">No task data available for active level</p>}
-                            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/50">
-                                <div className="text-center p-2 rounded-lg bg-space-950/60 border border-border/50">
-                                    <p className="text-lg font-bold text-starlight-100">{student.totalSubmissions}</p>
-                                    <p className="text-[10px] text-starlight-400">Total Subs</p>
-                                </div>
-                                <div className="text-center p-2 rounded-lg bg-space-950/60 border border-border/50">
-                                    <p className="text-lg font-bold text-success-400">{student.gradedSubmissions}</p>
-                                    <p className="text-[10px] text-starlight-400">Graded</p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-            )}
-            {!isIntermediate && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                    <StatCard label="Beginner ST" value={student.beginnerSt !== null ? `${student.beginnerSt}` : "—"} icon={Coins} color="gold" />
-                    <StatCard label="Submissions" value={student.totalSubmissions} icon={FileText} color="blue" />
-                    <StatCard label="Graded" value={student.gradedSubmissions} icon={CheckCircle2} color="success" />
-                </div>
-            )}
-            {group.instructors.length > 0 && (
-                <div className="space-y-3">
-                    <h3 className="text-sm font-semibold uppercase tracking-wider text-starlight-300">Group Instructors</h3>
-                    <div className="flex flex-wrap gap-2">
-                        {group.instructors.map((instructor) => (
-                            <div key={instructor.id} className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 text-xs text-violet-300">
-                                <GraduationCap className="size-3.5" /><span className="font-medium">{instructor.name}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-        </div>
+        <Student360View data={profileData} role="super_admin" />
     );
 }
 

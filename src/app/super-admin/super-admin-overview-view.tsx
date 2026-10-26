@@ -3,6 +3,7 @@
 
 import { useState, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
     Users,
     GraduationCap,
@@ -56,6 +57,7 @@ import { formatDate } from "@/lib/format-date";
 import { showToast } from "@/components/ui/toast";
 
 export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData }) {
+    const router = useRouter();
     const [activeTab, setActiveTab] = useState<"students" | "instructors" | "create">("students");
     const [highlightTrigger, setHighlightTrigger] = useState(0);
     const [studentSearch, setStudentSearch] = useState("");
@@ -474,20 +476,41 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
                                                 <th className="px-5 py-3.5">Track</th>
                                                 <th className="px-5 py-3.5">ST Economy</th>
                                                 <th className="px-5 py-3.5">Enrolled Date</th>
+                                                <th className="px-4 py-3.5 text-right w-10"></th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-border/60 text-foreground dark:text-starlight-200">
                                             {filteredStudents.map((s) => (
                                                 <tr
                                                     key={s.id}
-                                                    className="hover:bg-muted/40 dark:hover:bg-space-850/40 transition-colors"
+                                                    role="button"
+                                                    tabIndex={0}
+                                                    aria-label={`View 360 profile for ${s.name}`}
+                                                    onClick={() =>
+                                                        router.push(
+                                                            `/super-admin/levels#group=${encodeURIComponent(
+                                                                s.groupId
+                                                            )}&student=${encodeURIComponent(s.id)}`
+                                                        )
+                                                    }
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === "Enter" || e.key === " ") {
+                                                            e.preventDefault();
+                                                            router.push(
+                                                                `/super-admin/levels#group=${encodeURIComponent(
+                                                                    s.groupId
+                                                                )}&student=${encodeURIComponent(s.id)}`
+                                                            );
+                                                        }
+                                                    }}
+                                                    className="hover:bg-muted/40 dark:hover:bg-space-850/40 transition-colors cursor-pointer group focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-gold-500/50"
                                                 >
                                                     <td className="px-5 py-3.5 whitespace-nowrap">
                                                         <StudentCodeBadge code={s.id} />
                                                     </td>
                                                     <td className="px-5 py-3.5">
                                                         <div className="flex flex-col gap-0.5">
-                                                            <span className="font-semibold text-foreground dark:text-starlight-100">
+                                                            <span className="font-semibold text-foreground dark:text-starlight-100 group-hover:text-gold-600 dark:group-hover:text-gold-300 transition-colors">
                                                                 {s.name}
                                                             </span>
                                                             <CopyableEmail email={s.email} />
@@ -531,6 +554,9 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
                                                     </td>
                                                     <td className="px-5 py-3.5 whitespace-nowrap text-starlight-400 text-[11px]">
                                                         {formatDate(s.createdAt)}
+                                                    </td>
+                                                    <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                                                        <ChevronRight className="size-4 text-muted-foreground dark:text-starlight-400 group-hover:text-gold-600 dark:group-hover:text-gold-300 group-hover:translate-x-0.5 transition-all inline" />
                                                     </td>
                                                 </tr>
                                             ))}
@@ -667,7 +693,8 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
 function StudentCodeBadge({ code }: { code: string }) {
     const [copied, setCopied] = useState(false);
 
-    function handleCopy() {
+    function handleCopy(e: React.MouseEvent) {
+        e.stopPropagation();
         navigator.clipboard.writeText(code);
         setCopied(true);
         showToast({
@@ -699,7 +726,8 @@ function StudentCodeBadge({ code }: { code: string }) {
 function CopyableEmail({ email }: { email: string }) {
     const [copied, setCopied] = useState(false);
 
-    function handleCopy() {
+    function handleCopy(e: React.MouseEvent) {
+        e.stopPropagation();
         navigator.clipboard.writeText(email);
         setCopied(true);
         showToast({

@@ -1,8 +1,6 @@
-// src/app/instructor/students/instructor-students-st-view.tsx
-"use client";
-
 import { useMemo, useState } from "react";
-import { Coins, Search, SlidersHorizontal, Users } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Coins, Search, SlidersHorizontal, Users, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +8,7 @@ import type { STAdjustGroup, STAdjustStudent } from "@/lib/data/get-instructor-s
 import { StAdjustDialog } from "./st-adjust-dialog";
 
 export function InstructorStudentsSTView({ groups: initialGroups }: { groups: STAdjustGroup[] }) {
+    const router = useRouter();
     const [groups, setGroups] = useState(initialGroups);
     const [activeGroupId, setActiveGroupId] = useState(initialGroups[0]?.id ?? "");
     const [query, setQuery] = useState("");
@@ -113,35 +112,59 @@ export function InstructorStudentsSTView({ groups: initialGroups }: { groups: ST
                             : "No students match your search."}
                     </div>
                 ) : (
-                    students.map((student) => (
-                        <div
-                            key={student.id}
-                            className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5"
-                        >
-                            <div className="min-w-0">
-                                <p className="truncate text-sm font-semibold text-starlight-100">{student.name}</p>
-                                <p className="truncate text-xs text-starlight-400">{student.email}</p>
-                            </div>
+                    students.map((student) => {
+                        const profileUrl = `/instructor/students/${encodeURIComponent(student.id)}${
+                            activeGroup ? `?groupId=${encodeURIComponent(activeGroup.id)}` : ""
+                        }`;
 
-                            <div className="flex items-center justify-between gap-4 sm:justify-end">
-                                <div className="flex items-center gap-1.5 font-mono text-sm font-bold tabular-nums text-gold-300">
-                                    <Coins className="size-4 text-gold-400" aria-hidden />
-                                    <span>{student.balance}</span>
-                                    <span className="text-[10px] font-semibold text-starlight-400">ST</span>
+                        return (
+                            <div
+                                key={student.id}
+                                role="button"
+                                tabIndex={0}
+                                aria-label={`View 360 profile for ${student.name}`}
+                                onClick={() => router.push(profileUrl)}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                        e.preventDefault();
+                                        router.push(profileUrl);
+                                    }
+                                }}
+                                className="group flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5 hover:bg-space-850/60 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-gold-500/50 cursor-pointer transition-colors"
+                            >
+                                <div className="min-w-0">
+                                    <p className="truncate text-sm font-semibold text-starlight-100 group-hover:text-gold-300 transition-colors">
+                                        {student.name}
+                                    </p>
+                                    <p className="truncate text-xs text-starlight-400 font-mono">
+                                        {student.email}
+                                    </p>
                                 </div>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => setSelected(student)}
-                                    className="h-8 gap-1.5 rounded-lg border-gold-500/40 text-xs text-gold-300 hover:bg-space-850"
-                                >
-                                    <SlidersHorizontal className="size-3.5" />
-                                    Adjust ST
-                                </Button>
+
+                                <div className="flex items-center justify-between gap-4 sm:justify-end">
+                                    <div className="flex items-center gap-1.5 font-mono text-sm font-bold tabular-nums text-gold-300">
+                                        <Coins className="size-4 text-gold-400" aria-hidden />
+                                        <span>{student.balance}</span>
+                                        <span className="text-[10px] font-semibold text-starlight-400">ST</span>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelected(student);
+                                        }}
+                                        className="h-8 gap-1.5 rounded-lg border-gold-500/40 text-xs text-gold-300 hover:bg-space-850"
+                                    >
+                                        <SlidersHorizontal className="size-3.5" />
+                                        Adjust ST
+                                    </Button>
+                                    <ChevronRight className="size-4 text-starlight-400 group-hover:text-gold-300 group-hover:translate-x-0.5 transition-all shrink-0" />
+                                </div>
                             </div>
-                        </div>
-                    ))
+                        );
+                    })
                 )}
             </div>
 
