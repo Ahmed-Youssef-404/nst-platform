@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MarkdownEditor } from "@/components/ui/markdown-editor";
 import { TaskDescriptionDisclosure } from "@/components/instructor/task-description-disclosure";
+import { TaskHintUsagePanel } from "@/components/instructor/task-hint-usage";
 import { MarkdownContent } from "@/components/markdown-content";
 import { formatDateTime } from "@/lib/format-date";
 import { StudentAvatar } from "@/components/avatar/student-avatar";
@@ -671,7 +672,10 @@ function SubmissionsSection({
             <div className="space-y-2">
                 {task.submissions.map((row) => {
                     const badge = submissionStatusBadge(row);
-                    const isOpen = openStudentId === row.studentId;
+                    // A student with no submission can still have opened hints.
+                    const canExpand =
+                        Boolean(row.submission) || row.hintUsage.unlockedCount > 0;
+                    const isOpen = canExpand && openStudentId === row.studentId;
 
                     return (
                         <div
@@ -684,7 +688,7 @@ function SubmissionsSection({
                                 onClick={() =>
                                     setOpenStudentId(isOpen ? null : row.studentId)
                                 }
-                                disabled={!row.submission}
+                                disabled={!canExpand}
                             >
                                 <div className="flex items-center gap-2.5">
                                     <StudentAvatar
@@ -698,12 +702,17 @@ function SubmissionsSection({
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-2">
+                                    {row.hintUsage.totalHints > 0 && (
+                                        <span className="font-mono text-[11px] px-2 py-0.5 rounded-full border border-border/70 bg-space-850 text-starlight-300">
+                                            Hints {row.hintUsage.unlockedCount}/{row.hintUsage.totalHints}
+                                        </span>
+                                    )}
                                     <span
                                         className={`font-mono text-[11px] px-2.5 py-0.5 rounded-full border font-semibold ${badge.className}`}
                                     >
                                         {badge.label}
                                     </span>
-                                    {row.submission && (
+                                    {canExpand && (
                                         <span className="text-starlight-400 text-xs">
                                             {isOpen ? (
                                                 <ChevronUp className="size-3.5" />
@@ -715,14 +724,17 @@ function SubmissionsSection({
                                 </div>
                             </button>
 
-                            {isOpen && row.submission && (
-                                <div className="border-t border-border/60 p-4 bg-space-900/40">
-                                    <SubmissionDetail
-                                        task={task}
-                                        studentId={row.studentId}
-                                        submission={row.submission}
-                                        instructorId={instructorId}
-                                    />
+                            {isOpen && (
+                                <div className="border-t border-border/60 p-4 bg-space-900/40 space-y-4">
+                                    {row.submission && (
+                                        <SubmissionDetail
+                                            task={task}
+                                            studentId={row.studentId}
+                                            submission={row.submission}
+                                            instructorId={instructorId}
+                                        />
+                                    )}
+                                    <TaskHintUsagePanel usage={row.hintUsage} />
                                 </div>
                             )}
                         </div>

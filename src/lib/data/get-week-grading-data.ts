@@ -14,6 +14,11 @@ import type {
     FirstSolverSuggestion,
 } from "@/types/types";
 import type { StudentAvatarConfig } from "@/types/avatar";
+import {
+    getHintUnlockLookup,
+    buildTaskHintUsage,
+    type TaskHintUsage,
+} from "./get-hint-usage";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -38,6 +43,8 @@ export interface GradingTask {
 
 export interface StudentTaskGradingData {
     taskId: string;
+    // Hints this student unlocked for THIS task (from existing HintUnlock records).
+    hintUsage: TaskHintUsage;
     submission: {
         id: string;
         mode: SubmissionModeCode;
@@ -111,6 +118,10 @@ export async function getWeekGradingData(
             tasks: {
                 include: {
                     rubricFields: { orderBy: { order: "asc" } },
+                    hints: {
+                        orderBy: { order: "asc" },
+                        select: { id: true, order: true },
+                    },
                 },
                 orderBy: { createdAt: "asc" },
             },
@@ -150,6 +161,13 @@ export async function getWeekGradingData(
         })
         : [];
 
+    // Hint unlocks for every student on every hint of this Week's tasks -
+    // a single query (runs after the instructor-group authorization check).
+    const hintLookup = await getHintUnlockLookup(
+        week.group.students.map((s) => s.id),
+        week.tasks.flatMap((t) => t.hints.map((h) => h.id))
+    );
+
     // Get first solver suggestions
     const firstSolverSuggestions = await suggestFirstSolvers({ weekId });
 
@@ -187,6 +205,7 @@ export async function getWeekGradingData(
 
             return {
                 taskId: task.id,
+                hintUsage: buildTaskHintUsage(task.hints, student.id, hintLookup),
                 submission: sub
                     ? {
                         id: sub.id,

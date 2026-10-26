@@ -45,6 +45,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { StudentAvatar } from "@/components/avatar/student-avatar";
 import { TaskDescriptionDisclosure } from "@/components/instructor/task-description-disclosure";
+import { TaskHintUsagePanel } from "@/components/instructor/task-hint-usage";
 import { MarkdownContent } from "@/components/markdown-content";
 import { formatDateTime } from "@/lib/format-date";
 import { getSubmissionFileUrlAction } from "@/lib/actions/submission-management";
@@ -769,6 +770,9 @@ function TaskGradingCard({
                         </div>
                     )}
                 </div>
+
+                {/* Hints this student unlocked for this task */}
+                {taskData && <TaskHintUsagePanel usage={taskData.hintUsage} />}
 
                 {/* Marked Invalid Flag */}
                 <div className="rounded-xl border border-border/70 bg-space-950/50 p-3.5 space-y-2">

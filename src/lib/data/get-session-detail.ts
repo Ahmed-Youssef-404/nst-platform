@@ -15,6 +15,11 @@ import type {
     SessionFeedbackStats,
 } from "@/types/types";
 import type { StudentAvatarConfig } from "@/types/avatar";
+import {
+    getHintUnlockLookup,
+    buildTaskHintUsage,
+    type TaskHintUsage,
+} from "./get-hint-usage";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -48,6 +53,9 @@ export interface SessionDetailSubmission {
     studentId: string;
     studentName: string;
     avatarConfig?: StudentAvatarConfig | null;
+    // Hints this student unlocked for THIS task (from existing HintUnlock
+    // records). Present even when the student has no submission.
+    hintUsage: TaskHintUsage;
     submission: {
         id: string;
         mode: SubmissionModeCode;
@@ -167,6 +175,15 @@ export async function getSessionDetail(
         orderBy: { name: "asc" },
     });
 
+    // Hint unlocks for every roster student on every hint of this Session's
+    // INTERNAL tasks - a single query, grouped in memory per student/task.
+    const hintLookup = await getHintUnlockLookup(
+        groupStudents.map((s) => s.id),
+        session.tasks
+            .filter((t) => t.type === "INTERNAL")
+            .flatMap((t) => t.hints.map((h) => h.id))
+    );
+
     // Existing Attendance rows for this Session (one per student max,
     // enforced by the unique constraint), SESSION_ENGAGEMENT
     // transactions already recorded for it, and all SessionFeedback rows.
@@ -272,6 +289,11 @@ export async function getSessionDetail(
                             studentId: student.id,
                             studentName: student.name,
                             avatarConfig: (student.avatarConfig as unknown as StudentAvatarConfig) ?? null,
+                            hintUsage: buildTaskHintUsage(
+                                task.hints,
+                                student.id,
+                                hintLookup
+                            ),
                             submission: submission
                                 ? {
                                     id: submission.id,
