@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { StudentAvatar } from "@/components/avatar/student-avatar";
+import { TaskDescriptionDisclosure } from "@/components/instructor/task-description-disclosure";
 import { formatDateTime } from "@/lib/format-date";
 import { getSubmissionFileUrlAction } from "@/lib/actions/submission-management";
 import { showToast } from "@/components/ui/toast";
@@ -125,33 +126,30 @@ export function WeekGradingView({ data }: { data: WeekGradingViewData }) {
                         <button
                             type="button"
                             onClick={() => setFilterStatus("all")}
-                            className={`flex-1 py-1 px-2 rounded-lg text-center transition-all ${
-                                filterStatus === "all"
+                            className={`flex-1 py-1 px-2 rounded-lg text-center transition-all ${filterStatus === "all"
                                     ? "bg-gold-500/20 text-gold-300 font-bold border border-gold-500/40"
                                     : "text-starlight-400 hover:text-starlight-200"
-                            }`}
+                                }`}
                         >
                             All ({data.students.length})
                         </button>
                         <button
                             type="button"
                             onClick={() => setFilterStatus("pending")}
-                            className={`flex-1 py-1 px-2 rounded-lg text-center transition-all ${
-                                filterStatus === "pending"
+                            className={`flex-1 py-1 px-2 rounded-lg text-center transition-all ${filterStatus === "pending"
                                     ? "bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40"
                                     : "text-starlight-400 hover:text-starlight-200"
-                            }`}
+                                }`}
                         >
                             Pending ({data.students.length - finalizedCount})
                         </button>
                         <button
                             type="button"
                             onClick={() => setFilterStatus("finalized")}
-                            className={`flex-1 py-1 px-2 rounded-lg text-center transition-all ${
-                                filterStatus === "finalized"
+                            className={`flex-1 py-1 px-2 rounded-lg text-center transition-all ${filterStatus === "finalized"
                                     ? "bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40"
                                     : "text-starlight-400 hover:text-starlight-200"
-                            }`}
+                                }`}
                         >
                             Done ({finalizedCount})
                         </button>
@@ -187,11 +185,10 @@ export function WeekGradingView({ data }: { data: WeekGradingViewData }) {
                                             key={student.studentId}
                                             type="button"
                                             onClick={() => setSelectedStudentId(student.studentId)}
-                                            className={`w-full text-left p-3.5 transition-all flex items-start justify-between gap-3 ${
-                                                isSelected
+                                            className={`w-full text-left p-3.5 transition-all flex items-start justify-between gap-3 ${isSelected
                                                     ? "bg-gold-500/10 border-l-4 border-l-gold-500 shadow-gold"
                                                     : "hover:bg-space-850/60 border-l-4 border-l-transparent"
-                                            }`}
+                                                }`}
                                         >
                                             <div className="flex items-start gap-2.5 min-w-0">
                                                 <StudentAvatar
@@ -202,9 +199,8 @@ export function WeekGradingView({ data }: { data: WeekGradingViewData }) {
                                                 />
                                                 <div className="space-y-1.5 min-w-0 flex-1">
                                                     <p
-                                                        className={`text-sm font-bold truncate ${
-                                                            isSelected ? "text-gold-300" : "text-starlight-100"
-                                                        }`}
+                                                        className={`text-sm font-bold truncate ${isSelected ? "text-gold-300" : "text-starlight-100"
+                                                            }`}
                                                     >
                                                         {student.studentName}
                                                     </p>
@@ -383,34 +379,34 @@ function StudentGradingWorkspace({
                                 <CardTitle className="text-xl font-bold font-display text-starlight-100 truncate">
                                     {student.studentName}
                                 </CardTitle>
-                            {student.isFinalized ? (
-                                <Badge className="bg-success-500/15 text-success-400 border-success-500/30 text-xs px-2.5 py-0.5 rounded-full font-semibold">
-                                    Finalized
-                                </Badge>
-                            ) : (
-                                <Badge className="bg-amber-500/15 text-amber-300 border-amber-500/30 text-xs px-2.5 py-0.5 rounded-full font-semibold">
-                                    Grading In Progress
-                                </Badge>
-                            )}
-                        </div>
-                        <CardDescription className="mt-1 flex items-center gap-3 text-xs text-starlight-300 font-mono">
-                            <span className="flex items-center gap-1.5 text-gold-400 font-bold">
-                                <Coins className="size-3.5" />
-                                Current Balance: {student.beginnerSt} ST
-                            </span>
-                            <span>•</span>
-                            <span>
-                                {student.isLocked ? (
-                                    <span className="text-starlight-200">
-                                        Locked: {student.resource?.lockedAt ? formatDateTime(student.resource.lockedAt) : ""}
-                                    </span>
+                                {student.isFinalized ? (
+                                    <Badge className="bg-success-500/15 text-success-400 border-success-500/30 text-xs px-2.5 py-0.5 rounded-full font-semibold">
+                                        Finalized
+                                    </Badge>
                                 ) : (
-                                    <span className="text-starlight-400">
-                                        Not manually locked by student
-                                    </span>
+                                    <Badge className="bg-amber-500/15 text-amber-300 border-amber-500/30 text-xs px-2.5 py-0.5 rounded-full font-semibold">
+                                        Grading In Progress
+                                    </Badge>
                                 )}
-                            </span>
-                        </CardDescription>
+                            </div>
+                            <CardDescription className="mt-1 flex items-center gap-3 text-xs text-starlight-300 font-mono">
+                                <span className="flex items-center gap-1.5 text-gold-400 font-bold">
+                                    <Coins className="size-3.5" />
+                                    Current Balance: {student.beginnerSt} ST
+                                </span>
+                                <span>•</span>
+                                <span>
+                                    {student.isLocked ? (
+                                        <span className="text-starlight-200">
+                                            Locked: {student.resource?.lockedAt ? formatDateTime(student.resource.lockedAt) : ""}
+                                        </span>
+                                    ) : (
+                                        <span className="text-starlight-400">
+                                            Not manually locked by student
+                                        </span>
+                                    )}
+                                </span>
+                            </CardDescription>
                         </div>
                     </div>
 
@@ -504,11 +500,10 @@ function StudentGradingWorkspace({
                                             size="sm"
                                             onClick={() => handleSetResourceStatus("ACCEPTED")}
                                             disabled={resourceStatusLoading}
-                                            className={`rounded-xl text-xs font-semibold ${
-                                                student.resource.status === "ACCEPTED"
+                                            className={`rounded-xl text-xs font-semibold ${student.resource.status === "ACCEPTED"
                                                     ? "bg-success-500 text-space-950 font-bold"
                                                     : "bg-success-500/15 text-success-400 border border-success-500/30 hover:bg-success-500/25"
-                                            }`}
+                                                }`}
                                         >
                                             <CheckCircle2 className="size-3.5 mr-1" />
                                             Accept
@@ -518,11 +513,10 @@ function StudentGradingWorkspace({
                                             size="sm"
                                             onClick={() => handleSetResourceStatus("REJECTED")}
                                             disabled={resourceStatusLoading}
-                                            className={`rounded-xl text-xs font-semibold ${
-                                                student.resource.status === "REJECTED"
+                                            className={`rounded-xl text-xs font-semibold ${student.resource.status === "REJECTED"
                                                     ? "bg-error-500 text-white font-bold"
                                                     : "bg-error-500/15 text-error-400 border border-error-500/30 hover:bg-error-500/25"
-                                            }`}
+                                                }`}
                                         >
                                             <XCircle className="size-3.5 mr-1" />
                                             Reject
@@ -636,24 +630,24 @@ function TaskGradingCard({
         try {
             const payload: Parameters<typeof saveDraftGradeAction>[0] = submission
                 ? {
-                      submissionId: submission.id,
-                      fieldScores: task.rubricFields.map((rf) => ({
-                          rubricFieldId: rf.id,
-                          awardedPoints: fieldScores[rf.id] ?? 0,
-                      })),
-                      markedInvalid,
-                      instructorComment: instructorComment.trim() || undefined,
-                  }
+                    submissionId: submission.id,
+                    fieldScores: task.rubricFields.map((rf) => ({
+                        rubricFieldId: rf.id,
+                        awardedPoints: fieldScores[rf.id] ?? 0,
+                    })),
+                    markedInvalid,
+                    instructorComment: instructorComment.trim() || undefined,
+                }
                 : {
-                      studentId,
-                      taskId: task.id,
-                      fieldScores: task.rubricFields.map((rf) => ({
-                          rubricFieldId: rf.id,
-                          awardedPoints: fieldScores[rf.id] ?? 0,
-                      })),
-                      markedInvalid,
-                      instructorComment: instructorComment.trim() || undefined,
-                  };
+                    studentId,
+                    taskId: task.id,
+                    fieldScores: task.rubricFields.map((rf) => ({
+                        rubricFieldId: rf.id,
+                        awardedPoints: fieldScores[rf.id] ?? 0,
+                    })),
+                    markedInvalid,
+                    instructorComment: instructorComment.trim() || undefined,
+                };
 
             const res = await saveDraftGradeAction(payload);
 
@@ -706,6 +700,9 @@ function TaskGradingCard({
             </CardHeader>
 
             <CardContent className="p-5 space-y-4 text-xs">
+                {/* Full task description (collapsed by default) */}
+                <TaskDescriptionDisclosure description={task.description} />
+
                 {/* Submission Details */}
                 <div className="rounded-xl border border-border/70 bg-space-850/60 p-3.5 space-y-2">
                     <div className="flex items-center justify-between text-xs">
