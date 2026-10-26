@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MarkdownEditor } from "@/components/ui/markdown-editor";
 import { TaskDescriptionDisclosure } from "@/components/instructor/task-description-disclosure";
+import { MarkdownContent } from "@/components/markdown-content";
 import { formatDateTime } from "@/lib/format-date";
 import { StudentAvatar } from "@/components/avatar/student-avatar";
 import {
@@ -557,8 +558,8 @@ function RosterRow({
                             disabled={isSavingAttendance}
                             onClick={() => handleAttendance("PRESENT")}
                             className={`flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold transition-all ${entry.attendanceStatus === "PRESENT"
-                                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-xs"
-                                    : "text-starlight-400 hover:text-starlight-200"
+                                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-xs"
+                                : "text-starlight-400 hover:text-starlight-200"
                                 }`}
                         >
                             <CheckCircle2 className="size-3" />
@@ -569,8 +570,8 @@ function RosterRow({
                             disabled={isSavingAttendance}
                             onClick={() => handleAttendance("ABSENT")}
                             className={`flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold transition-all ${entry.attendanceStatus === "ABSENT"
-                                    ? "bg-red-500/20 text-red-300 border border-red-500/40 shadow-xs"
-                                    : "text-starlight-400 hover:text-starlight-200"
+                                ? "bg-red-500/20 text-red-300 border border-red-500/40 shadow-xs"
+                                : "text-starlight-400 hover:text-starlight-200"
                                 }`}
                         >
                             <XCircle className="size-3" />
@@ -774,10 +775,17 @@ function SubmissionDetail({
 
             {/* Submission Content */}
             {submission.mode === "TEXT" && (
-                <div className="rounded-xl bg-space-950 p-3.5 border border-border/60">
-                    <pre className="whitespace-pre-wrap font-mono text-xs text-starlight-200 leading-relaxed max-h-60 overflow-y-auto">
-                        {submission.textContent}
-                    </pre>
+                <div className="rounded-xl bg-space-950 p-3.5 border border-border/60 max-h-96 overflow-y-auto overflow-x-hidden">
+                    {submission.textContent?.trim() ? (
+                        <MarkdownContent
+                            content={submission.textContent}
+                            className="min-w-0 break-words [&_p]:whitespace-pre-line [&_img]:h-auto [&_img]:max-w-full"
+                        />
+                    ) : (
+                        <p className="text-xs text-starlight-400 italic">
+                            No text content was submitted.
+                        </p>
+                    )}
                 </div>
             )}
 
@@ -986,8 +994,8 @@ function DynamicGradingForm({
                 <div className="flex items-center gap-2">
                     <span
                         className={`font-mono text-xs font-bold px-3 py-1 rounded-full border ${markedInvalid
-                                ? "bg-red-500/15 text-red-400 border-red-500/30"
-                                : "bg-gold-500/15 text-gold-300 border-gold-500/30"
+                            ? "bg-red-500/15 text-red-400 border-red-500/30"
+                            : "bg-gold-500/15 text-gold-300 border-gold-500/30"
                             }`}
                     >
                         Score: {totalScore} / 15 ST

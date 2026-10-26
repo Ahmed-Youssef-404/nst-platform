@@ -45,6 +45,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { StudentAvatar } from "@/components/avatar/student-avatar";
 import { TaskDescriptionDisclosure } from "@/components/instructor/task-description-disclosure";
+import { MarkdownContent } from "@/components/markdown-content";
 import { formatDateTime } from "@/lib/format-date";
 import { getSubmissionFileUrlAction } from "@/lib/actions/submission-management";
 import { showToast } from "@/components/ui/toast";
@@ -127,8 +128,8 @@ export function WeekGradingView({ data }: { data: WeekGradingViewData }) {
                             type="button"
                             onClick={() => setFilterStatus("all")}
                             className={`flex-1 py-1 px-2 rounded-lg text-center transition-all ${filterStatus === "all"
-                                    ? "bg-gold-500/20 text-gold-300 font-bold border border-gold-500/40"
-                                    : "text-starlight-400 hover:text-starlight-200"
+                                ? "bg-gold-500/20 text-gold-300 font-bold border border-gold-500/40"
+                                : "text-starlight-400 hover:text-starlight-200"
                                 }`}
                         >
                             All ({data.students.length})
@@ -137,8 +138,8 @@ export function WeekGradingView({ data }: { data: WeekGradingViewData }) {
                             type="button"
                             onClick={() => setFilterStatus("pending")}
                             className={`flex-1 py-1 px-2 rounded-lg text-center transition-all ${filterStatus === "pending"
-                                    ? "bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40"
-                                    : "text-starlight-400 hover:text-starlight-200"
+                                ? "bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40"
+                                : "text-starlight-400 hover:text-starlight-200"
                                 }`}
                         >
                             Pending ({data.students.length - finalizedCount})
@@ -147,8 +148,8 @@ export function WeekGradingView({ data }: { data: WeekGradingViewData }) {
                             type="button"
                             onClick={() => setFilterStatus("finalized")}
                             className={`flex-1 py-1 px-2 rounded-lg text-center transition-all ${filterStatus === "finalized"
-                                    ? "bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40"
-                                    : "text-starlight-400 hover:text-starlight-200"
+                                ? "bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40"
+                                : "text-starlight-400 hover:text-starlight-200"
                                 }`}
                         >
                             Done ({finalizedCount})
@@ -186,8 +187,8 @@ export function WeekGradingView({ data }: { data: WeekGradingViewData }) {
                                             type="button"
                                             onClick={() => setSelectedStudentId(student.studentId)}
                                             className={`w-full text-left p-3.5 transition-all flex items-start justify-between gap-3 ${isSelected
-                                                    ? "bg-gold-500/10 border-l-4 border-l-gold-500 shadow-gold"
-                                                    : "hover:bg-space-850/60 border-l-4 border-l-transparent"
+                                                ? "bg-gold-500/10 border-l-4 border-l-gold-500 shadow-gold"
+                                                : "hover:bg-space-850/60 border-l-4 border-l-transparent"
                                                 }`}
                                         >
                                             <div className="flex items-start gap-2.5 min-w-0">
@@ -501,8 +502,8 @@ function StudentGradingWorkspace({
                                             onClick={() => handleSetResourceStatus("ACCEPTED")}
                                             disabled={resourceStatusLoading}
                                             className={`rounded-xl text-xs font-semibold ${student.resource.status === "ACCEPTED"
-                                                    ? "bg-success-500 text-space-950 font-bold"
-                                                    : "bg-success-500/15 text-success-400 border border-success-500/30 hover:bg-success-500/25"
+                                                ? "bg-success-500 text-space-950 font-bold"
+                                                : "bg-success-500/15 text-success-400 border border-success-500/30 hover:bg-success-500/25"
                                                 }`}
                                         >
                                             <CheckCircle2 className="size-3.5 mr-1" />
@@ -514,8 +515,8 @@ function StudentGradingWorkspace({
                                             onClick={() => handleSetResourceStatus("REJECTED")}
                                             disabled={resourceStatusLoading}
                                             className={`rounded-xl text-xs font-semibold ${student.resource.status === "REJECTED"
-                                                    ? "bg-error-500 text-white font-bold"
-                                                    : "bg-error-500/15 text-error-400 border border-error-500/30 hover:bg-error-500/25"
+                                                ? "bg-error-500 text-white font-bold"
+                                                : "bg-error-500/15 text-error-400 border border-error-500/30 hover:bg-error-500/25"
                                                 }`}
                                         >
                                             <XCircle className="size-3.5 mr-1" />
@@ -722,14 +723,17 @@ function TaskGradingCard({
 
                     {submission && (
                         <div className="space-y-1.5 pt-1 text-xs">
-                            {submission.textContent && (
+                            {submission.textContent?.trim() && (
                                 <div className="space-y-1">
                                     <span className="text-starlight-400 text-[10px] uppercase font-mono">
                                         Source Code / Content:
                                     </span>
-                                    <pre className="p-3 rounded-lg bg-space-950 border border-border/70 text-starlight-200 font-mono text-xs overflow-x-auto max-h-48">
-                                        <code>{submission.textContent}</code>
-                                    </pre>
+                                    <div dir="auto" className="p-3 rounded-lg bg-space-950 border border-border/70 max-h-96 overflow-y-auto overflow-x-hidden">
+                                        <MarkdownContent
+                                            content={submission.textContent}
+                                            className="min-w-0 break-words [&_p]:whitespace-pre-line [&_img]:h-auto [&_img]:max-w-full"
+                                        />
+                                    </div>
                                 </div>
                             )}
 
