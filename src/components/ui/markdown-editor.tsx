@@ -294,6 +294,7 @@ export function MarkdownEditor({
                 <div className="relative">
                     {activeTab === "write" ? (
                         <textarea
+                            dir="auto"
                             ref={textareaRef}
                             id={editorId}
                             value={currentValue}
@@ -309,6 +310,7 @@ export function MarkdownEditor({
                         <div
                             style={{ minHeight }}
                             className="p-4 overflow-y-auto max-h-[500px] bg-space-950/30"
+                            dir="auto"
                         >
                             {currentValue.trim() ? (
                                 <MarkdownContent content={currentValue} />
@@ -340,6 +342,7 @@ export function MarkdownEditor({
             {/* Hidden input for native HTML form submissions */}
             {name && (
                 <textarea
+                    dir="auto"
                     name={name}
                     value={currentValue}
                     readOnly

@@ -198,10 +198,10 @@ export function StudentWeekDetailView({
             return;
         }
 
-        // Strict 1 MiB (1,048,576 bytes) limit validation before upload
+        // Strict 1 MiB limit validation before upload
         if (file.size > WEEK_RESOURCE_MAX_FILE_SIZE_BYTES) {
             const sizeStr = formatBytes(file.size);
-            const err = `File size (${sizeStr}) exceeds the strict 1 MB (1,048,576 bytes) limit. Please select a smaller file.`;
+            const err = `File size (${sizeStr}) exceeds the strict 1 MB limit. Please select a smaller file.`;
             setDeliverableError(err);
             setDeliverableFile(null);
             setUploadState("failed");
@@ -252,7 +252,7 @@ export function StudentWeekDetailView({
         }
 
         if (deliverableFile.size > WEEK_RESOURCE_MAX_FILE_SIZE_BYTES) {
-            setDeliverableError("File exceeds the strict 1 MB (1,048,576 bytes) limit.");
+            setDeliverableError("File exceeds the strict 1 MB limit.");
             return;
         }
 
@@ -574,10 +574,9 @@ export function StudentWeekDetailView({
 
                         {hasDeliverable ? (
                             <span
-                                className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                                    RESOURCE_STATUS_CONFIG[week.resource!.status]?.badgeClassName ??
+                                className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${RESOURCE_STATUS_CONFIG[week.resource!.status]?.badgeClassName ??
                                     "bg-space-800 text-starlight-300"
-                                }`}
+                                    }`}
                             >
                                 {RESOURCE_STATUS_CONFIG[week.resource!.status]?.label ?? "Submitted"}
                             </span>
@@ -667,11 +666,10 @@ export function StudentWeekDetailView({
                                         setSubmissionMethod("FILE");
                                     }}
                                     disabled={isUploading}
-                                    className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                                        submissionMethod === "FILE"
-                                            ? "bg-gold-500 text-space-950 shadow-gold"
-                                            : "text-starlight-300 hover:text-starlight-100 hover:bg-space-850"
-                                    }`}
+                                    className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${submissionMethod === "FILE"
+                                        ? "bg-gold-500 text-space-950 shadow-gold"
+                                        : "text-starlight-300 hover:text-starlight-100 hover:bg-space-850"
+                                        }`}
                                 >
                                     <UploadCloud className="size-3.5" />
                                     <span>Upload File (Max 1 MB)</span>
@@ -683,11 +681,10 @@ export function StudentWeekDetailView({
                                         setSubmissionMethod("DRIVE_LINK");
                                     }}
                                     disabled={isUploading}
-                                    className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                                        submissionMethod === "DRIVE_LINK"
-                                            ? "bg-gold-500 text-space-950 shadow-gold"
-                                            : "text-starlight-300 hover:text-starlight-100 hover:bg-space-850"
-                                    }`}
+                                    className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${submissionMethod === "DRIVE_LINK"
+                                        ? "bg-gold-500 text-space-950 shadow-gold"
+                                        : "text-starlight-300 hover:text-starlight-100 hover:bg-space-850"
+                                        }`}
                                 >
                                     <Link2 className="size-3.5" />
                                     <span>Google Drive Link</span>
@@ -718,13 +715,12 @@ export function StudentWeekDetailView({
                                                 fileInputRef.current.click();
                                             }
                                         }}
-                                        className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all ${
-                                            isUploading
-                                                ? "border-gold-500/40 bg-gold-500/5 cursor-not-allowed"
-                                                : deliverableFile
+                                        className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all ${isUploading
+                                            ? "border-gold-500/40 bg-gold-500/5 cursor-not-allowed"
+                                            : deliverableFile
                                                 ? "border-emerald-500/40 bg-emerald-500/5 hover:border-emerald-500/60"
                                                 : "border-border/70 bg-space-950/40 hover:border-gold-500/40 hover:bg-space-850/50"
-                                        }`}
+                                            }`}
                                     >
                                         <input
                                             ref={fileInputRef}
@@ -754,7 +750,7 @@ export function StudentWeekDetailView({
                                                     Click to select your deliverable file
                                                 </p>
                                                 <p className="text-[11px] text-starlight-400 font-mono">
-                                                    Strict limit: exactly 1 MiB (1,048,576 bytes) · PDF or ZIP
+                                                    Strict limit: exactly 1 MiB · PDF or ZIP
                                                 </p>
                                             </div>
                                         )}
@@ -841,7 +837,7 @@ export function StudentWeekDetailView({
                                     <div className="space-y-1.5">
                                         <div className="flex items-center justify-between text-[11px] text-starlight-400">
                                             <span>Google Drive / Google Docs Sharing URL</span>
-                                            <span>HTTPS only</span>
+                                            {/* <span>HTTPS only</span> */}
                                         </div>
 
                                         <Input
@@ -935,11 +931,10 @@ export function StudentWeekDetailView({
                         <div className="space-y-3 mt-3">
                             <p className="text-xs text-starlight-300 leading-relaxed">
                                 {week.isLocked
-                                    ? `This week was locked on ${
-                                          week.resource?.lockedAt
-                                              ? formatDateTime(week.resource.lockedAt)
-                                              : "record"
-                                      }. All saved drafts were finalized and sent to your instructor.`
+                                    ? `This week was locked on ${week.resource?.lockedAt
+                                        ? formatDateTime(week.resource.lockedAt)
+                                        : "record"
+                                    }. All saved drafts were finalized and sent to your instructor.`
                                     : "Locking the week finalizes and submits all your task drafts and your deliverable simultaneously. No further changes can be made after locking."}
                             </p>
 
@@ -957,13 +952,12 @@ export function StudentWeekDetailView({
                                         ) : (
                                             <AlertCircle className="size-4 text-amber-400 shrink-0" />
                                         )}
-                                        <span className={hasDeliverable ? "text-starlight-200" : "text-amber-300"}>
+                                        <span className={hasDeliverable ? "text-success-400" : "text-error-400"}>
                                             {hasDeliverable
-                                                ? `Deliverable submitted (${
-                                                      resState.state === "VALID_DRIVE_LINK"
-                                                          ? "Google Drive Link"
-                                                          : "Uploaded File"
-                                                  })`
+                                                ? `Deliverable submitted (${resState.state === "VALID_DRIVE_LINK"
+                                                    ? "Google Drive Link"
+                                                    : "Uploaded File"
+                                                })`
                                                 : "Weekly deliverable missing (File or Drive link required)"}
                                         </span>
                                     </div>
@@ -975,7 +969,7 @@ export function StudentWeekDetailView({
                                         ) : (
                                             <AlertCircle className="size-4 text-amber-400 shrink-0" />
                                         )}
-                                        <span className={allTasksCompleted ? "text-starlight-200" : "text-amber-300"}>
+                                        <span className={allTasksCompleted ? "text-starlight-200" : "text-error-400"}>
                                             {allTasksCompleted
                                                 ? `All tasks completed (${completedTasks.length}/${internalTasks.length} solved)`
                                                 : `All tasks must be completed (${unsolvedCount} remaining)`}
@@ -1009,7 +1003,7 @@ export function StudentWeekDetailView({
                                     type="button"
                                     onClick={() => setIsLockModalOpen(true)}
                                     disabled={!canLock}
-                                    className="w-full bg-gradient-to-r from-gold-500 to-gold-400 hover:from-gold-400 hover:to-gold-300 text-space-950 font-extrabold rounded-xl text-xs h-10 shadow-gold transition-all disabled:opacity-50"
+                                    className="w-full bg-gradient-to-r from-gold-500 to-gold-400 hover:from-gold-400 hover:to-gold-300 text-space-950 font-extrabold rounded-xl text-xs h-10 shadow-gold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     <Lock className="size-4 mr-1.5" />
                                     Lock Week & Finalize All Submissions
@@ -1101,10 +1095,9 @@ export function StudentWeekDetailView({
                                             onClick={() => setCurrentTaskIndex(i)}
                                             className={`
                                                 flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 border
-                                                ${
-                                                    isSelected
-                                                        ? "bg-gold-500/20 text-gold-300 border-gold-500/50 shadow-gold"
-                                                        : "bg-space-850/80 text-starlight-400 border-border/60 hover:text-starlight-200 hover:bg-space-800"
+                                                ${isSelected
+                                                    ? "bg-gold-500/20 text-gold-300 border-gold-500/50 shadow-gold"
+                                                    : "bg-space-850/80 text-starlight-400 border-border/60 hover:text-starlight-200 hover:bg-space-800"
                                                 }
                                             `}
                                         >

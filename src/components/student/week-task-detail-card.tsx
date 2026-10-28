@@ -539,7 +539,8 @@ export function WeekTaskDetailCard({
                                             Submission Method
                                         </Label>
                                         <div className="flex gap-2">
-                                            {(["TEXT", "LINK", "FILE"] as const).map((mode) => (
+                                            {/* {(["TEXT", "LINK", "FILE"] as const).map((mode) => ( */}
+                                            {(["TEXT", "LINK"] as const).map((mode) => (
                                                 <Button
                                                     key={mode}
                                                     type="button"
@@ -551,9 +552,9 @@ export function WeekTaskDetailCard({
                                                         : "bg-space-850 border-border/70 text-starlight-400 hover:text-starlight-200"
                                                         }`}
                                                 >
-                                                    {mode === "FILE" && "Upload File (PDF/ZIP)"}
                                                     {mode === "LINK" && "External Link (URL)"}
                                                     {mode === "TEXT" && "Direct Text"}
+                                                    {/* {mode === "FILE" && "Upload File (PDF/ZIP)"} */}
                                                 </Button>
                                             ))}
                                         </div>

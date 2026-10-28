@@ -124,11 +124,10 @@ export function StAdjustDialog({
                                         role="radio"
                                         aria-checked={selected}
                                         onClick={() => setDirection(value)}
-                                        className={`flex h-11 items-center justify-center gap-2 rounded-xl border text-sm font-semibold transition-colors ${
-                                            selected
+                                        className={`flex h-11 items-center justify-center gap-2 rounded-xl border text-sm font-semibold transition-colors ${selected
                                                 ? `${active} ring-1 ring-current`
                                                 : "border-border/80 bg-space-850/50 text-starlight-300 hover:bg-space-850"
-                                        }`}
+                                            }`}
                                     >
                                         <Icon className="size-4" aria-hidden />
                                         {label}
@@ -158,6 +157,7 @@ export function StAdjustDialog({
                                 Reason <span className="font-normal text-starlight-400">(optional)</span>
                             </label>
                             <Textarea
+                                dir="auto"
                                 id="st-note"
                                 value={note}
                                 onChange={(e) => setNote(e.target.value.slice(0, ST_ADJUST_MAX_NOTE_LENGTH))}
