@@ -1,3 +1,5 @@
+'use client'
+
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Coins, Search, SlidersHorizontal, Users, ChevronRight } from "lucide-react";
@@ -74,11 +76,10 @@ export function InstructorStudentsSTView({ groups: initialGroups }: { groups: ST
                                 setActiveGroupId(group.id);
                                 setQuery("");
                             }}
-                            className={`flex items-center gap-2 rounded-xl border px-3.5 py-2 text-left text-xs transition-colors ${
-                                isActive
+                            className={`flex items-center gap-2 rounded-xl border px-3.5 py-2 text-left text-xs transition-colors ${isActive
                                     ? "border-gold-500/40 bg-gold-500/15 text-gold-300 font-semibold"
                                     : "border-border/80 bg-space-900/70 text-starlight-300 hover:bg-space-850"
-                            }`}
+                                }`}
                         >
                             <span className="truncate">
                                 {group.batchName} · {group.name}
@@ -113,9 +114,8 @@ export function InstructorStudentsSTView({ groups: initialGroups }: { groups: ST
                     </div>
                 ) : (
                     students.map((student) => {
-                        const profileUrl = `/instructor/students/${encodeURIComponent(student.id)}${
-                            activeGroup ? `?groupId=${encodeURIComponent(activeGroup.id)}` : ""
-                        }`;
+                        const profileUrl = `/instructor/students/${encodeURIComponent(student.id)}${activeGroup ? `?groupId=${encodeURIComponent(activeGroup.id)}` : ""
+                            }`;
 
                         return (
                             <div
