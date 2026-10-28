@@ -49,6 +49,10 @@ import { TaskHintUsagePanel } from "@/components/instructor/task-hint-usage";
 import { MarkdownContent } from "@/components/markdown-content";
 import { formatDateTime } from "@/lib/format-date";
 import { getSubmissionFileUrlAction } from "@/lib/actions/submission-management";
+import {
+    getResourceSubmissionState,
+    hasValidResourceSubmission,
+} from "@/lib/weeks/resource-eligibility";
 import { showToast } from "@/components/ui/toast";
 import {
     saveDraftGradeAction,
@@ -318,6 +322,11 @@ function StudentGradingWorkspace({
     const [fileActionError, setFileActionError] = useState<string | null>(null);
 
     async function handleSetResourceStatus(status: "ACCEPTED" | "REJECTED" | "PENDING") {
+        if (!hasValidResourceSubmission(student.resource)) {
+            setFileActionError("Cannot review a deliverable that has not been submitted.");
+            return;
+        }
+
         setResourceStatusLoading(true);
         setFileActionError(null);
 
@@ -444,23 +453,35 @@ function StudentGradingWorkspace({
                             </CardTitle>
                         </div>
 
-                        {student.resource?.status === "ACCEPTED" ? (
-                            <Badge className="bg-success-500/15 text-success-400 border-success-500/30 text-xs px-2.5 py-0.5 rounded-full font-semibold">
-                                ACCEPTED (100% ST)
-                            </Badge>
-                        ) : student.resource?.status === "REJECTED" ? (
-                            <Badge className="bg-error-500/15 text-error-400 border-error-500/30 text-xs px-2.5 py-0.5 rounded-full font-semibold">
-                                REJECTED (×0.5 ST Penalty)
-                            </Badge>
-                        ) : student.resource?.fileUrl ? (
-                            <Badge className="bg-amber-500/15 text-amber-300 border-amber-500/30 text-xs px-2.5 py-0.5 rounded-full font-semibold">
-                                PENDING REVIEW
-                            </Badge>
-                        ) : (
-                            <Badge className="bg-space-850 text-starlight-400 border-border/80 text-xs px-2.5 py-0.5 rounded-full font-mono">
-                                NOT UPLOADED
-                            </Badge>
-                        )}
+                        {(() => {
+                            const resState = getResourceSubmissionState(student.resource);
+                            if (resState.state === "VALID_FILE" || resState.state === "VALID_DRIVE_LINK") {
+                                if (resState.status === "ACCEPTED") {
+                                    return (
+                                        <Badge className="bg-success-500/15 text-success-400 border-success-500/30 text-xs px-2.5 py-0.5 rounded-full font-semibold">
+                                            ACCEPTED (100% ST)
+                                        </Badge>
+                                    );
+                                }
+                                if (resState.status === "REJECTED") {
+                                    return (
+                                        <Badge className="bg-error-500/15 text-error-400 border-error-500/30 text-xs px-2.5 py-0.5 rounded-full font-semibold">
+                                            REJECTED (×0.5 ST Penalty)
+                                        </Badge>
+                                    );
+                                }
+                                return (
+                                    <Badge className="bg-amber-500/15 text-amber-300 border-amber-500/30 text-xs px-2.5 py-0.5 rounded-full font-semibold">
+                                        PENDING REVIEW
+                                    </Badge>
+                                );
+                            }
+                            return (
+                                <Badge className="bg-space-850 text-starlight-400 border-border/80 text-xs px-2.5 py-0.5 rounded-full font-mono">
+                                    NOT SUBMITTED
+                                </Badge>
+                            );
+                        })()}
                     </div>
                 </CardHeader>
 
@@ -472,69 +493,145 @@ function StudentGradingWorkspace({
                         </div>
                     )}
 
-                    {student.resource?.fileUrl ? (
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-border/70 bg-space-850/80">
-                            <div className="space-y-1">
-                                <p className="font-semibold text-xs text-starlight-100 flex items-center gap-1.5">
-                                    <FileText className="size-3.5 text-gold-400" />
-                                    Deliverable Uploaded
-                                </p>
-                                <p className="text-[11px] text-starlight-400 font-mono">
-                                    Uploaded on: {student.resource.submittedAt ? formatDateTime(student.resource.submittedAt) : "N/A"}
-                                </p>
-                            </div>
+                    {(() => {
+                        const resState = getResourceSubmissionState(student.resource);
+                        if (resState.state === "VALID_FILE") {
+                            return (
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-border/70 bg-space-850/80">
+                                    <div className="space-y-1">
+                                        <p className="font-semibold text-xs text-starlight-100 flex items-center gap-1.5">
+                                            <FileText className="size-3.5 text-gold-400" />
+                                            <span>Uploaded File Deliverable</span>
+                                        </p>
+                                        <p className="text-[11px] text-starlight-400 font-mono">
+                                            Uploaded on: {resState.submittedAt ? formatDateTime(resState.submittedAt) : "N/A"}
+                                        </p>
+                                    </div>
 
-                            <div className="flex items-center gap-2 flex-wrap">
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleOpenFile(student.resource!.fileUrl!)}
-                                    disabled={downloadLoading}
-                                    className="border-border/80 bg-space-800 hover:bg-space-750 text-starlight-200 rounded-xl text-xs font-semibold"
-                                >
-                                    <Download className="size-3.5 mr-1" />
-                                    {downloadLoading ? "Opening..." : "View File"}
-                                </Button>
-
-                                {!student.isFinalized && (
-                                    <>
+                                    <div className="flex items-center gap-2 flex-wrap">
                                         <Button
                                             size="sm"
-                                            onClick={() => handleSetResourceStatus("ACCEPTED")}
-                                            disabled={resourceStatusLoading}
-                                            className={`rounded-xl text-xs font-semibold ${student.resource.status === "ACCEPTED"
-                                                ? "bg-success-500 text-space-950 font-bold"
-                                                : "bg-success-500/15 text-success-400 border border-success-500/30 hover:bg-success-500/25"
-                                                }`}
+                                            variant="outline"
+                                            onClick={() => handleOpenFile(resState.fileUrl)}
+                                            disabled={downloadLoading}
+                                            className="border-border/80 bg-space-800 hover:bg-space-750 text-starlight-200 rounded-xl text-xs font-semibold"
                                         >
-                                            <CheckCircle2 className="size-3.5 mr-1" />
-                                            Accept
+                                            <Download className="size-3.5 mr-1" />
+                                            {downloadLoading ? "Opening..." : "View File"}
                                         </Button>
 
-                                        <Button
-                                            size="sm"
-                                            onClick={() => handleSetResourceStatus("REJECTED")}
-                                            disabled={resourceStatusLoading}
-                                            className={`rounded-xl text-xs font-semibold ${student.resource.status === "REJECTED"
-                                                ? "bg-error-500 text-white font-bold"
-                                                : "bg-error-500/15 text-error-400 border border-error-500/30 hover:bg-error-500/25"
-                                                }`}
+                                        {!student.isFinalized && (
+                                            <>
+                                                <Button
+                                                    size="sm"
+                                                    onClick={() => handleSetResourceStatus("ACCEPTED")}
+                                                    disabled={resourceStatusLoading}
+                                                    className={`rounded-xl text-xs font-semibold ${resState.status === "ACCEPTED"
+                                                        ? "bg-success-500 text-space-950 font-bold"
+                                                        : "bg-success-500/15 text-success-400 border border-success-500/30 hover:bg-success-500/25"
+                                                        }`}
+                                                >
+                                                    <CheckCircle2 className="size-3.5 mr-1" />
+                                                    Accept
+                                                </Button>
+
+                                                <Button
+                                                    size="sm"
+                                                    onClick={() => handleSetResourceStatus("REJECTED")}
+                                                    disabled={resourceStatusLoading}
+                                                    className={`rounded-xl text-xs font-semibold ${resState.status === "REJECTED"
+                                                        ? "bg-error-500 text-white font-bold"
+                                                        : "bg-error-500/15 text-error-400 border border-error-500/30 hover:bg-error-500/25"
+                                                        }`}
+                                                >
+                                                    <XCircle className="size-3.5 mr-1" />
+                                                    Reject
+                                                </Button>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        }
+
+                        if (resState.state === "VALID_DRIVE_LINK") {
+                            return (
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-border/70 bg-space-850/80">
+                                    <div className="space-y-1 min-w-0">
+                                        <p className="font-semibold text-xs text-starlight-100 flex items-center gap-1.5">
+                                            <ExternalLink className="size-3.5 text-gold-400" />
+                                            <span>Google Drive Deliverable Link</span>
+                                        </p>
+                                        <p className="text-[11px] text-starlight-400 font-mono">
+                                            Submitted on: {resState.submittedAt ? formatDateTime(resState.submittedAt) : "N/A"}
+                                        </p>
+                                        <div className="pt-0.5 truncate max-w-sm">
+                                            <a
+                                                href={resState.driveUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-[11px] text-gold-400 hover:text-gold-300 underline font-mono truncate inline-block max-w-full"
+                                                title={resState.driveUrl}
+                                            >
+                                                {resState.driveUrl}
+                                            </a>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 flex-wrap shrink-0">
+                                        <a
+                                            href={resState.driveUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center justify-center h-8 px-3 border border-border/80 bg-space-800 hover:bg-space-750 text-starlight-200 rounded-xl text-xs font-semibold transition-colors"
                                         >
-                                            <XCircle className="size-3.5 mr-1" />
-                                            Reject
-                                        </Button>
-                                    </>
-                                )}
+                                            <ExternalLink className="size-3.5 mr-1" />
+                                            Open Drive Link
+                                        </a>
+
+                                        {!student.isFinalized && (
+                                            <>
+                                                <Button
+                                                    size="sm"
+                                                    onClick={() => handleSetResourceStatus("ACCEPTED")}
+                                                    disabled={resourceStatusLoading}
+                                                    className={`rounded-xl text-xs font-semibold ${resState.status === "ACCEPTED"
+                                                        ? "bg-success-500 text-space-950 font-bold"
+                                                        : "bg-success-500/15 text-success-400 border border-success-500/30 hover:bg-success-500/25"
+                                                        }`}
+                                                >
+                                                    <CheckCircle2 className="size-3.5 mr-1" />
+                                                    Accept
+                                                </Button>
+
+                                                <Button
+                                                    size="sm"
+                                                    onClick={() => handleSetResourceStatus("REJECTED")}
+                                                    disabled={resourceStatusLoading}
+                                                    className={`rounded-xl text-xs font-semibold ${resState.status === "REJECTED"
+                                                        ? "bg-error-500 text-white font-bold"
+                                                        : "bg-error-500/15 text-error-400 border border-error-500/30 hover:bg-error-500/25"
+                                                        }`}
+                                                >
+                                                    <XCircle className="size-3.5 mr-1" />
+                                                    Reject
+                                                </Button>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        }
+
+                        return (
+                            <div className="p-4 rounded-xl border border-dashed border-amber-500/30 bg-amber-500/10 text-xs text-amber-300 flex items-center gap-2.5">
+                                <AlertCircle className="size-4 text-amber-400 shrink-0" />
+                                <span>
+                                    Student has not submitted this required deliverable (neither a file nor a Google Drive link). In accordance with platform policy, all positive ST rewards for this week will be halved (×0.5) at finalization.
+                                </span>
                             </div>
-                        </div>
-                    ) : (
-                        <div className="p-4 rounded-xl border border-dashed border-amber-500/30 bg-amber-500/10 text-xs text-amber-300 flex items-center gap-2.5">
-                            <AlertCircle className="size-4 text-amber-400 shrink-0" />
-                            <span>
-                                Student has not uploaded this required file. In accordance with platform policy, all positive ST rewards for this week will be halved (×0.5) at finalization.
-                            </span>
-                        </div>
-                    )}
+                        );
+                    })()}
 
                     <p className="text-[11px] text-starlight-400/80 italic">
                         * Note: The halving rule applies automatically to the sum of positive rewards (rubrics, bonuses, first-solvers, and finish-all) unless this deliverable is marked ACCEPTED before finalization.

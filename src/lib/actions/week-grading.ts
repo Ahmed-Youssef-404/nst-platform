@@ -12,6 +12,7 @@ import {
     saveDraftGrade,
     finalizeWeekGrading,
 } from "@/lib/weeks/grade-week";
+import { hasValidResourceSubmission } from "@/lib/weeks/resource-eligibility";
 import type {
     SaveDraftGradeInput,
     FinalizeWeekGradingInput,
@@ -92,6 +93,33 @@ export async function setWeekResourceStatusAction(input: {
 
         if (!assignment) {
             throw new Error("You are not assigned to this Student's Group.");
+        }
+
+        const resource = await prisma.weekResourceSubmission.findUnique({
+            where: {
+                studentId_weekId: {
+                    studentId: input.studentId,
+                    weekId: input.weekId,
+                },
+            },
+        });
+
+        if (!resource || !hasValidResourceSubmission(resource)) {
+            throw new Error(
+                "Cannot review a deliverable that has not been submitted or is invalid."
+            );
+        }
+
+        const finalizedSubmission = await prisma.submission.findFirst({
+            where: {
+                studentId: input.studentId,
+                task: { weekId: input.weekId },
+                taskGrade: { finalizedAt: { not: null } },
+            },
+        });
+
+        if (finalizedSubmission) {
+            throw new Error("Grading for this student has already been finalized.");
         }
 
         const updated = await prisma.weekResourceSubmission.update({

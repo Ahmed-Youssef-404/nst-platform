@@ -14,6 +14,7 @@ import type {
     SubmissionModeCode,
     SubmissionStatusCode,
     WeekResourceStatusCode,
+    WeekResourceTypeCode,
 } from "@/types/types";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
@@ -31,7 +32,9 @@ export interface StudentWeekSummary {
     canWrite: boolean;
     resource: {
         id: string;
+        type: WeekResourceTypeCode | null;
         fileUrl: string | null;
+        driveUrl: string | null;
         status: WeekResourceStatusCode;
         submittedAt: Date | null;
         lockedAt: Date | null;
@@ -95,7 +98,9 @@ export async function getStudentWeeks(
                                 where: { studentId },
                                 select: {
                                     id: true,
+                                    type: true,
                                     fileUrl: true,
+                                    driveUrl: true,
                                     status: true,
                                     submittedAt: true,
                                     lockedAt: true,
@@ -119,7 +124,9 @@ export async function getStudentWeeks(
         const resource = week.resourceSubmissions[0]
             ? {
                   id: week.resourceSubmissions[0].id,
+                  type: (week.resourceSubmissions[0].type ?? (week.resourceSubmissions[0].fileUrl ? "FILE" : week.resourceSubmissions[0].driveUrl ? "DRIVE_LINK" : null)) as WeekResourceTypeCode | null,
                   fileUrl: week.resourceSubmissions[0].fileUrl,
+                  driveUrl: week.resourceSubmissions[0].driveUrl,
                   status: week.resourceSubmissions[0].status as WeekResourceStatusCode,
                   submittedAt: week.resourceSubmissions[0].submittedAt,
                   lockedAt: week.resourceSubmissions[0].lockedAt,
@@ -229,7 +236,9 @@ export interface StudentWeekDetail {
     beginnerSt: number;
     resource: {
         id: string;
+        type: WeekResourceTypeCode | null;
         fileUrl: string | null;
+        driveUrl: string | null;
         status: WeekResourceStatusCode;
         submittedAt: Date | null;
         lockedAt: Date | null;
@@ -311,7 +320,9 @@ export async function getStudentWeekDetail(
     const resource = week.resourceSubmissions[0]
         ? {
               id: week.resourceSubmissions[0].id,
+              type: (week.resourceSubmissions[0].type ?? (week.resourceSubmissions[0].fileUrl ? "FILE" : week.resourceSubmissions[0].driveUrl ? "DRIVE_LINK" : null)) as WeekResourceTypeCode | null,
               fileUrl: week.resourceSubmissions[0].fileUrl,
+              driveUrl: week.resourceSubmissions[0].driveUrl,
               status: week.resourceSubmissions[0].status as WeekResourceStatusCode,
               submittedAt: week.resourceSubmissions[0].submittedAt,
               lockedAt: week.resourceSubmissions[0].lockedAt,

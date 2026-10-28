@@ -11,6 +11,7 @@ import type {
     TaskTypeCode,
     SubmissionModeCode,
     WeekResourceStatusCode,
+    WeekResourceTypeCode,
     FirstSolverSuggestion,
 } from "@/types/types";
 import type { StudentAvatarConfig } from "@/types/avatar";
@@ -70,7 +71,9 @@ export interface StudentGradingRow {
     beginnerSt: number;
     resource: {
         id: string;
+        type: WeekResourceTypeCode | null;
         fileUrl: string | null;
+        driveUrl: string | null;
         status: WeekResourceStatusCode;
         submittedAt: Date | null;
         lockedAt: Date | null;
@@ -241,7 +244,9 @@ export async function getWeekGradingData(
             resource: resource
                 ? {
                     id: resource.id,
+                    type: (resource.type ?? (resource.fileUrl ? "FILE" : resource.driveUrl ? "DRIVE_LINK" : null)) as WeekResourceTypeCode | null,
                     fileUrl: resource.fileUrl,
+                    driveUrl: resource.driveUrl,
                     status: resource.status as WeekResourceStatusCode,
                     submittedAt: resource.submittedAt,
                     lockedAt: resource.lockedAt,

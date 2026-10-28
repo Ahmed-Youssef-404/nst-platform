@@ -1,27 +1,15 @@
 // src/lib/weeks/upload-week-resource.ts
 //
-// Uploads a Student's Week required file to Supabase Storage. Kept
-// separate from the DB write (week-resource.ts) for the same reason as
-// submissions/upload-file.ts: external I/O and the DB write are two
-// different concerns - the Server Action uploads first to get the path,
-// then passes it to saveWeekResource().
+// Uploads a Student's Week required deliverable file to Supabase Storage.
+// Enforces a strict 1 MiB (1,048,576 bytes) file size limit and allowed MIME types.
 //
-// Storage layout (same private "submissions" bucket as Task files):
+// Storage layout:
 //   week-resources/{weekId}/{studentId}/resource.{ext}
-// The "week-resources/" prefix keeps these apart from Task submission
-// files, whose paths start with a taskId ({taskId}/{studentId}/...).
-// Fixed filename for the same reasons as Task files (no sanitizing of
-// arbitrary user input; a re-upload overwrites in place, no history).
-//
-// Reading the file back reuses getSubmissionFileUrl() from
-// submissions/upload-file.ts - it takes any path in the same bucket.
-//
-// Same limits as Task files: PDF/ZIP only, max 5MB.
 
 import { createClient } from "@/lib/supabase/server";
 import {
-    SUBMISSION_MAX_FILE_SIZE_BYTES,
-    SUBMISSION_ALLOWED_MIME_TYPES,
+    WEEK_RESOURCE_MAX_FILE_SIZE_BYTES,
+    WEEK_RESOURCE_ALLOWED_MIME_TYPES,
 } from "@/types/types";
 
 const BUCKET_NAME = "submissions";
@@ -39,19 +27,19 @@ export async function uploadWeekResourceFile(params: {
 }): Promise<string> {
     const { weekId, studentId, file } = params;
 
-    if (file.size > SUBMISSION_MAX_FILE_SIZE_BYTES) {
-        throw new Error("File exceeds the 5MB size limit.");
+    if (file.size > WEEK_RESOURCE_MAX_FILE_SIZE_BYTES) {
+        throw new Error("File exceeds the 1MB (1,048,576 bytes) size limit.");
     }
 
     if (
-        !SUBMISSION_ALLOWED_MIME_TYPES.includes(
-            file.type as (typeof SUBMISSION_ALLOWED_MIME_TYPES)[number]
+        !WEEK_RESOURCE_ALLOWED_MIME_TYPES.includes(
+            file.type as (typeof WEEK_RESOURCE_ALLOWED_MIME_TYPES)[number]
         )
     ) {
         throw new Error("Only PDF and ZIP files are allowed.");
     }
 
-    const extension = EXTENSION_BY_MIME_TYPE[file.type];
+    const extension = EXTENSION_BY_MIME_TYPE[file.type] ?? "pdf";
     const supabase = await createClient();
 
     const path = `week-resources/${weekId}/${studentId}/resource.${extension}`;

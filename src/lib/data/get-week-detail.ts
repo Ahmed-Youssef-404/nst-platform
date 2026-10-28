@@ -6,7 +6,7 @@
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { computeWeekStatus, type WeekStatus } from "./get-my-groups";
-import type { TaskTypeCode, SubmissionModeCode, WeekResourceStatusCode } from "@/types/types";
+import type { TaskTypeCode, SubmissionModeCode, WeekResourceStatusCode, WeekResourceTypeCode } from "@/types/types";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -43,7 +43,9 @@ export interface WeekStudentRosterEntry {
     studentName: string;
     resource: {
         id: string;
+        type: WeekResourceTypeCode | null;
         fileUrl: string | null;
+        driveUrl: string | null;
         status: WeekResourceStatusCode;
         submittedAt: Date | null;
         lockedAt: Date | null;
@@ -197,7 +199,9 @@ export async function getWeekDetail(
             resource: resource
                 ? {
                     id: resource.id,
+                    type: (resource.type ?? (resource.fileUrl ? "FILE" : resource.driveUrl ? "DRIVE_LINK" : null)) as WeekResourceTypeCode | null,
                     fileUrl: resource.fileUrl,
+                    driveUrl: resource.driveUrl,
                     status: resource.status as WeekResourceStatusCode,
                     submittedAt: resource.submittedAt,
                     lockedAt: resource.lockedAt,

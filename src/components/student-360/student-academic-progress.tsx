@@ -121,7 +121,11 @@ export function StudentAcademicProgress({
                                                             : "bg-amber-500/15 text-amber-300 border-amber-500/30"
                                             )}
                                         >
-                                            {!hasSubmitted ? "Not Uploaded" : `File ${status}`}
+                                            {!hasSubmitted
+                                                ? "Not Submitted"
+                                                : res.resourceSubmission?.type === "DRIVE_LINK"
+                                                    ? `Drive Link ${status}`
+                                                    : `File ${status}`}
                                         </Badge>
                                     </div>
 
@@ -140,10 +144,21 @@ export function StudentAcademicProgress({
                                             <a
                                                 href={res.resourceSubmission.fileUrl}
                                                 target="_blank"
-                                                rel="noreferrer"
+                                                rel="noopener noreferrer"
                                                 className="inline-flex items-center gap-1 text-[11px] font-semibold text-gold-400 hover:text-gold-300 pt-1"
                                             >
                                                 <span>Inspect Uploaded File</span>
+                                                <ExternalLink className="size-3" />
+                                            </a>
+                                        )}
+                                        {res.resourceSubmission?.driveUrl && (
+                                            <a
+                                                href={res.resourceSubmission.driveUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-1 text-[11px] font-semibold text-gold-400 hover:text-gold-300 pt-1"
+                                            >
+                                                <span>Open Google Drive Link</span>
                                                 <ExternalLink className="size-3" />
                                             </a>
                                         )}

@@ -1,13 +1,13 @@
 // src/app/student/weeks/[id]/student-week-detail-view.tsx
 // Interactive view for a Beginner Student's Week:
 //   - Header with dates & YouTube lecture playlist link
-//   - Mandatory Deliverable Card (upload & replace file)
-//   - Week Lock Control (with validation that deliverable exists)
+//   - Mandatory Deliverable Card (File upload with strict 1 MiB limit + real progress OR Google Drive link)
+//   - Week Lock Control (with authoritative dual-condition validation: deliverable + all tasks completed)
 //   - Interactive Task Pager with custom rubrics, hints & draft submissions
 
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -30,11 +30,13 @@ import {
     ChevronRight,
     Loader2,
     AlertCircle,
+    Link2,
+    X,
+    RotateCw,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { FileDropzone } from "@/components/ui/file-dropzone";
 import { showToast } from "@/components/ui/toast";
 import {
     Dialog,
@@ -46,14 +48,23 @@ import {
 } from "@/components/ui/dialog";
 import { WeekTaskDetailCard } from "@/components/student/week-task-detail-card";
 import {
-    uploadWeekResourceAction,
     lockWeekAction,
+    saveWeekDriveLinkAction,
 } from "@/lib/actions/week-submission";
 import { getSubmissionFileUrlAction } from "@/lib/actions/submission-management";
 import type { StudentWeekDetail } from "@/lib/data/get-student-weeks";
 import type { WeekStatus } from "@/lib/data/get-my-groups";
-import type { WeekResourceStatusCode } from "@/types/types";
+import {
+    WEEK_RESOURCE_MAX_FILE_SIZE_BYTES,
+    type WeekResourceStatusCode,
+} from "@/types/types";
 import { formatDateTime } from "@/lib/format-date";
+import {
+    getResourceSubmissionState,
+    hasValidResourceSubmission,
+    hasValidTaskSubmissionContent,
+} from "@/lib/weeks/resource-eligibility";
+import { validateGoogleDriveUrl } from "@/lib/weeks/validate-drive-url";
 
 const STATUS_CONFIG: Record<
     WeekStatus,
@@ -78,7 +89,7 @@ const RESOURCE_STATUS_CONFIG: Record<
     { label: string; badgeClassName: string }
 > = {
     PENDING: {
-        label: "Uploaded (Pending Review)",
+        label: "Deliverable Submitted (Pending Review)",
         badgeClassName: "bg-cyan-500/15 text-cyan-300 border-cyan-500/30",
     },
     ACCEPTED: {
@@ -91,6 +102,15 @@ const RESOURCE_STATUS_CONFIG: Record<
     },
 };
 
+function formatBytes(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+type SubmissionMethod = "FILE" | "DRIVE_LINK";
+type UploadState = "idle" | "selected" | "uploading" | "succeeded" | "failed" | "canceled";
+
 export function StudentWeekDetailView({
     week,
     studentId,
@@ -101,12 +121,26 @@ export function StudentWeekDetailView({
     const router = useRouter();
     const statusConfig = STATUS_CONFIG[week.status];
 
-    // Deliverable upload state
+    // Method selection (FILE or DRIVE_LINK)
+    const [submissionMethod, setSubmissionMethod] = useState<SubmissionMethod>(
+        week.resource?.type === "DRIVE_LINK" ? "DRIVE_LINK" : "FILE"
+    );
+
+    // File upload state with real XHR progress
     const [deliverableFile, setDeliverableFile] = useState<File | null>(null);
-    const [isUploadingDeliverable, setIsUploadingDeliverable] = useState(false);
+    const [uploadState, setUploadState] = useState<UploadState>("idle");
+    const [uploadProgress, setUploadProgress] = useState(0);
     const [deliverableError, setDeliverableError] = useState<string | null>(null);
     const [deliverableSuccess, setDeliverableSuccess] = useState<string | null>(null);
     const [isDownloadingDeliverable, setIsDownloadingDeliverable] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const activeXhrRef = useRef<XMLHttpRequest | null>(null);
+
+    // Google Drive link state
+    const [driveUrlInput, setDriveUrlInput] = useState(week.resource?.driveUrl ?? "");
+    const [isSavingDrive, setIsSavingDrive] = useState(false);
+    const [driveError, setDriveError] = useState<string | null>(null);
+    const [driveSuccess, setDriveSuccess] = useState<string | null>(null);
 
     // Week Lock state
     const [isLockModalOpen, setIsLockModalOpen] = useState(false);
@@ -116,57 +150,286 @@ export function StudentWeekDetailView({
     // Task Stepper state
     const [currentTaskIndex, setCurrentTaskIndex] = useState(0);
 
-    // Upload Mandatory Deliverable
-    async function handleUploadDeliverable(e: React.FormEvent) {
-        e.preventDefault();
+    // Resource state calculation
+    const resState = getResourceSubmissionState(week.resource);
+    const hasDeliverable = hasValidResourceSubmission(week.resource);
+
+    // Task completion calculation (Condition 2)
+    const internalTasks = week.tasks.filter((t) => t.type === "INTERNAL");
+    const completedTasks = internalTasks.filter((t) =>
+        hasValidTaskSubmissionContent(t.submission)
+    );
+    const allTasksCompleted =
+        internalTasks.length > 0 ? completedTasks.length === internalTasks.length : true;
+    const unsolvedCount = internalTasks.length - completedTasks.length;
+
+    const isUploading = uploadState === "uploading";
+
+    // Locking eligibility check
+    const canLock =
+        hasDeliverable &&
+        allTasksCompleted &&
+        !isUploading &&
+        week.status === "ongoing" &&
+        !week.isLocked &&
+        !isLocking;
+
+    let lockDisabledReason: string | null = null;
+    if (week.isLocked) {
+        lockDisabledReason = "This week is already locked and submitted.";
+    } else if (week.status !== "ongoing") {
+        lockDisabledReason = "This week has ended. Submissions are finalized.";
+    } else if (isUploading) {
+        lockDisabledReason = "Your deliverable file is currently uploading...";
+    } else if (!hasDeliverable && !allTasksCompleted) {
+        lockDisabledReason =
+            "Upload a deliverable and complete all tasks before locking this week.";
+    } else if (!hasDeliverable) {
+        lockDisabledReason = "Upload a file or submit a Google Drive link first.";
+    } else if (!allTasksCompleted) {
+        lockDisabledReason = `Complete all tasks before locking this week (${unsolvedCount} remaining).`;
+    }
+
+    // Handle File Selection
+    function handleFileSelected(file: File | null) {
+        if (!file) {
+            setDeliverableFile(null);
+            setUploadState("idle");
+            return;
+        }
+
+        // Strict 1 MiB (1,048,576 bytes) limit validation before upload
+        if (file.size > WEEK_RESOURCE_MAX_FILE_SIZE_BYTES) {
+            const sizeStr = formatBytes(file.size);
+            const err = `File size (${sizeStr}) exceeds the strict 1 MB (1,048,576 bytes) limit. Please select a smaller file.`;
+            setDeliverableError(err);
+            setDeliverableFile(null);
+            setUploadState("failed");
+            showToast({
+                title: "File Exceeds 1 MB Limit",
+                description: err,
+                type: "error",
+            });
+            if (fileInputRef.current) fileInputRef.current.value = "";
+            return;
+        }
+
+        const allowedMimes = [
+            "application/pdf",
+            "application/zip",
+            "application/x-zip-compressed",
+        ];
+        const isPdfOrZip =
+            allowedMimes.includes(file.type) ||
+            file.name.toLowerCase().endsWith(".pdf") ||
+            file.name.toLowerCase().endsWith(".zip");
+
+        if (!isPdfOrZip) {
+            const err = "Only PDF and ZIP files are accepted.";
+            setDeliverableError(err);
+            setDeliverableFile(null);
+            setUploadState("failed");
+            showToast({
+                title: "Invalid File Type",
+                description: err,
+                type: "error",
+            });
+            if (fileInputRef.current) fileInputRef.current.value = "";
+            return;
+        }
+
+        setDeliverableFile(file);
+        setDeliverableError(null);
+        setDeliverableSuccess(null);
+        setUploadState("selected");
+    }
+
+    // Real XHR Upload with Byte Progress
+    function handleStartUpload() {
         if (!deliverableFile) {
             setDeliverableError("Please select a file to upload.");
             return;
         }
 
-        setIsUploadingDeliverable(true);
+        if (deliverableFile.size > WEEK_RESOURCE_MAX_FILE_SIZE_BYTES) {
+            setDeliverableError("File exceeds the strict 1 MB (1,048,576 bytes) limit.");
+            return;
+        }
+
+        setUploadState("uploading");
+        setUploadProgress(0);
         setDeliverableError(null);
         setDeliverableSuccess(null);
 
-        try {
-            const formData = new FormData();
-            formData.append("weekId", week.id);
-            formData.append("file", deliverableFile);
+        const xhr = new XMLHttpRequest();
+        activeXhrRef.current = xhr;
 
-            const res = await uploadWeekResourceAction(formData);
+        xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable && event.total > 0) {
+                const percent = Math.min(100, Math.round((event.loaded / event.total) * 100));
+                setUploadProgress(percent);
+            }
+        };
 
-            if (!res.success) {
-                const msg = res.error ?? "Failed to upload deliverable file.";
-                setDeliverableError(msg);
+        xhr.onload = () => {
+            activeXhrRef.current = null;
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                    const res = JSON.parse(xhr.responseText);
+                    if (res.success) {
+                        setUploadState("succeeded");
+                        setUploadProgress(100);
+                        setDeliverableSuccess("Deliverable file uploaded successfully!");
+                        showToast({
+                            title: "Deliverable Uploaded",
+                            description: "Your week deliverable file has been uploaded.",
+                            type: "success",
+                        });
+                        setDeliverableFile(null);
+                        if (fileInputRef.current) fileInputRef.current.value = "";
+                        router.refresh();
+                    } else {
+                        setUploadState("failed");
+                        const msg = res.error ?? "Failed to upload deliverable file.";
+                        setDeliverableError(msg);
+                        showToast({
+                            title: "Upload Failed",
+                            description: msg,
+                            type: "error",
+                        });
+                    }
+                } catch {
+                    setUploadState("failed");
+                    setDeliverableError("Could not parse server response.");
+                }
+            } else {
+                setUploadState("failed");
+                let errorMsg = "Upload failed.";
+                try {
+                    const res = JSON.parse(xhr.responseText);
+                    if (res.error) errorMsg = res.error;
+                } catch {
+                    errorMsg = `Server responded with status ${xhr.status}.`;
+                }
+                setDeliverableError(errorMsg);
                 showToast({
                     title: "Upload Failed",
+                    description: errorMsg,
+                    type: "error",
+                });
+            }
+        };
+
+        xhr.onerror = () => {
+            activeXhrRef.current = null;
+            setUploadState("failed");
+            const err = "Network failure during upload. Please verify your connection and retry.";
+            setDeliverableError(err);
+            showToast({
+                title: "Upload Network Error",
+                description: err,
+                type: "error",
+            });
+        };
+
+        xhr.onabort = () => {
+            activeXhrRef.current = null;
+            setUploadState("canceled");
+            setDeliverableError("Upload was canceled.");
+        };
+
+        const formData = new FormData();
+        formData.append("file", deliverableFile);
+
+        xhr.open("POST", `/api/student/weeks/${week.id}/resource/upload`);
+        xhr.send(formData);
+    }
+
+    // Cancel in-flight upload
+    function handleCancelUpload() {
+        if (activeXhrRef.current) {
+            activeXhrRef.current.abort();
+            activeXhrRef.current = null;
+        }
+    }
+
+    // Save Google Drive Link
+    async function handleSaveDriveLink(e: React.FormEvent) {
+        e.preventDefault();
+        const trimmed = driveUrlInput.trim();
+        if (!trimmed) {
+            setDriveError("Please enter a Google Drive link.");
+            return;
+        }
+
+        const validation = validateGoogleDriveUrl(trimmed);
+        if (!validation.valid || !validation.normalizedUrl) {
+            const err = validation.error ?? "Invalid Google Drive link.";
+            setDriveError(err);
+            showToast({
+                title: "Invalid Google Drive URL",
+                description: err,
+                type: "error",
+            });
+            return;
+        }
+
+        setIsSavingDrive(true);
+        setDriveError(null);
+        setDriveSuccess(null);
+
+        try {
+            const res = await saveWeekDriveLinkAction({
+                weekId: week.id,
+                driveUrl: validation.normalizedUrl,
+            });
+
+            if (!res.success) {
+                const msg = res.error ?? "Failed to save Google Drive link.";
+                setDriveError(msg);
+                showToast({
+                    title: "Save Failed",
                     description: msg,
                     type: "error",
                 });
             } else {
-                setDeliverableSuccess("Deliverable file uploaded successfully!");
+                setDriveSuccess("Google Drive link saved successfully!");
                 showToast({
-                    title: "Deliverable Uploaded",
-                    description: "Your week deliverable file has been uploaded.",
+                    title: "Google Drive Link Saved",
+                    description: "Your Google Drive deliverable link has been submitted.",
                     type: "success",
                 });
-                setDeliverableFile(null);
                 router.refresh();
             }
         } catch (err) {
             const msg = err instanceof Error ? err.message : "Unexpected error.";
-            setDeliverableError(msg);
+            setDriveError(msg);
             showToast({
-                title: "Upload Error",
+                title: "Save Error",
                 description: msg,
                 type: "error",
             });
         } finally {
-            setIsUploadingDeliverable(false);
+            setIsSavingDrive(false);
         }
     }
 
-    // Download Existing Deliverable
+    // Test Google Drive link
+    function handleTestDriveLink() {
+        const trimmed = driveUrlInput.trim();
+        if (!trimmed) {
+            setDriveError("Please enter a Google Drive link first.");
+            return;
+        }
+        const validation = validateGoogleDriveUrl(trimmed);
+        if (!validation.valid || !validation.normalizedUrl) {
+            setDriveError(validation.error ?? "Invalid Google Drive link.");
+            return;
+        }
+        window.open(validation.normalizedUrl, "_blank", "noopener,noreferrer");
+    }
+
+    // Download Existing Deliverable File
     async function handleDownloadDeliverable(fileUrl: string) {
         setIsDownloadingDeliverable(true);
         try {
@@ -202,6 +465,11 @@ export function StudentWeekDetailView({
                 setLockError(res.error ?? "Failed to lock the week.");
             } else {
                 setIsLockModalOpen(false);
+                showToast({
+                    title: "Week Locked",
+                    description: "All tasks and deliverable finalized for grading.",
+                    type: "success",
+                });
                 router.refresh();
             }
         } catch (err) {
@@ -304,19 +572,19 @@ export function StudentWeekDetailView({
                             </h3>
                         </div>
 
-                        {week.resource ? (
+                        {hasDeliverable ? (
                             <span
                                 className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                                    RESOURCE_STATUS_CONFIG[week.resource.status]?.badgeClassName ??
+                                    RESOURCE_STATUS_CONFIG[week.resource!.status]?.badgeClassName ??
                                     "bg-space-800 text-starlight-300"
                                 }`}
                             >
-                                {RESOURCE_STATUS_CONFIG[week.resource.status]?.label ?? "Uploaded"}
+                                {RESOURCE_STATUS_CONFIG[week.resource!.status]?.label ?? "Submitted"}
                             </span>
                         ) : (
                             <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-1">
                                 <AlertCircle className="size-2.5" />
-                                File Missing
+                                Deliverable Missing
                             </span>
                         )}
                     </div>
@@ -326,76 +594,319 @@ export function StudentWeekDetailView({
                             Required: <span className="text-gold-300 font-semibold">{week.requiredFileLabel}</span>
                         </p>
                         <p className="text-[11px] text-starlight-400">
-                            Every student must submit this file before locking the week. PDF or ZIP, max 5MB.
+                            Every student must submit this deliverable before locking the week. Choose either a direct file upload (max 1 MB) or a Google Drive sharing link.
                         </p>
                     </div>
 
-                    {/* Existing Upload Preview */}
-                    {week.resource && week.resource.fileUrl && (
-                        <div className="flex items-center justify-between gap-2 rounded-xl bg-space-950/70 p-3 border border-border/60 text-xs">
-                            <div className="flex items-center gap-2 truncate text-starlight-200">
-                                <ShieldCheck className="size-4 text-emerald-400 shrink-0" />
-                                <span className="truncate">Deliverable on File</span>
-                                {week.resource.submittedAt && (
-                                    <span className="font-mono text-[10px] text-starlight-400 hidden sm:inline">
-                                        ({formatDateTime(week.resource.submittedAt)})
-                                    </span>
-                                )}
-                            </div>
+                    {/* Active Submitted Deliverable Display */}
+                    {hasDeliverable && (
+                        <div className="rounded-xl bg-space-950/70 p-3.5 border border-border/60 text-xs space-y-2">
+                            {resState.state === "VALID_FILE" && (
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2 min-w-0 text-starlight-200">
+                                        <ShieldCheck className="size-4 text-emerald-400 shrink-0" />
+                                        <div className="truncate">
+                                            <span className="font-semibold text-xs">File on Record</span>
+                                            {resState.submittedAt && (
+                                                <span className="font-mono text-[10px] text-starlight-400 ml-2 hidden sm:inline">
+                                                    ({formatDateTime(resState.submittedAt)})
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
 
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                disabled={isDownloadingDeliverable}
-                                onClick={() => handleDownloadDeliverable(week.resource!.fileUrl!)}
-                                className="h-7 text-xs border-border/80 bg-space-850 hover:bg-space-800 text-starlight-200 shrink-0"
-                            >
-                                <Download className="size-3 mr-1" />
-                                {isDownloadingDeliverable ? "Loading..." : "Download"}
-                            </Button>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={isDownloadingDeliverable}
+                                        onClick={() => handleDownloadDeliverable(resState.fileUrl)}
+                                        className="h-7 text-xs border-border/80 bg-space-850 hover:bg-space-800 text-starlight-200 shrink-0"
+                                    >
+                                        <Download className="size-3 mr-1" />
+                                        {isDownloadingDeliverable ? "Loading..." : "Download"}
+                                    </Button>
+                                </div>
+                            )}
+
+                            {resState.state === "VALID_DRIVE_LINK" && (
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2 min-w-0 text-starlight-200">
+                                        <ShieldCheck className="size-4 text-emerald-400 shrink-0" />
+                                        <div className="truncate max-w-xs sm:max-w-md">
+                                            <span className="font-semibold text-xs">Google Drive Link on Record</span>
+                                            <div className="text-[11px] text-gold-400 truncate font-mono">
+                                                {resState.driveUrl}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <a
+                                        href={resState.driveUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center justify-center h-7 px-2.5 text-xs border border-border/80 bg-space-850 hover:bg-space-800 text-starlight-200 rounded-md shrink-0 font-medium transition-colors"
+                                    >
+                                        <ExternalLink className="size-3 mr-1" />
+                                        Open Link
+                                    </a>
+                                </div>
+                            )}
                         </div>
                     )}
 
-                    {/* Upload / Replace Form */}
+                    {/* Method Selector & Input Form (only when editable) */}
                     {week.canWrite && (
-                        <form onSubmit={handleUploadDeliverable} className="space-y-3 pt-1">
-                            <FileDropzone
-                                value={deliverableFile}
-                                onChange={setDeliverableFile}
-                                accept=".pdf,.zip,application/pdf,application/zip,application/x-zip-compressed"
-                                maxSize={5 * 1024 * 1024}
-                                description="Drag & drop your deliverable (PDF or ZIP, max 5MB), or click to browse"
-                            />
-
-                            <div className="flex justify-end">
-                                <Button
-                                    type="submit"
-                                    size="sm"
-                                    disabled={isUploadingDeliverable || !deliverableFile}
-                                    className="h-9 px-5 text-xs font-semibold bg-gold-500 hover:bg-gold-400 text-space-950 rounded-xl shadow-gold shrink-0 transition-all"
+                        <div className="space-y-3 pt-1">
+                            {/* Method Switcher Tabs */}
+                            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-space-950/80 border border-border/60">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (isUploading) return;
+                                        setSubmissionMethod("FILE");
+                                    }}
+                                    disabled={isUploading}
+                                    className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                                        submissionMethod === "FILE"
+                                            ? "bg-gold-500 text-space-950 shadow-gold"
+                                            : "text-starlight-300 hover:text-starlight-100 hover:bg-space-850"
+                                    }`}
                                 >
-                                    {isUploadingDeliverable ? (
-                                        <>
-                                            <Loader2 className="size-3.5 mr-1.5 animate-spin" />
-                                            Uploading...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <UploadCloud className="size-3.5 mr-1.5" />
-                                            {week.resource ? "Replace Deliverable" : "Upload Deliverable"}
-                                        </>
-                                    )}
-                                </Button>
+                                    <UploadCloud className="size-3.5" />
+                                    <span>Upload File (Max 1 MB)</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (isUploading) return;
+                                        setSubmissionMethod("DRIVE_LINK");
+                                    }}
+                                    disabled={isUploading}
+                                    className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                                        submissionMethod === "DRIVE_LINK"
+                                            ? "bg-gold-500 text-space-950 shadow-gold"
+                                            : "text-starlight-300 hover:text-starlight-100 hover:bg-space-850"
+                                    }`}
+                                >
+                                    <Link2 className="size-3.5" />
+                                    <span>Google Drive Link</span>
+                                </button>
                             </div>
 
-                            {deliverableError && (
-                                <p className="text-xs text-red-400">{deliverableError}</p>
+                            {/* Mutual exclusion replacement warning */}
+                            {resState.state === "VALID_DRIVE_LINK" && submissionMethod === "FILE" && (
+                                <p className="text-[11px] text-amber-300/90 bg-amber-500/10 border border-amber-500/20 p-2 rounded-lg flex items-center gap-1.5">
+                                    <AlertCircle className="size-3.5 shrink-0 text-amber-400" />
+                                    Uploading a file will replace your previously submitted Google Drive link.
+                                </p>
                             )}
-                            {deliverableSuccess && (
-                                <p className="text-xs text-emerald-400">{deliverableSuccess}</p>
+
+                            {resState.state === "VALID_FILE" && submissionMethod === "DRIVE_LINK" && (
+                                <p className="text-[11px] text-amber-300/90 bg-amber-500/10 border border-amber-500/20 p-2 rounded-lg flex items-center gap-1.5">
+                                    <AlertCircle className="size-3.5 shrink-0 text-amber-400" />
+                                    Submitting a Google Drive link will replace your previously uploaded file deliverable.
+                                </p>
                             )}
-                        </form>
+
+                            {/* Method 1: File Upload */}
+                            {submissionMethod === "FILE" && (
+                                <div className="space-y-3">
+                                    <div
+                                        onClick={() => {
+                                            if (!isUploading && fileInputRef.current) {
+                                                fileInputRef.current.click();
+                                            }
+                                        }}
+                                        className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all ${
+                                            isUploading
+                                                ? "border-gold-500/40 bg-gold-500/5 cursor-not-allowed"
+                                                : deliverableFile
+                                                ? "border-emerald-500/40 bg-emerald-500/5 hover:border-emerald-500/60"
+                                                : "border-border/70 bg-space-950/40 hover:border-gold-500/40 hover:bg-space-850/50"
+                                        }`}
+                                    >
+                                        <input
+                                            ref={fileInputRef}
+                                            type="file"
+                                            accept=".pdf,.zip,application/pdf,application/zip,application/x-zip-compressed"
+                                            className="hidden"
+                                            disabled={isUploading}
+                                            onChange={(e) => {
+                                                const f = e.target.files?.[0] ?? null;
+                                                handleFileSelected(f);
+                                            }}
+                                        />
+
+                                        {deliverableFile ? (
+                                            <div className="space-y-1">
+                                                <p className="text-xs font-semibold text-emerald-300 truncate">
+                                                    {deliverableFile.name}
+                                                </p>
+                                                <p className="text-[11px] text-starlight-400 font-mono">
+                                                    Size: {formatBytes(deliverableFile.size)} / Max 1.0 MB (1,048,576 bytes)
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-1">
+                                                <UploadCloud className="size-6 text-gold-400 mx-auto mb-1" />
+                                                <p className="text-xs font-semibold text-starlight-200">
+                                                    Click to select your deliverable file
+                                                </p>
+                                                <p className="text-[11px] text-starlight-400 font-mono">
+                                                    Strict limit: exactly 1 MiB (1,048,576 bytes) · PDF or ZIP
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Upload Progress Bar */}
+                                    {isUploading && (
+                                        <div className="space-y-1.5 p-3 rounded-xl bg-space-950 border border-gold-500/30">
+                                            <div className="flex items-center justify-between text-xs font-mono">
+                                                <span className="text-gold-300 flex items-center gap-1.5">
+                                                    <Loader2 className="size-3 animate-spin text-gold-400" />
+                                                    Uploading: {uploadProgress}%
+                                                </span>
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    onClick={handleCancelUpload}
+                                                    className="h-6 px-2 text-[11px] text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                                                >
+                                                    <X className="size-3 mr-1" />
+                                                    Cancel
+                                                </Button>
+                                            </div>
+                                            <div className="w-full bg-space-850 h-2 rounded-full overflow-hidden">
+                                                <div
+                                                    className="bg-gradient-to-r from-gold-500 to-gold-400 h-full transition-all duration-150 ease-out"
+                                                    style={{ width: `${uploadProgress}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Upload action buttons */}
+                                    <div className="flex items-center justify-end gap-2">
+                                        {uploadState === "failed" && deliverableFile && (
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={handleStartUpload}
+                                                className="h-8 px-3 text-xs border-border/80 bg-space-850 hover:bg-space-800 text-starlight-200 rounded-xl"
+                                            >
+                                                <RotateCw className="size-3 mr-1" />
+                                                Retry Upload
+                                            </Button>
+                                        )}
+
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            disabled={isUploading || !deliverableFile}
+                                            onClick={handleStartUpload}
+                                            className="h-8 px-4 text-xs font-semibold bg-gold-500 hover:bg-gold-400 text-space-950 rounded-xl shadow-gold shrink-0 transition-all disabled:opacity-50"
+                                        >
+                                            {isUploading ? (
+                                                <>
+                                                    <Loader2 className="size-3 mr-1.5 animate-spin" />
+                                                    Uploading ({uploadProgress}%)
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <UploadCloud className="size-3.5 mr-1.5" />
+                                                    {resState.state === "VALID_FILE"
+                                                        ? "Replace File Deliverable"
+                                                        : "Upload Deliverable"}
+                                                </>
+                                            )}
+                                        </Button>
+                                    </div>
+
+                                    {deliverableError && (
+                                        <p className="text-xs text-red-400">{deliverableError}</p>
+                                    )}
+                                    {deliverableSuccess && (
+                                        <p className="text-xs text-emerald-400">{deliverableSuccess}</p>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Method 2: Google Drive Link */}
+                            {submissionMethod === "DRIVE_LINK" && (
+                                <form onSubmit={handleSaveDriveLink} className="space-y-3">
+                                    <div className="space-y-1.5">
+                                        <div className="flex items-center justify-between text-[11px] text-starlight-400">
+                                            <span>Google Drive / Google Docs Sharing URL</span>
+                                            <span>HTTPS only</span>
+                                        </div>
+
+                                        <Input
+                                            type="url"
+                                            value={driveUrlInput}
+                                            onChange={(e) => {
+                                                setDriveUrlInput(e.target.value);
+                                                setDriveError(null);
+                                                setDriveSuccess(null);
+                                            }}
+                                            placeholder="https://drive.google.com/file/d/.../view"
+                                            disabled={isSavingDrive}
+                                            className="h-9 text-xs bg-space-950 border-border/70 rounded-xl text-starlight-100 placeholder:text-starlight-500"
+                                        />
+
+                                        <p className="text-[11px] text-starlight-400/90">
+                                            Important: Ensure Google Drive permissions are set to{" "}
+                                            <span className="text-gold-300 font-semibold">"Anyone with the link can view"</span> so your instructor can review your work.
+                                        </p>
+                                    </div>
+
+                                    <div className="flex items-center justify-between gap-2">
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={handleTestDriveLink}
+                                            disabled={!driveUrlInput.trim()}
+                                            className="h-8 px-3 text-xs border-border/70 bg-space-850 hover:bg-space-800 text-starlight-200 rounded-xl"
+                                        >
+                                            <ExternalLink className="size-3 mr-1" />
+                                            Test Link
+                                        </Button>
+
+                                        <Button
+                                            type="submit"
+                                            size="sm"
+                                            disabled={isSavingDrive || !driveUrlInput.trim()}
+                                            className="h-8 px-4 text-xs font-semibold bg-gold-500 hover:bg-gold-400 text-space-950 rounded-xl shadow-gold transition-all disabled:opacity-50"
+                                        >
+                                            {isSavingDrive ? (
+                                                <>
+                                                    <Loader2 className="size-3 mr-1.5 animate-spin" />
+                                                    Saving...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Link2 className="size-3.5 mr-1.5" />
+                                                    {resState.state === "VALID_DRIVE_LINK"
+                                                        ? "Update Drive Link"
+                                                        : "Save Drive Link"}
+                                                </>
+                                            )}
+                                        </Button>
+                                    </div>
+
+                                    {driveError && (
+                                        <p className="text-xs text-red-400">{driveError}</p>
+                                    )}
+                                    {driveSuccess && (
+                                        <p className="text-xs text-emerald-400">{driveSuccess}</p>
+                                    )}
+                                </form>
+                            )}
+                        </div>
                     )}
                 </div>
 
@@ -421,7 +932,7 @@ export function StudentWeekDetailView({
                             )}
                         </div>
 
-                        <div className="space-y-2 mt-3">
+                        <div className="space-y-3 mt-3">
                             <p className="text-xs text-starlight-300 leading-relaxed">
                                 {week.isLocked
                                     ? `This week was locked on ${
@@ -429,8 +940,49 @@ export function StudentWeekDetailView({
                                               ? formatDateTime(week.resource.lockedAt)
                                               : "record"
                                       }. All saved drafts were finalized and sent to your instructor.`
-                                    : "Locking the week finalizes and submits all your task drafts simultaneously. No further changes or file replacements can be made after locking."}
+                                    : "Locking the week finalizes and submits all your task drafts and your deliverable simultaneously. No further changes can be made after locking."}
                             </p>
+
+                            {/* Dual Condition Completion Checklist */}
+                            {!week.isLocked && (
+                                <div className="rounded-xl bg-space-950/70 p-3.5 border border-border/70 space-y-2 text-xs">
+                                    <div className="font-semibold text-starlight-200 text-[11px] uppercase tracking-wider">
+                                        Lock Requirements Checklist
+                                    </div>
+
+                                    {/* Requirement 1: Deliverable */}
+                                    <div className="flex items-center gap-2 text-xs">
+                                        {hasDeliverable ? (
+                                            <CheckCircle2 className="size-4 text-emerald-400 shrink-0" />
+                                        ) : (
+                                            <AlertCircle className="size-4 text-amber-400 shrink-0" />
+                                        )}
+                                        <span className={hasDeliverable ? "text-starlight-200" : "text-amber-300"}>
+                                            {hasDeliverable
+                                                ? `Deliverable submitted (${
+                                                      resState.state === "VALID_DRIVE_LINK"
+                                                          ? "Google Drive Link"
+                                                          : "Uploaded File"
+                                                  })`
+                                                : "Weekly deliverable missing (File or Drive link required)"}
+                                        </span>
+                                    </div>
+
+                                    {/* Requirement 2: All Tasks Completed */}
+                                    <div className="flex items-center gap-2 text-xs">
+                                        {allTasksCompleted ? (
+                                            <CheckCircle2 className="size-4 text-emerald-400 shrink-0" />
+                                        ) : (
+                                            <AlertCircle className="size-4 text-amber-400 shrink-0" />
+                                        )}
+                                        <span className={allTasksCompleted ? "text-starlight-200" : "text-amber-300"}>
+                                            {allTasksCompleted
+                                                ? `All tasks completed (${completedTasks.length}/${internalTasks.length} solved)`
+                                                : `All tasks must be completed (${unsolvedCount} remaining)`}
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
 
                             {!week.isLocked && (
                                 <div className="flex items-center gap-3 text-xs text-starlight-400 pt-1 font-mono">
@@ -456,17 +1008,17 @@ export function StudentWeekDetailView({
                                 <Button
                                     type="button"
                                     onClick={() => setIsLockModalOpen(true)}
-                                    disabled={!week.resource || isLocking}
+                                    disabled={!canLock}
                                     className="w-full bg-gradient-to-r from-gold-500 to-gold-400 hover:from-gold-400 hover:to-gold-300 text-space-950 font-extrabold rounded-xl text-xs h-10 shadow-gold transition-all disabled:opacity-50"
                                 >
                                     <Lock className="size-4 mr-1.5" />
                                     Lock Week & Finalize All Submissions
                                 </Button>
 
-                                {!week.resource && (
-                                    <p className="text-[11px] text-amber-400/90 text-center mt-2 flex items-center justify-center gap-1">
-                                        <AlertCircle className="size-3" />
-                                        Upload the mandatory deliverable above to unlock this button.
+                                {lockDisabledReason && !week.isLocked && (
+                                    <p className="text-[11px] text-amber-400/90 text-center mt-2 flex items-center justify-center gap-1.5">
+                                        <AlertCircle className="size-3 shrink-0" />
+                                        {lockDisabledReason}
                                     </p>
                                 )}
                             </div>
@@ -598,14 +1150,10 @@ export function StudentWeekDetailView({
                         </DialogTitle>
                         <DialogDescription className="text-xs text-starlight-300 mt-2 space-y-2">
                             <p>
-                                Are you sure you are ready to lock this week?
+                                Are you sure you want to permanently lock this week?
                             </p>
-                            <p className="text-starlight-400">
-                                • All tasks with a saved draft will be converted to <strong className="text-emerald-300">SUBMITTED</strong>.
-                                <br />
-                                • Tasks without drafts will count as unsubmitted.
-                                <br />
-                                • Once locked, you <strong className="text-red-300">cannot make further edits</strong> or replace files.
+                            <p className="text-amber-400/90 font-medium">
+                                Once locked, all your saved task drafts and your deliverable will be submitted to your instructor for grading. You will NOT be able to make any further edits or file replacements.
                             </p>
                         </DialogDescription>
                     </DialogHeader>

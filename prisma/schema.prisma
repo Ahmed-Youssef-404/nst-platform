@@ -255,11 +255,18 @@ enum WeekResourceStatus {
   REJECTED
 }
 
+enum WeekResourceType {
+  FILE
+  DRIVE_LINK
+}
+
 model WeekResourceSubmission {
   id          String             @id @default(uuid())
   studentId   String
   weekId      String
+  type        WeekResourceType?  @default(FILE)
   fileUrl     String?
+  driveUrl    String?
   status      WeekResourceStatus @default(PENDING)
   submittedAt DateTime?
 

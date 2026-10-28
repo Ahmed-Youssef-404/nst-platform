@@ -24,6 +24,7 @@ import type { StudentWeeksData, StudentWeekSummary } from "@/lib/data/get-studen
 import type { WeekStatus } from "@/lib/data/get-my-groups";
 import type { WeekResourceStatusCode } from "@/types/types";
 import { formatDateTime } from "@/lib/format-date";
+import { hasValidResourceSubmission } from "@/lib/weeks/resource-eligibility";
 
 const STATUS_CONFIG: Record<
     WeekStatus,
@@ -59,7 +60,7 @@ const RESOURCE_STATUS_CONFIG: Record<
     { label: string; badgeClassName: string }
 > = {
     PENDING: {
-        label: "Deliverable Uploaded (Pending Review)",
+        label: "Deliverable Submitted (Pending Review)",
         badgeClassName: "bg-cyan-500/15 text-cyan-300 border-cyan-500/30",
     },
     ACCEPTED: {
@@ -249,19 +250,19 @@ function WeekCard({ week }: { week: StudentWeekSummary }) {
                             <span className="truncate">{week.requiredFileLabel}</span>
                         </span>
 
-                        {week.resource ? (
+                        {hasValidResourceSubmission(week.resource) ? (
                             <span
                                 className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold border ${
-                                    RESOURCE_STATUS_CONFIG[week.resource.status]?.badgeClassName ??
+                                    RESOURCE_STATUS_CONFIG[week.resource!.status]?.badgeClassName ??
                                     "bg-secondary text-secondary-foreground border-border"
                                 }`}
                             >
-                                {RESOURCE_STATUS_CONFIG[week.resource.status]?.label ?? "Uploaded"}
+                                {RESOURCE_STATUS_CONFIG[week.resource!.status]?.label ?? "Submitted"}
                             </span>
                         ) : (
                             <span className="shrink-0 inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400 border border-amber-500/25">
                                 <AlertCircle className="size-2.5" />
-                                File Required
+                                Deliverable Required
                             </span>
                         )}
                     </div>

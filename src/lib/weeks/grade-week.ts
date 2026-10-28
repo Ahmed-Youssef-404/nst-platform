@@ -48,6 +48,7 @@ import type {
     FinalizeWeekGradingInput,
     FinalizeWeekGradingResult,
 } from "@/types/types";
+import { isRewardHalvedForResource } from "@/lib/weeks/resource-eligibility";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -352,13 +353,19 @@ export async function finalizeWeekGrading(
         where: {
             studentId_weekId: { studentId: input.studentId, weekId: week.id },
         },
-        select: { status: true, lockedAt: true },
+        select: {
+            type: true,
+            fileUrl: true,
+            driveUrl: true,
+            status: true,
+            lockedAt: true,
+        },
     });
 
-    // Any status other than ACCEPTED (PENDING, REJECTED, or no row/file at
-    // all) triggers the halving - only an explicit ACCEPTED verdict avoids
-    // it.
-    const wasHalvedDueToLateResource = resource?.status !== "ACCEPTED";
+    // Any status other than ACCEPTED (PENDING, REJECTED, or no valid resource at
+    // all) triggers the halving - only an explicit ACCEPTED verdict on a valid
+    // resource (FILE or DRIVE_LINK) avoids it.
+    const wasHalvedDueToLateResource = isRewardHalvedForResource(resource);
 
     // Pull, per Task, this student's Submission (existence/id) and any
     // TaskGrade draft already saved via saveDraftGrade (markedInvalid is a

@@ -11,7 +11,7 @@ import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { getBalanceStatus } from "@/lib/st-economy/balance-status";
 import type { StudentAvatarConfig } from "@/types/avatar";
-import type { BalanceStatus, STReasonCode, STTransactionKind } from "@/types/types";
+import type { BalanceStatus, STReasonCode, STTransactionKind, WeekResourceTypeCode } from "@/types/types";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -176,7 +176,9 @@ export interface Student360WeekResourceProgress {
     endDate: Date;
     resourceSubmission: {
         id: string;
+        type: WeekResourceTypeCode | null;
         fileUrl: string | null;
+        driveUrl: string | null;
         status: "PENDING" | "ACCEPTED" | "REJECTED";
         submittedAt: Date | null;
         lockedAt: Date | null;
@@ -626,7 +628,9 @@ export async function getStudent360(
                 resourceSubmission: res
                     ? {
                           id: res.id,
+                          type: (res.type ?? (res.fileUrl ? "FILE" : res.driveUrl ? "DRIVE_LINK" : null)) as WeekResourceTypeCode | null,
                           fileUrl: res.fileUrl,
+                          driveUrl: res.driveUrl,
                           status: res.status,
                           submittedAt: res.submittedAt,
                           lockedAt: res.lockedAt,

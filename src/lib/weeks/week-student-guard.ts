@@ -16,6 +16,7 @@
 // error instead of a generic one (see lock-week.ts).
 
 import type { PrismaClient } from "@/generated/prisma/client";
+import { hasValidResourceSubmission } from "@/lib/weeks/resource-eligibility";
 
 type PrismaLike = Pick<
     PrismaClient,
@@ -85,7 +86,13 @@ export async function assertStudentCanWriteInWeek(
 
     const resource = await prisma.weekResourceSubmission.findUnique({
         where: { studentId_weekId: { studentId, weekId } },
-        select: { lockedAt: true },
+        select: {
+            type: true,
+            fileUrl: true,
+            driveUrl: true,
+            status: true,
+            lockedAt: true,
+        },
     });
 
     if (!allowLocked && resource?.lockedAt) {
@@ -102,6 +109,6 @@ export async function assertStudentCanWriteInWeek(
             endDate: week.endDate,
         },
         lockedAt: resource?.lockedAt ?? null,
-        hasResource: resource !== null,
+        hasResource: hasValidResourceSubmission(resource),
     };
 }

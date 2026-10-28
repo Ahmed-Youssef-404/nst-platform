@@ -55,6 +55,7 @@ import {
 } from "lucide-react";
 import { MarkdownContent } from "@/components/markdown-content";
 import { formatDateTime } from "@/lib/format-date";
+import { hasValidResourceSubmission } from "@/lib/weeks/resource-eligibility";
 import {
     addTaskToWeekAction,
     updateWeekTaskAction,
@@ -109,7 +110,7 @@ export function WeekDetailView({ week }: { week: WeekDetailForInstructor }) {
     const statusStyle = STATUS_STYLES[week.status];
 
     const lockedStudentCount = week.students.filter((s) => s.isLocked).length;
-    const uploadedResourceCount = week.students.filter((s) => s.resource?.fileUrl).length;
+    const submittedResourceCount = week.students.filter((s) => hasValidResourceSubmission(s.resource)).length;
     const finalizedStudentCount = week.students.filter((s) => s.isFinalized).length;
 
     async function handleDeleteTask(taskId: string) {
@@ -277,7 +278,7 @@ export function WeekDetailView({ week }: { week: WeekDetailForInstructor }) {
                         {week.students.length} Enrolled Students
                     </p>
                     <div className="flex items-center gap-2 text-xs text-starlight-400 font-mono mt-1">
-                        <span>{uploadedResourceCount} uploaded</span>
+                        <span>{submittedResourceCount} submitted</span>
                         <span>•</span>
                         <span>{lockedStudentCount} locked</span>
                         <span>•</span>

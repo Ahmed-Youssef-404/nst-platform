@@ -13,7 +13,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/require-role";
 import { getCurrentStudentId } from "@/lib/auth/get-current-user";
 import { saveDraftSubmission } from "@/lib/weeks/save-draft-submission";
-import { saveWeekResource } from "@/lib/weeks/week-resource";
+import { saveWeekResource, saveWeekDriveLink } from "@/lib/weeks/week-resource";
 import { lockWeek } from "@/lib/weeks/lock-week";
 import { uploadSubmissionFile } from "@/lib/submissions/upload-file";
 import { uploadWeekResourceFile } from "@/lib/weeks/upload-week-resource";
@@ -117,7 +117,37 @@ export async function uploadWeekResourceAction(formData: FormData) {
     }
 }
 
-// Locks the WHOLE Week (requires the required file to exist).
+// Saves (or replaces) the Week's required resource using a Google Drive link.
+export async function saveWeekDriveLinkAction(input: {
+    weekId: string;
+    driveUrl: string;
+}) {
+    await requireRole(["student"]);
+
+    try {
+        const studentId = await resolveStudentId();
+
+        if (!input.weekId || !input.driveUrl) {
+            throw new Error("Missing weekId or driveUrl.");
+        }
+
+        const resource = await saveWeekDriveLink({
+            studentId,
+            weekId: input.weekId,
+            driveUrl: input.driveUrl,
+        });
+
+        revalidatePath("/student");
+        return { success: true, data: resource };
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : "Unknown error occurred",
+        };
+    }
+}
+
+// Locks the WHOLE Week (requires both resource and all tasks solved).
 export async function lockWeekAction(input: { weekId: string }) {
     await requireRole(["student"]);
 

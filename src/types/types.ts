@@ -501,6 +501,14 @@ export interface SubmitFeedbackInput {
 
 export type SubmissionStatusCode = "DRAFT" | "SUBMITTED";
 export type WeekResourceStatusCode = "PENDING" | "ACCEPTED" | "REJECTED";
+export type WeekResourceTypeCode = "FILE" | "DRIVE_LINK";
+
+export const WEEK_RESOURCE_MAX_FILE_SIZE_BYTES = 1024 * 1024; // Exactly 1 MiB (1,048,576 bytes)
+export const WEEK_RESOURCE_ALLOWED_MIME_TYPES = [
+    "application/pdf",
+    "application/zip",
+    "application/x-zip-compressed",
+] as const;
 
 export interface SaveDraftSubmissionInput {
     studentId: string;
@@ -529,11 +537,19 @@ export interface UploadWeekResourceInput {
     fileUrl: string; // Supabase Storage path, set after upload
 }
 
+export interface SaveWeekDriveLinkInput {
+    studentId: string;
+    weekId: string;
+    driveUrl: string;
+}
+
 export interface WeekResourceResult {
     id: string;
     studentId: string;
     weekId: string;
+    type: WeekResourceTypeCode | null;
     fileUrl: string | null;
+    driveUrl: string | null;
     status: WeekResourceStatusCode;
     submittedAt: Date | null;
     lockedAt: Date | null;
