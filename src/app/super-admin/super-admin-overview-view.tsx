@@ -27,6 +27,9 @@ import {
     Hash,
     Mail,
     Lock,
+    ArrowUp,
+    ArrowDown,
+    ArrowUpDown,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,6 +38,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { StudentAvatar } from "@/components/avatar/student-avatar";
 import { cn } from "@/lib/utils";
 import {
     Select,
@@ -54,6 +58,13 @@ import type {
 } from "@/lib/data/get-super-admin-overview";
 import type { GroupOption } from "@/lib/data/get-groups";
 import { formatDate } from "@/lib/format-date";
+import {
+    STUDENT_TRACK_LABELS,
+    getStudentStBalance,
+    sortStudents,
+    type StudentSortKey,
+    type StudentSortState,
+} from "@/lib/super-admin/student-sort";
 import { showToast } from "@/components/ui/toast";
 
 export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData }) {
@@ -63,6 +74,8 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
     const [studentSearch, setStudentSearch] = useState("");
     const [studentTrackFilter, setStudentTrackFilter] = useState<"ALL" | "INTERMEDIATE" | "BEGINNER">("ALL");
     const [studentGroupFilter, setStudentGroupFilter] = useState<string>("ALL");
+    // null = default server order (newest enrolled first)
+    const [studentSort, setStudentSort] = useState<StudentSortState | null>(null);
     const [instructorSearch, setInstructorSearch] = useState("");
 
     // Quick Stats
@@ -106,6 +119,26 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
             return matchesSearch && matchesTrack && matchesGroup;
         });
     }, [students, studentSearch, studentTrackFilter, studentGroupFilter]);
+
+    // Sorting is applied on top of the filtered list, so search and filters keep
+    // working (and are never reset) while the order changes.
+    const sortedStudents = useMemo(
+        () =>
+            studentSort
+                ? sortStudents(filteredStudents, studentSort.key, studentSort.direction)
+                : filteredStudents,
+        [filteredStudents, studentSort]
+    );
+
+    // First click on a column sorts ascending, clicking it again flips to
+    // descending; switching to another column starts ascending.
+    function handleStudentSort(key: StudentSortKey) {
+        setStudentSort((prev) =>
+            prev?.key === key
+                ? { key, direction: prev.direction === "asc" ? "desc" : "asc" }
+                : { key, direction: "asc" }
+        );
+    }
 
     // Filtered Instructors
     const filteredInstructors = useMemo(() => {
@@ -470,17 +503,32 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
                                     <table className="w-full text-left text-xs">
                                         <thead className="border-b border-border/70 bg-muted/60 dark:bg-space-850/60 text-[11px] font-bold uppercase tracking-wider text-muted-foreground dark:text-starlight-400">
                                             <tr>
+                                                <th className="px-4 py-3.5 text-center">Avatar</th>
                                                 <th className="px-5 py-3.5">Student Code</th>
-                                                <th className="px-5 py-3.5">Student</th>
+                                                <SortableHeader
+                                                    label="Student"
+                                                    sortKey="name"
+                                                    sort={studentSort}
+                                                    onSort={handleStudentSort}
+                                                />
                                                 <th className="px-5 py-3.5">Cohort & Group</th>
-                                                <th className="px-5 py-3.5">Track</th>
-                                                <th className="px-5 py-3.5">ST Economy</th>
-                                                <th className="px-5 py-3.5">Enrolled Date</th>
+                                                <SortableHeader
+                                                    label="Track"
+                                                    sortKey="track"
+                                                    sort={studentSort}
+                                                    onSort={handleStudentSort}
+                                                />
+                                                <SortableHeader
+                                                    label="ST Economy"
+                                                    sortKey="stBalance"
+                                                    sort={studentSort}
+                                                    onSort={handleStudentSort}
+                                                />
                                                 <th className="px-4 py-3.5 text-right w-10"></th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-border/60 text-foreground dark:text-starlight-200">
-                                            {filteredStudents.map((s) => (
+                                            {sortedStudents.map((s) => (
                                                 <tr
                                                     key={s.id}
                                                     role="button"
@@ -505,6 +553,16 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
                                                     }}
                                                     className="hover:bg-muted/40 dark:hover:bg-space-850/40 transition-colors cursor-pointer group focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-gold-500/50"
                                                 >
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex justify-center">
+                                                            <StudentAvatar
+                                                                avatarConfig={s.avatarConfig}
+                                                                name={s.name}
+                                                                size="lg"
+                                                                className="size-12 sm:size-14"
+                                                            />
+                                                        </div>
+                                                    </td>
                                                     <td className="px-5 py-3.5 whitespace-nowrap">
                                                         <StudentCodeBadge code={s.id} />
                                                     </td>
@@ -529,11 +587,11 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
                                                     <td className="px-5 py-3.5 whitespace-nowrap">
                                                         {s.groupType === "BEGINNER" ? (
                                                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-violet-500/15 text-violet-700 dark:text-violet-300 border border-violet-500/30">
-                                                                Beginner Track
+                                                                {STUDENT_TRACK_LABELS.BEGINNER}
                                                             </span>
                                                         ) : (
                                                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-gold-500/15 text-gold-700 dark:text-gold-300 border border-gold-500/30">
-                                                                Intermediate Track
+                                                                {STUDENT_TRACK_LABELS.INTERMEDIATE}
                                                             </span>
                                                         )}
                                                     </td>
@@ -541,9 +599,7 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
                                                         <div className="flex items-center gap-1.5">
                                                             <Coins className="size-3.5 text-gold-400" />
                                                             <span className="font-mono font-bold text-starlight-100">
-                                                                {s.groupType === "BEGINNER"
-                                                                    ? s.beginnerSt ?? 50
-                                                                    : s.avgSt}
+                                                                {getStudentStBalance(s) ?? "—"}
                                                             </span>
                                                             <span className="text-[10px] text-starlight-400">
                                                                 {s.groupType === "BEGINNER"
@@ -551,9 +607,6 @@ export function SuperAdminOverviewView({ data }: { data: SuperAdminOverviewData 
                                                                     : "avg ST"}
                                                             </span>
                                                         </div>
-                                                    </td>
-                                                    <td className="px-5 py-3.5 whitespace-nowrap text-starlight-400 text-[11px]">
-                                                        {formatDate(s.createdAt)}
                                                     </td>
                                                     <td className="px-4 py-3.5 text-right whitespace-nowrap">
                                                         <ChevronRight className="size-4 text-muted-foreground dark:text-starlight-400 group-hover:text-gold-600 dark:group-hover:text-gold-300 group-hover:translate-x-0.5 transition-all inline" />
@@ -753,6 +806,59 @@ function CopyableEmail({ email }: { email: string }) {
                 <Copy className="size-2.5 opacity-0 group-hover:opacity-100 text-muted-foreground dark:text-starlight-400 shrink-0 transition-opacity" />
             )}
         </button>
+    );
+}
+
+// ============================================
+// SORTABLE TABLE HEADER (students table)
+// ============================================
+
+function SortableHeader({
+    label,
+    sortKey,
+    sort,
+    onSort,
+}: {
+    label: string;
+    sortKey: StudentSortKey;
+    sort: StudentSortState | null;
+    onSort: (key: StudentSortKey) => void;
+}) {
+    const active = sort?.key === sortKey;
+    const direction = active ? sort.direction : null;
+    const SortIcon =
+        direction === "asc" ? ArrowUp : direction === "desc" ? ArrowDown : ArrowUpDown;
+
+    return (
+        <th
+            scope="col"
+            className="px-5 py-3.5"
+            aria-sort={
+                direction === "asc" ? "ascending" : direction === "desc" ? "descending" : "none"
+            }
+        >
+            <button
+                type="button"
+                onClick={() => onSort(sortKey)}
+                className={cn(
+                    "group/sort -mx-1.5 inline-flex cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wider transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-gold-500/50",
+                    active
+                        ? "text-gold-600 dark:text-gold-300"
+                        : "hover:text-foreground dark:hover:text-starlight-200"
+                )}
+            >
+                <span>{label}</span>
+                <SortIcon
+                    aria-hidden="true"
+                    className={cn(
+                        "size-3 shrink-0 transition-opacity",
+                        active
+                            ? "opacity-100"
+                            : "opacity-40 group-hover/sort:opacity-80"
+                    )}
+                />
+            </button>
+        </th>
     );
 }
 

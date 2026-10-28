@@ -6,6 +6,7 @@
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import type { GroupOption } from "./get-groups";
+import type { StudentAvatarConfig } from "@/types/avatar";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -16,6 +17,7 @@ export interface SuperAdminStudentSummary {
     email: string;
     avgSt: number;
     beginnerSt: number | null;
+    avatarConfig: StudentAvatarConfig | null; // null => platform default avatar
     createdAt: Date;
     groupId: string;
     groupName: string;
@@ -98,6 +100,7 @@ export async function getSuperAdminOverview(): Promise<SuperAdminOverviewData> {
         email: s.email,
         avgSt: s.avgSt,
         beginnerSt: s.beginnerSt,
+        avatarConfig: (s.avatarConfig as unknown as StudentAvatarConfig) ?? null,
         createdAt: s.createdAt,
         groupId: s.groupId,
         groupName: s.group.name,
