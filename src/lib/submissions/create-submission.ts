@@ -24,6 +24,10 @@
 //      restricted it (null = student's free choice).
 //   5. Exactly one of fileUrl/externalLink/textContent must be provided,
 //      matching `mode`, and non-empty.
+//
+// Instructor "new activity" tracking: the same upsert bumps
+// Submission.activityVersion when (and only when) the persisted answer
+// meaningfully changed - see task-activity.ts.
 
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -31,6 +35,7 @@ import {
     CreateOrUpdateSubmissionInput,
     SubmissionResult,
 } from "@/types/types";
+import { buildActivityWrite } from "./task-activity";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -115,6 +120,13 @@ export async function createOrUpdateSubmission(
         textContent: input.mode === "TEXT" ? input.textContent ?? null : null,
     };
 
+    // Bump the activity counter only for a meaningful change (a retry or a
+    // no-op resubmit of identical content must not create new "activity").
+    const activity = buildActivityWrite(existing, {
+        mode: input.mode,
+        ...contentData,
+    });
+
     const submission = await prisma.submission.upsert({
         where: {
             studentId_taskId: {
@@ -127,10 +139,12 @@ export async function createOrUpdateSubmission(
             taskId: input.taskId,
             mode: input.mode,
             ...contentData,
+            ...activity.create,
         },
         update: {
             mode: input.mode,
             ...contentData,
+            ...activity.update,
             // submittedAt auto-refreshes via @updatedAt in the schema
         },
     });

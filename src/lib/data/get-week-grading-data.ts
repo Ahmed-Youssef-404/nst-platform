@@ -6,6 +6,7 @@
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { suggestFirstSolvers } from "@/lib/weeks/grade-week";
+import { isTaskActivityUnreviewed } from "@/lib/submissions/task-activity";
 import { computeWeekStatus, type WeekStatus } from "./get-my-groups";
 import type {
     TaskTypeCode,
@@ -54,6 +55,11 @@ export interface StudentTaskGradingData {
         instructorComment: string | null;
         status: "DRAFT" | "SUBMITTED";
         submittedAt: Date;
+        // Student-activity tracking (shared across the Group's instructors).
+        // `activityVersion` is the version this payload shows; the review
+        // action acknowledges exactly that version.
+        activityVersion: number;
+        hasNewActivity: boolean;
     } | null;
     draftGrade: {
         id: string;
@@ -77,6 +83,9 @@ export interface StudentGradingRow {
     } | null;
     isLocked: boolean;
     isFinalized: boolean;
+    // Number of DISTINCT tasks (one Submission per task) with unreviewed
+    // student activity.
+    newActivityCount: number;
     avatarConfig?: StudentAvatarConfig | null;
     tasks: StudentTaskGradingData[];
 }
@@ -123,7 +132,7 @@ export async function getWeekGradingData(
                         select: { id: true, order: true },
                     },
                 },
-                orderBy: { order: "asc" },
+                orderBy: { createdAt: "asc" },
             },
             resourceSubmissions: true,
         },
@@ -147,7 +156,8 @@ export async function getWeekGradingData(
 
     const taskIds = week.tasks.map((t) => t.id);
 
-    // Fetch submissions with taskGrade and grade fields
+    // Fetch submissions with taskGrade, grade fields and the shared
+    // activity-review state
     const submissions = taskIds.length > 0
         ? await prisma.submission.findMany({
             where: { taskId: { in: taskIds } },
@@ -156,6 +166,9 @@ export async function getWeekGradingData(
                     include: {
                         fieldScores: true,
                     },
+                },
+                activityReview: {
+                    select: { reviewedVersion: true },
                 },
             },
         })
@@ -216,6 +229,12 @@ export async function getWeekGradingData(
                         instructorComment: sub.instructorComment ?? null,
                         status: sub.status,
                         submittedAt: sub.submittedAt,
+                        activityVersion: sub.activityVersion,
+                        hasNewActivity: isTaskActivityUnreviewed({
+                            activityVersion: sub.activityVersion,
+                            reviewedVersion: sub.activityReview?.reviewedVersion,
+                            isGraded: draftGrade?.finalizedAt != null,
+                        }),
                     }
                     : null,
                 draftGrade: draftGrade
@@ -249,6 +268,7 @@ export async function getWeekGradingData(
                 : null,
             isLocked: Boolean(resource?.lockedAt),
             isFinalized,
+            newActivityCount: tasksData.filter((t) => t.submission?.hasNewActivity).length,
             tasks: tasksData,
         };
     });
