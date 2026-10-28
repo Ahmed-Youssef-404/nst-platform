@@ -74,7 +74,7 @@ function CodeBlock({ children, ...props }: React.ComponentProps<"pre">) {
                     )}
                 </button>
             </div>
-            <pre {...props} className="overflow-x-auto px-3 py-2.5 text-xs leading-relaxed">
+            <pre {...props} dir="auto" className="overflow-x-auto px-3 py-2.5 text-xs leading-relaxed">
                 {children}
             </pre>
         </div>

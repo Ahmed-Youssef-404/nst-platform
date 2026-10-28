@@ -418,7 +418,7 @@ function SubmissionPanel({
 
                     {submission.mode === "TEXT" && (
                         <div className="rounded-lg bg-space-950 p-3.5 border border-border/60">
-                            <pre className="whitespace-pre-wrap font-mono text-xs text-starlight-200 leading-relaxed max-h-60 overflow-y-auto">
+                            <pre dir="auto" className="whitespace-pre-wrap font-mono text-xs text-starlight-200 leading-relaxed max-h-60 overflow-y-auto">
                                 {submission.textContent}
                             </pre>
                         </div>

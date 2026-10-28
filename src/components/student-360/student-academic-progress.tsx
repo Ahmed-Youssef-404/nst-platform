@@ -115,10 +115,10 @@ export function StudentAcademicProgress({
                                                 !hasSubmitted
                                                     ? "bg-space-850 text-starlight-400 border-border/70"
                                                     : isAccepted
-                                                      ? "bg-success-500/15 text-success-400 border-success-500/30"
-                                                      : isRejected
-                                                        ? "bg-destructive/15 text-destructive border-destructive/30"
-                                                        : "bg-amber-500/15 text-amber-300 border-amber-500/30"
+                                                        ? "bg-success-500/15 text-success-400 border-success-500/30"
+                                                        : isRejected
+                                                            ? "bg-destructive/15 text-destructive border-destructive/30"
+                                                            : "bg-amber-500/15 text-amber-300 border-amber-500/30"
                                             )}
                                         >
                                             {!hasSubmitted ? "Not Uploaded" : `File ${status}`}
@@ -185,8 +185,8 @@ export function StudentAcademicProgress({
                                         isGraded
                                             ? "border-gold-500/35 bg-space-900/75"
                                             : isSubmitted
-                                              ? "border-border/80 bg-space-900/60"
-                                              : "border-border/60 bg-space-950/40"
+                                                ? "border-border/80 bg-space-900/60"
+                                                : "border-border/60 bg-space-950/40"
                                     )}
                                 >
                                     {/* Task Row Header */}
@@ -251,9 +251,9 @@ export function StudentAcademicProgress({
                                                     {isTrackBeginner
                                                         ? `${sub?.totalPoints ?? 0} pts (Finalized)`
                                                         : `${(sub?.understandingScore ?? 0) +
-                                                              (sub?.approachScore ?? 0) +
-                                                              (sub?.correctnessScore ?? 0) +
-                                                              (sub?.implementationScore ?? 0)}/10 Graded`}
+                                                        (sub?.approachScore ?? 0) +
+                                                        (sub?.correctnessScore ?? 0) +
+                                                        (sub?.implementationScore ?? 0)}/10 Graded`}
                                                 </Badge>
                                             ) : isSubmitted ? (
                                                 <span className="text-xs text-starlight-400 italic">
@@ -317,7 +317,7 @@ export function StudentAcademicProgress({
                                                             <span className="text-[10px] uppercase font-bold text-starlight-400">
                                                                 Submitted Content
                                                             </span>
-                                                            <pre className="p-2.5 rounded-lg bg-space-950 border border-border/70 font-mono text-[11px] text-starlight-200 overflow-x-auto whitespace-pre-wrap">
+                                                            <pre dir="auto" className="p-2.5 rounded-lg bg-space-950 border border-border/70 font-mono text-[11px] text-starlight-200 overflow-x-auto whitespace-pre-wrap">
                                                                 {sub.textContent}
                                                             </pre>
                                                         </div>
@@ -340,7 +340,7 @@ export function StudentAcademicProgress({
                                                         <span className="text-starlight-400 font-mono text-[11px]">
                                                             {formatDateTime(
                                                                 (isTrackBeginner ? sub?.finalizedAt : sub?.gradedAt) ||
-                                                                    new Date()
+                                                                new Date()
                                                             )}
                                                         </span>
                                                     </div>
