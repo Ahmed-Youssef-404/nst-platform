@@ -16,6 +16,7 @@ import {
     addTaskToWeek,
     createWeek,
     deleteWeekTask,
+    reorderWeekTask,
     updateWeek,
     updateWeekTask,
 } from "@/lib/weeks/manage-week";
@@ -23,6 +24,7 @@ import type {
     AddTaskToWeekInput,
     CreateWeekInput,
     DeleteWeekTaskInput,
+    ReorderWeekTaskInput,
     UpdateWeekInput,
     UpdateWeekTaskInput,
 } from "@/types/types";
@@ -111,3 +113,20 @@ export async function deleteWeekTaskAction(
         };
     }
 }
+
+export async function reorderWeekTaskAction(
+    input: Omit<ReorderWeekTaskInput, "instructorId">
+) {
+    const user = await requireRole(["instructor"]);
+
+    try {
+        const week = await reorderWeekTask({ ...input, instructorId: user.id });
+        revalidatePath("/instructor");
+        return { success: true, data: week };
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : "Unknown error occurred",
+        };
+    }
+}

@@ -43,6 +43,7 @@ export function TaskCreateView({ week }: { week: WeekDetailForInstructor }) {
     const [description, setDescription] = useState("");
     const [type, setType] = useState<TaskTypeCode>("INTERNAL");
     const [isBonus, setIsBonus] = useState(false);
+    const [position, setPosition] = useState<string>(""); // "" means append at end
     const [allowedSubmissionMode, setAllowedSubmissionMode] = useState<
         SubmissionModeCode | "ANY"
     >("ANY");
@@ -136,6 +137,7 @@ export function TaskCreateView({ week }: { week: WeekDetailForInstructor }) {
                 description: description.trim(),
                 type,
                 isBonus,
+                position: position ? Number(position) : undefined,
                 allowedSubmissionMode:
                     type === "EXTERNAL"
                         ? null
@@ -321,6 +323,35 @@ export function TaskCreateView({ week }: { week: WeekDetailForInstructor }) {
                                 </div>
                             )}
                         </div>
+
+                        {/* Position selector — only shown when the week already has tasks */}
+                        {week.tasks.length > 0 && (
+                            <div className="space-y-2">
+                                <Label className="text-xs font-semibold text-foreground/90">
+                                    Insert At Position
+                                </Label>
+                                <Select
+                                    value={position}
+                                    onValueChange={(val) => setPosition(val ?? "")}
+                                    disabled={isSubmitting}
+                                >
+                                    <SelectTrigger className="w-full bg-background dark:bg-space-950/80 border-border text-foreground dark:text-starlight-100 rounded-xl text-xs">
+                                        <SelectValue placeholder="Append at the end (default)" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-popover border-border text-popover-foreground">
+                                        <SelectItem value="">Append at the end (Task #{week.tasks.length + 1})</SelectItem>
+                                        {week.tasks.map((t, idx) => (
+                                            <SelectItem key={t.id} value={String(idx + 1)}>
+                                                Before: &quot;{t.title}&quot; (position {idx + 1})
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-[11px] text-muted-foreground">
+                                    Choose where to insert this task among existing tasks. You can reorder later from the week page.
+                                </p>
+                            </div>
+                        )}
 
                         <div className="flex items-center gap-3 p-3.5 rounded-xl border border-border/80 bg-muted/20">
                             <Checkbox

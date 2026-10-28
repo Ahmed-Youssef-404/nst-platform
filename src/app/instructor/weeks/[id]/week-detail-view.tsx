@@ -49,6 +49,8 @@ import {
     Lightbulb,
     Sparkles,
     Users,
+    ArrowUp,
+    ArrowDown,
 } from "lucide-react";
 import { MarkdownContent } from "@/components/markdown-content";
 import { formatDateTime } from "@/lib/format-date";
@@ -56,6 +58,7 @@ import {
     addTaskToWeekAction,
     updateWeekTaskAction,
     deleteWeekTaskAction,
+    reorderWeekTaskAction,
     updateWeekAction,
 } from "@/lib/actions/week-management";
 import type {
@@ -89,6 +92,7 @@ export function WeekDetailView({ week }: { week: WeekDetailForInstructor }) {
     }>({ isOpen: false, taskToEdit: null });
 
     const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
+    const [reorderingTaskId, setReorderingTaskId] = useState<string | null>(null);
     const [actionError, setActionError] = useState<string | null>(null);
 
     const statusStyle = STATUS_STYLES[week.status];
@@ -116,6 +120,24 @@ export function WeekDetailView({ week }: { week: WeekDetailForInstructor }) {
             setActionError(err instanceof Error ? err.message : "Error deleting task.");
         } finally {
             setDeletingTaskId(null);
+        }
+    }
+
+    async function handleReorderTask(taskId: string, newPosition: number) {
+        setReorderingTaskId(taskId);
+        setActionError(null);
+
+        try {
+            const res = await reorderWeekTaskAction({ taskId, newPosition });
+            if (!res.success) {
+                setActionError(res.error ?? "Failed to reorder task.");
+            } else {
+                router.refresh();
+            }
+        } catch (err) {
+            setActionError(err instanceof Error ? err.message : "Error reordering task.");
+        } finally {
+            setReorderingTaskId(null);
         }
     }
 
@@ -296,12 +318,16 @@ export function WeekDetailView({ week }: { week: WeekDetailForInstructor }) {
                                 key={task.id}
                                 index={index + 1}
                                 task={task}
+                                totalTasks={week.tasks.length}
                                 canEdit={week.canEditTasks}
                                 onEdit={() =>
                                     setTaskModalState({ isOpen: true, taskToEdit: task })
                                 }
                                 onDelete={() => handleDeleteTask(task.id)}
+                                onMoveUp={index > 0 ? () => handleReorderTask(task.id, index) : undefined}
+                                onMoveDown={index < week.tasks.length - 1 ? () => handleReorderTask(task.id, index + 2) : undefined}
                                 isDeleting={deletingTaskId === task.id}
+                                isReordering={reorderingTaskId === task.id}
                             />
                         ))}
                     </div>
@@ -326,6 +352,7 @@ export function WeekDetailView({ week }: { week: WeekDetailForInstructor }) {
                 <TaskFormDialog
                     weekId={week.id}
                     taskToEdit={taskModalState.taskToEdit}
+                    existingTasks={week.tasks}
                     isOpen={taskModalState.isOpen}
                     onClose={() =>
                         setTaskModalState({ isOpen: false, taskToEdit: null })
@@ -343,18 +370,27 @@ export function WeekDetailView({ week }: { week: WeekDetailForInstructor }) {
 function TaskCard({
     index,
     task,
+    totalTasks,
     canEdit,
     onEdit,
     onDelete,
+    onMoveUp,
+    onMoveDown,
     isDeleting,
+    isReordering,
 }: {
     index: number;
     task: WeekDetailTask;
+    totalTasks: number;
     canEdit: boolean;
     onEdit: () => void;
     onDelete: () => void;
+    onMoveUp?: () => void;
+    onMoveDown?: () => void;
     isDeleting: boolean;
+    isReordering: boolean;
 }) {
+    const isBusy = isDeleting || isReordering;
     return (
         <Card className="rounded-2xl border border-border/80 bg-space-900/80 shadow-2 backdrop-blur-md overflow-hidden transition-all duration-200 hover:border-gold-500/30">
             <CardHeader className="flex flex-row items-start justify-between space-y-0 p-5 border-b border-border/70 bg-space-950/40">
@@ -384,6 +420,31 @@ function TaskCard({
 
                 {canEdit && (
                     <div className="flex items-center gap-1.5 shrink-0">
+                        {/* Move up / down reorder controls */}
+                        {totalTasks > 1 && (
+                            <>
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={onMoveUp}
+                                    disabled={!onMoveUp || isBusy}
+                                    title="Move task up"
+                                    className="size-8 p-0 text-starlight-400 hover:text-gold-300 hover:bg-space-800 rounded-lg transition-colors disabled:opacity-30"
+                                >
+                                    <ArrowUp className="size-3.5" />
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={onMoveDown}
+                                    disabled={!onMoveDown || isBusy}
+                                    title="Move task down"
+                                    className="size-8 p-0 text-starlight-400 hover:text-gold-300 hover:bg-space-800 rounded-lg transition-colors disabled:opacity-30"
+                                >
+                                    <ArrowDown className="size-3.5" />
+                                </Button>
+                            </>
+                        )}
                         <Button
                             size="sm"
                             variant="ghost"
@@ -398,7 +459,7 @@ function TaskCard({
                             variant="ghost"
                             className="size-8 p-0 text-error-400 hover:text-error-300 hover:bg-error-500/10 rounded-lg transition-colors"
                             onClick={onDelete}
-                            disabled={isDeleting}
+                            disabled={isBusy}
                             title="Delete task"
                         >
                             <Trash2 className="size-3.5" />
@@ -681,12 +742,14 @@ function EditWeekDialog({
 function TaskFormDialog({
     weekId,
     taskToEdit,
+    existingTasks = [],
     isOpen,
     onClose,
     onSuccess,
 }: {
     weekId: string;
     taskToEdit: WeekDetailTask | null;
+    existingTasks?: WeekDetailTask[];
     isOpen: boolean;
     onClose: () => void;
     onSuccess: () => void;
@@ -697,6 +760,7 @@ function TaskFormDialog({
     const [description, setDescription] = useState(taskToEdit?.description ?? "");
     const [type, setType] = useState<TaskTypeCode>(taskToEdit?.type ?? "INTERNAL");
     const [isBonus, setIsBonus] = useState(taskToEdit?.isBonus ?? false);
+    const [position, setPosition] = useState<string>(""); // "" means append; only used when creating
     const [allowedSubmissionMode, setAllowedSubmissionMode] = useState<
         SubmissionModeCode | "ANY"
     >(taskToEdit?.allowedSubmissionMode ?? "ANY");
@@ -822,6 +886,7 @@ function TaskFormDialog({
             } else {
                 const res = await addTaskToWeekAction({
                     weekId,
+                    position: position ? Number(position) : undefined,
                     ...taskPayload,
                 });
                 if (!res.success) {
@@ -930,6 +995,34 @@ function TaskFormDialog({
                             Bonus Task (+5 ST reward for students who solve it)
                         </Label>
                     </div>
+
+                    {!isEditing && existingTasks.length > 0 && (
+                        <div className="space-y-1.5">
+                            <Label className="text-xs font-semibold text-starlight-200">
+                                Insert At Position
+                            </Label>
+                            <Select
+                                value={position}
+                                onValueChange={(val) => setPosition(val ?? "")}
+                                disabled={isSubmitting}
+                            >
+                                <SelectTrigger className="bg-space-850/80 border-border/80 text-starlight-100 rounded-xl text-xs">
+                                    <SelectValue placeholder="Append at the end (default)" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-space-900 border-border/80 text-starlight-100">
+                                    <SelectItem value="">Append at the end (Task #{existingTasks.length + 1})</SelectItem>
+                                    {existingTasks.map((t, idx) => (
+                                        <SelectItem key={t.id} value={String(idx + 1)}>
+                                            Before: &quot;{t.title}&quot; (position {idx + 1})
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <p className="text-[11px] text-starlight-400">
+                                Choose where to insert this task.
+                            </p>
+                        </div>
+                    )}
 
                     <div className="space-y-1.5">
                         <MarkdownEditor

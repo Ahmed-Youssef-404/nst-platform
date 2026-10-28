@@ -39,6 +39,8 @@ import {
     Video,
     CheckCircle2,
     Loader2,
+    ArrowUp,
+    ArrowDown,
 } from "lucide-react";
 import { createSessionAction } from "@/lib/actions/session-management";
 import type { LevelForInstructor } from "@/lib/data/get-level-for-instructor";
@@ -147,6 +149,16 @@ export function CreateSessionForm({ level }: { level: LevelForInstructor }) {
 
     function removeTask(index: number) {
         setTasks((prev) => prev.filter((_, i) => i !== index));
+    }
+
+    function moveTask(index: number, direction: "up" | "down") {
+        setTasks((prev) => {
+            const next = [...prev];
+            const swapIdx = direction === "up" ? index - 1 : index + 1;
+            if (swapIdx < 0 || swapIdx >= next.length) return prev;
+            [next[index], next[swapIdx]] = [next[swapIdx], next[index]];
+            return next;
+        });
     }
 
     async function handleSubmit(e: React.FormEvent) {
@@ -436,9 +448,12 @@ export function CreateSessionForm({ level }: { level: LevelForInstructor }) {
                             key={task.key}
                             index={index}
                             task={task}
+                            totalTasks={tasks.length}
                             onChange={(patch) => updateTask(index, patch)}
                             onHintChange={(hintIndex, patch) => updateHint(index, hintIndex, patch)}
                             onRemove={() => removeTask(index)}
+                            onMoveUp={index > 0 ? () => moveTask(index, "up") : undefined}
+                            onMoveDown={index < tasks.length - 1 ? () => moveTask(index, "down") : undefined}
                         />
                     ))}
                 </div>
@@ -481,15 +496,21 @@ export function CreateSessionForm({ level }: { level: LevelForInstructor }) {
 function TaskEditor({
     index,
     task,
+    totalTasks,
     onChange,
     onHintChange,
     onRemove,
+    onMoveUp,
+    onMoveDown,
 }: {
     index: number;
     task: TaskFormState;
+    totalTasks: number;
     onChange: (patch: Partial<TaskFormState>) => void;
     onHintChange: (hintIndex: number, patch: Partial<HintFormState>) => void;
     onRemove: () => void;
+    onMoveUp?: () => void;
+    onMoveDown?: () => void;
 }) {
     const rubricSum = task.rubricFields.reduce(
         (acc, f) => acc + (Number(f.maxPoints) || 0),
@@ -532,16 +553,44 @@ function TaskEditor({
                         {task.title.trim() ? task.title : `Task ${index + 1}`}
                     </CardTitle>
                 </div>
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={onRemove}
-                    className="text-starlight-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg text-xs h-8"
-                >
-                    <Trash2 className="size-3.5 mr-1" />
-                    Remove Task
-                </Button>
+                <div className="flex items-center gap-1">
+                    {totalTasks > 1 && (
+                        <>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={onMoveUp}
+                                disabled={!onMoveUp}
+                                title="Move task up"
+                                className="text-starlight-400 hover:text-gold-300 hover:bg-space-800 rounded-lg h-8 w-8 p-0 disabled:opacity-30"
+                            >
+                                <ArrowUp className="size-3.5" />
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={onMoveDown}
+                                disabled={!onMoveDown}
+                                title="Move task down"
+                                className="text-starlight-400 hover:text-gold-300 hover:bg-space-800 rounded-lg h-8 w-8 p-0 disabled:opacity-30"
+                            >
+                                <ArrowDown className="size-3.5" />
+                            </Button>
+                        </>
+                    )}
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={onRemove}
+                        className="text-starlight-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg text-xs h-8"
+                    >
+                        <Trash2 className="size-3.5 mr-1" />
+                        Remove Task
+                    </Button>
+                </div>
             </CardHeader>
 
             <CardContent className="p-5 space-y-5">

@@ -428,6 +428,13 @@ export interface WeekTaskInput {
 export interface AddTaskToWeekInput extends WeekTaskInput {
     weekId: string;
     instructorId: string;
+    position?: number; // 1-based desired position; defaults to last if omitted
+}
+
+export interface ReorderWeekTaskInput {
+    taskId: string;
+    instructorId: string;
+    newPosition: number; // 1-based target position within the Week
 }
 
 export interface UpdateWeekTaskInput extends WeekTaskInput {

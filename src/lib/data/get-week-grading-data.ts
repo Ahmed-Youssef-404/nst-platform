@@ -123,7 +123,7 @@ export async function getWeekGradingData(
                         select: { id: true, order: true },
                     },
                 },
-                orderBy: { createdAt: "asc" },
+                orderBy: { order: "asc" },
             },
             resourceSubmissions: true,
         },

@@ -145,6 +145,7 @@ async function fetchStudentLevelView(
                                         take: 1,
                                     },
                                     tasks: {
+                                        orderBy: { order: "asc" },
                                         select: {
                                             id: true,
                                             title: true,

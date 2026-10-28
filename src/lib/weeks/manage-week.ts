@@ -32,6 +32,7 @@ import {
     AddTaskToWeekInput,
     CreateWeekInput,
     DeleteWeekTaskInput,
+    ReorderWeekTaskInput,
     UpdateWeekInput,
     UpdateWeekTaskInput,
     WeekTaskInput,
@@ -145,7 +146,7 @@ const WEEK_WITH_TASKS_INCLUDE = {
             hints: { orderBy: { order: "asc" as const } },
             rubricFields: { orderBy: { order: "asc" as const } },
         },
-        orderBy: { createdAt: "asc" as const },
+        orderBy: { order: "asc" as const },
     },
 };
 
@@ -322,35 +323,57 @@ export async function addTaskToWeek(
     assertWeekNotStarted(week.startDate);
     validateTaskInput(input);
 
-    await prisma.task.create({
-        data: {
-            weekId: week.id,
-            title: input.title.trim(),
-            description: input.description.trim(),
-            type: input.type,
-            deadline: week.endDate,
-            isBonus: input.isBonus,
-            allowedSubmissionMode: input.allowedSubmissionMode ?? null,
-            hints: {
-                create: input.hints.map((hint, i) => ({
-                    order: i + 1,
-                    content: hint.content.trim(),
-                    cost: hint.cost,
-                })),
-            },
-            rubricFields: {
-                create: input.rubricFields.map((field, i) => ({
-                    order: i + 1,
-                    fieldName: field.fieldName.trim(),
-                    maxPoints: field.maxPoints,
-                })),
-            },
-        },
-    });
+    const result = await prisma.$transaction(async (tx) => {
+        // Count existing tasks in this week to determine valid positions
+        const existingCount = await tx.task.count({
+            where: { weekId: week.id },
+        });
 
-    const result = await prisma.week.findUniqueOrThrow({
-        where: { id: week.id },
-        include: WEEK_WITH_TASKS_INCLUDE,
+        const totalAfter = existingCount + 1;
+        // Clamp the requested position to [1, totalAfter]
+        const targetPos = input.position
+            ? Math.max(1, Math.min(input.position, totalAfter))
+            : totalAfter;
+
+        // Shift tasks at or after targetPos up by 1 to make room
+        if (targetPos <= existingCount) {
+            await tx.task.updateMany({
+                where: { weekId: week.id, order: { gte: targetPos } },
+                data: { order: { increment: 1 } },
+            });
+        }
+
+        await tx.task.create({
+            data: {
+                weekId: week.id,
+                title: input.title.trim(),
+                description: input.description.trim(),
+                type: input.type,
+                deadline: week.endDate,
+                isBonus: input.isBonus,
+                order: targetPos,
+                allowedSubmissionMode: input.allowedSubmissionMode ?? null,
+                hints: {
+                    create: input.hints.map((hint, i) => ({
+                        order: i + 1,
+                        content: hint.content.trim(),
+                        cost: hint.cost,
+                    })),
+                },
+                rubricFields: {
+                    create: input.rubricFields.map((field, i) => ({
+                        order: i + 1,
+                        fieldName: field.fieldName.trim(),
+                        maxPoints: field.maxPoints,
+                    })),
+                },
+            },
+        });
+
+        return tx.week.findUniqueOrThrow({
+            where: { id: week.id },
+            include: WEEK_WITH_TASKS_INCLUDE,
+        });
     });
 
     return result as unknown as WeekWithTasks;
@@ -429,12 +452,85 @@ export async function deleteWeekTask(
     await assertInstructorAssignedToGroup(input.instructorId, task.week.groupId);
     assertWeekNotStarted(task.week.startDate);
 
-    // Hints / rubric fields cascade via onDelete: Cascade in the schema.
-    await prisma.task.delete({ where: { id: task.id } });
+    await prisma.$transaction(async (tx) => {
+        // Hints / rubric fields cascade via onDelete: Cascade in the schema.
+        await tx.task.delete({ where: { id: task.id } });
+
+        // Re-sequence remaining tasks so order stays contiguous
+        const remaining = await tx.task.findMany({
+            where: { weekId: task.weekId },
+            orderBy: { order: "asc" },
+            select: { id: true },
+        });
+        for (let i = 0; i < remaining.length; i++) {
+            await tx.task.update({
+                where: { id: remaining[i].id },
+                data: { order: i + 1 },
+            });
+        }
+    });
 
     const result = await prisma.week.findUniqueOrThrow({
         where: { id: task.week.id },
         include: WEEK_WITH_TASKS_INCLUDE,
+    });
+
+    return result as unknown as WeekWithTasks;
+}
+
+// Moves a task to a new position within its Week. Only allowed before Week.startDate.
+export async function reorderWeekTask(
+    input: ReorderWeekTaskInput
+): Promise<WeekWithTasks> {
+    const task = await prisma.task.findUnique({
+        where: { id: input.taskId },
+        include: { week: { select: { id: true, groupId: true, startDate: true } } },
+    });
+
+    if (!task || !task.week) {
+        throw new Error("Task not found in any Week.");
+    }
+
+    await assertInstructorAssignedToGroup(input.instructorId, task.week.groupId);
+    assertWeekNotStarted(task.week.startDate);
+
+    const result = await prisma.$transaction(async (tx) => {
+        const allTasks = await tx.task.findMany({
+            where: { weekId: task.weekId },
+            orderBy: { order: "asc" },
+            select: { id: true, order: true },
+        });
+
+        const count = allTasks.length;
+        const newPos = Math.max(1, Math.min(input.newPosition, count));
+        const oldPos = task.order;
+
+        if (newPos === oldPos) {
+            // Nothing to change
+            return tx.week.findUniqueOrThrow({
+                where: { id: task.week!.id },
+                include: WEEK_WITH_TASKS_INCLUDE,
+            });
+        }
+
+        // Build the new order list by rearranging task IDs
+        const ids = allTasks.map((t) => t.id);
+        const fromIdx = ids.indexOf(task.id);
+        ids.splice(fromIdx, 1);
+        ids.splice(newPos - 1, 0, task.id);
+
+        // Update each task with its new 1-based position
+        for (let i = 0; i < ids.length; i++) {
+            await tx.task.update({
+                where: { id: ids[i] },
+                data: { order: i + 1 },
+            });
+        }
+
+        return tx.week.findUniqueOrThrow({
+            where: { id: task.week!.id },
+            include: WEEK_WITH_TASKS_INCLUDE,
+        });
     });
 
     return result as unknown as WeekWithTasks;

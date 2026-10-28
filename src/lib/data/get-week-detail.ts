@@ -32,6 +32,7 @@ export interface WeekDetailTask {
     type: TaskTypeCode;
     deadline: Date;
     isBonus: boolean;
+    order: number;
     allowedSubmissionMode: SubmissionModeCode | null;
     hints: WeekDetailHint[];
     rubricFields: WeekDetailRubricField[];
@@ -126,7 +127,7 @@ export async function getWeekDetail(
                     hints: { orderBy: { order: "asc" } },
                     rubricFields: { orderBy: { order: "asc" } },
                 },
-                orderBy: { createdAt: "asc" },
+                orderBy: { order: "asc" },
             },
             resourceSubmissions: true,
         },
@@ -229,6 +230,7 @@ export async function getWeekDetail(
             type: task.type as TaskTypeCode,
             deadline: task.deadline,
             isBonus: task.isBonus,
+            order: task.order,
             allowedSubmissionMode: task.allowedSubmissionMode as SubmissionModeCode | null,
             hints: task.hints.map((h) => ({
                 id: h.id,

@@ -267,7 +267,7 @@ export async function getStudentWeekDetail(
                 where: { studentId },
             },
             tasks: {
-                orderBy: { createdAt: "asc" },
+                orderBy: { order: "asc" },
                 include: {
                     rubricFields: {
                         orderBy: { order: "asc" },

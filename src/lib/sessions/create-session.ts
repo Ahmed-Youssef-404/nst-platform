@@ -150,7 +150,7 @@ export async function createSession(
             },
         });
 
-        for (const task of input.tasks) {
+        for (const [taskIndex, task] of input.tasks.entries()) {
             const rubricData = task.rubricFields && task.rubricFields.length > 0
                 ? task.rubricFields
                 : [
@@ -167,6 +167,7 @@ export async function createSession(
                     type: task.type,
                     deadline: task.deadline,
                     isBonus: task.isBonus,
+                    order: taskIndex + 1,
                     allowedSubmissionMode: task.allowedSubmissionMode ?? null,
                     hints: {
                         create: task.hints.map((hint, i) => ({

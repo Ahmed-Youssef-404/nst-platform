@@ -339,6 +339,7 @@ model Task {
   type                  TaskType
   deadline              DateTime
   isBonus               Boolean         @default(false)
+  order                 Int             @default(0) // ترتيب التاسك داخل الـ Week أو Session - بيتحدد وقت الإنشاء ويقدر يتغير قبل بداية الـ Week/Session
   allowedSubmissionMode SubmissionMode? // null = الطالب يختار بحرّية (FILE/LINK/TEXT)، غير null = ده النوع الوحيد المسموح. لازم null دايمًا لو type = EXTERNAL (مفيش submissions أصلًا)
   createdAt             DateTime        @default(now())
   updatedAt             DateTime        @updatedAt

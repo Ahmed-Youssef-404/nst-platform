@@ -131,6 +131,7 @@ export async function getSessionDetail(
         include: {
             level: { include: { group: true } },
             tasks: {
+                orderBy: { order: "asc" },
                 include: {
                     hints: { orderBy: { order: "asc" } },
                     rubricFields: { orderBy: { order: "asc" } },
