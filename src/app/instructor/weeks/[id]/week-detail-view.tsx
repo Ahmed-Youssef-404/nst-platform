@@ -51,6 +51,7 @@ import {
     Users,
     ArrowUp,
     ArrowDown,
+    Loader2,
 } from "lucide-react";
 import { MarkdownContent } from "@/components/markdown-content";
 import { formatDateTime } from "@/lib/format-date";
@@ -85,6 +86,15 @@ const STATUS_STYLES = {
 export function WeekDetailView({ week }: { week: WeekDetailForInstructor }) {
     const router = useRouter();
 
+    // Optimistic local tasks state for instant reordering without 1-1.5s delay
+    const [localTasks, setLocalTasks] = useState(week.tasks);
+    const [prevWeekTasks, setPrevWeekTasks] = useState(week.tasks);
+
+    if (week.tasks !== prevWeekTasks) {
+        setPrevWeekTasks(week.tasks);
+        setLocalTasks(week.tasks);
+    }
+
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [taskModalState, setTaskModalState] = useState<{
         isOpen: boolean;
@@ -93,6 +103,7 @@ export function WeekDetailView({ week }: { week: WeekDetailForInstructor }) {
 
     const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
     const [reorderingTaskId, setReorderingTaskId] = useState<string | null>(null);
+    const [reorderingDirection, setReorderingDirection] = useState<"up" | "down" | null>(null);
     const [actionError, setActionError] = useState<string | null>(null);
 
     const statusStyle = STATUS_STYLES[week.status];
@@ -114,6 +125,7 @@ export function WeekDetailView({ week }: { week: WeekDetailForInstructor }) {
             if (!res.success) {
                 setActionError(res.error ?? "Failed to delete task.");
             } else {
+                setLocalTasks((prev) => prev.filter((t) => t.id !== taskId));
                 router.refresh();
             }
         } catch (err) {
@@ -123,21 +135,46 @@ export function WeekDetailView({ week }: { week: WeekDetailForInstructor }) {
         }
     }
 
-    async function handleReorderTask(taskId: string, newPosition: number) {
+    async function handleReorderTask(
+        taskId: string,
+        newPosition: number,
+        direction: "up" | "down"
+    ) {
+        if (reorderingTaskId) return;
+
+        const previousTasks = localTasks;
+        const currentIndex = localTasks.findIndex((t) => t.id === taskId);
+        if (currentIndex === -1) return;
+
+        const targetIndex = newPosition - 1;
+        if (targetIndex < 0 || targetIndex >= localTasks.length) return;
+
+        // Instant optimistic swap so UI updates with 0ms lag
+        const next = [...localTasks];
+        const [movedTask] = next.splice(currentIndex, 1);
+        next.splice(targetIndex, 0, movedTask);
+        const reordered = next.map((t, idx) => ({ ...t, order: idx + 1 }));
+
+        setLocalTasks(reordered);
         setReorderingTaskId(taskId);
+        setReorderingDirection(direction);
         setActionError(null);
 
         try {
             const res = await reorderWeekTaskAction({ taskId, newPosition });
             if (!res.success) {
+                // Revert to previous order on error
+                setLocalTasks(previousTasks);
                 setActionError(res.error ?? "Failed to reorder task.");
             } else {
                 router.refresh();
             }
         } catch (err) {
+            setLocalTasks(previousTasks);
             setActionError(err instanceof Error ? err.message : "Error reordering task.");
         } finally {
             setReorderingTaskId(null);
+            setReorderingDirection(null);
         }
     }
 
@@ -257,7 +294,7 @@ export function WeekDetailView({ week }: { week: WeekDetailForInstructor }) {
                             Tasks & Challenges
                         </h2>
                         <span className="rounded-full bg-space-800 border border-border/80 px-2.5 py-0.5 text-xs font-mono text-starlight-300">
-                            {week.tasks.length} {week.tasks.length === 1 ? "task" : "tasks"}
+                            {localTasks.length} {localTasks.length === 1 ? "task" : "tasks"}
                         </span>
                     </div>
 
@@ -287,7 +324,7 @@ export function WeekDetailView({ week }: { week: WeekDetailForInstructor }) {
                     </div>
                 )}
 
-                {week.tasks.length === 0 ? (
+                {localTasks.length === 0 ? (
                     <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/70 bg-space-900/50 p-12 text-center backdrop-blur-md">
                         <div className="flex size-12 items-center justify-center rounded-xl bg-space-850 border border-border/80 text-gold-400 mb-3 shadow-gold">
                             <Lightbulb className="size-6" />
@@ -313,21 +350,23 @@ export function WeekDetailView({ week }: { week: WeekDetailForInstructor }) {
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        {week.tasks.map((task, index) => (
+                        {localTasks.map((task, index) => (
                             <TaskCard
                                 key={task.id}
                                 index={index + 1}
                                 task={task}
-                                totalTasks={week.tasks.length}
+                                totalTasks={localTasks.length}
                                 canEdit={week.canEditTasks}
                                 onEdit={() =>
                                     setTaskModalState({ isOpen: true, taskToEdit: task })
                                 }
                                 onDelete={() => handleDeleteTask(task.id)}
-                                onMoveUp={index > 0 ? () => handleReorderTask(task.id, index) : undefined}
-                                onMoveDown={index < week.tasks.length - 1 ? () => handleReorderTask(task.id, index + 2) : undefined}
+                                onMoveUp={index > 0 ? () => handleReorderTask(task.id, index, "up") : undefined}
+                                onMoveDown={index < localTasks.length - 1 ? () => handleReorderTask(task.id, index + 2, "down") : undefined}
                                 isDeleting={deletingTaskId === task.id}
                                 isReordering={reorderingTaskId === task.id}
+                                reorderingDirection={reorderingTaskId === task.id ? reorderingDirection : null}
+                                isAnyReordering={Boolean(reorderingTaskId)}
                             />
                         ))}
                     </div>
@@ -352,7 +391,7 @@ export function WeekDetailView({ week }: { week: WeekDetailForInstructor }) {
                 <TaskFormDialog
                     weekId={week.id}
                     taskToEdit={taskModalState.taskToEdit}
-                    existingTasks={week.tasks}
+                    existingTasks={localTasks}
                     isOpen={taskModalState.isOpen}
                     onClose={() =>
                         setTaskModalState({ isOpen: false, taskToEdit: null })
@@ -378,6 +417,8 @@ function TaskCard({
     onMoveDown,
     isDeleting,
     isReordering,
+    reorderingDirection,
+    isAnyReordering,
 }: {
     index: number;
     task: WeekDetailTask;
@@ -389,8 +430,10 @@ function TaskCard({
     onMoveDown?: () => void;
     isDeleting: boolean;
     isReordering: boolean;
+    reorderingDirection?: "up" | "down" | null;
+    isAnyReordering?: boolean;
 }) {
-    const isBusy = isDeleting || isReordering;
+    const isBusy = isDeleting || isReordering || Boolean(isAnyReordering);
     return (
         <Card className="rounded-2xl border border-border/80 bg-space-900/80 shadow-2 backdrop-blur-md overflow-hidden transition-all duration-200 hover:border-gold-500/30">
             <CardHeader className="flex flex-row items-start justify-between space-y-0 p-5 border-b border-border/70 bg-space-950/40">
@@ -399,6 +442,12 @@ function TaskCard({
                         <span className="font-mono font-bold text-xs text-gold-400 bg-gold-500/10 border border-gold-500/20 px-2 py-0.5 rounded-md">
                             Task #{index}
                         </span>
+                        {isReordering && (
+                            <span className="inline-flex items-center gap-1.5 text-[11px] font-mono text-gold-400 bg-gold-500/10 border border-gold-500/25 px-2 py-0.5 rounded-md animate-pulse">
+                                <Loader2 className="size-3 animate-spin text-gold-400" />
+                                Applying order...
+                            </span>
+                        )}
                         <CardTitle className="text-base font-bold text-starlight-100 font-display">
                             {task.title}
                         </CardTitle>
@@ -431,7 +480,11 @@ function TaskCard({
                                     title="Move task up"
                                     className="size-8 p-0 text-starlight-400 hover:text-gold-300 hover:bg-space-800 rounded-lg transition-colors disabled:opacity-30"
                                 >
-                                    <ArrowUp className="size-3.5" />
+                                    {isReordering && reorderingDirection === "up" ? (
+                                        <Loader2 className="size-3.5 animate-spin text-gold-400" />
+                                    ) : (
+                                        <ArrowUp className="size-3.5" />
+                                    )}
                                 </Button>
                                 <Button
                                     size="sm"
@@ -441,7 +494,11 @@ function TaskCard({
                                     title="Move task down"
                                     className="size-8 p-0 text-starlight-400 hover:text-gold-300 hover:bg-space-800 rounded-lg transition-colors disabled:opacity-30"
                                 >
-                                    <ArrowDown className="size-3.5" />
+                                    {isReordering && reorderingDirection === "down" ? (
+                                        <Loader2 className="size-3.5 animate-spin text-gold-400" />
+                                    ) : (
+                                        <ArrowDown className="size-3.5" />
+                                    )}
                                 </Button>
                             </>
                         )}
