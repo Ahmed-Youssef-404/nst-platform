@@ -485,9 +485,17 @@ model Submission {
   submittedAt DateTime @default(now()) @updatedAt
   isLocked    Boolean  @default(false) // بيتفعّل وقت التقييم، بيمنع أي resubmit بعد كده
 
+  // Student-activity tracking (instructor "new activity" indicators).
+  // +1 (atomically, in the same upsert as the content write) ONLY when a
+  // student save/upload actually changes the persisted answer. Never touched
+  // by instructor actions, week locking or auto-submit. The shared
+  // "last reviewed" counterpart lives in SubmissionActivityReview.
+  activityVersion Int @default(0)
+
   // Evaluation (merged في نفس الـ row - مش جدول منفصل) - INTERMEDIATE فقط.
   // BEGINNER بيستخدم TaskGrade/TaskGradeField بدل الأعمدة دي (rubric
   // متغيرة الحقول، مش 4 أعمدة ثابتة).
+
   understandingScore  Int? // 0-2
   approachScore       Int? // 0-3
   correctnessScore    Int? // 0-3
@@ -501,10 +509,33 @@ model Submission {
   // Relations
   student   Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
   task      Task       @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  taskGrade TaskGrade? // BEGINNER فقط
+  taskGrade TaskGrade? // BEGINNER 
+  activityReview SubmissionActivityReview?
 
   @@unique([studentId, taskId])
   @@map("submissions")
+}
+
+// ============================================
+// SUBMISSION ACTIVITY REVIEW
+// ============================================
+// Shared (per Group) review state for student activity on a Submission.
+// One row per Submission, so every Instructor assigned to the Student's
+// Group reads/writes the same state. A Submission is unreviewed when
+// Submission.activityVersion > reviewedVersion (missing row = 0).
+// Kept separate from Submission because Submission.submittedAt is @updatedAt:
+// writing review state there would silently change the submission time.
+
+model SubmissionActivityReview {
+  submissionId    String   @id
+  reviewedVersion Int      @default(0)
+  reviewedBy      String? // last instructorId who registered a review (audit only)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@map("submission_activity_reviews")
 }
 
 // ============================================

@@ -22,6 +22,11 @@
 //
 // Task.deadline is always Week.endDate in this track, so the time check
 // in the guard already covers the deadline.
+//
+// Instructor "new activity" tracking: the same upsert bumps
+// Submission.activityVersion when (and only when) the saved answer
+// meaningfully changed - see src/lib/submissions/task-activity.ts. Locking
+// the Week / lazy auto-submit change `status` only and are NOT activity.
 
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -30,6 +35,7 @@ import type {
     SaveDraftSubmissionInput,
 } from "@/types/types";
 import { assertStudentCanWriteInWeek } from "@/lib/weeks/week-student-guard";
+import { buildActivityWrite } from "@/lib/submissions/task-activity";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -84,7 +90,14 @@ export async function saveDraftSubmission(
                 taskId: input.taskId,
             },
         },
-        select: { status: true, isLocked: true },
+        select: {
+            status: true,
+            isLocked: true,
+            mode: true,
+            fileUrl: true,
+            externalLink: true,
+            textContent: true,
+        },
     });
 
     if (existing && (existing.status !== "DRAFT" || existing.isLocked)) {
@@ -101,6 +114,13 @@ export async function saveDraftSubmission(
         textContent: input.mode === "TEXT" ? input.textContent ?? null : null,
     };
 
+    // Bump the activity counter only for a meaningful change (a retry or a
+    // no-op re-save of identical content must not create new "activity").
+    const activity = buildActivityWrite(existing, {
+        mode: input.mode,
+        ...contentData,
+    });
+
     const submission = await prisma.submission.upsert({
         where: {
             studentId_taskId: {
@@ -114,10 +134,12 @@ export async function saveDraftSubmission(
             mode: input.mode,
             status: "DRAFT",
             ...contentData,
+            ...activity.create,
         },
         update: {
             mode: input.mode,
             ...contentData,
+            ...activity.update,
             // submittedAt auto-refreshes via @updatedAt in the schema
         },
     });

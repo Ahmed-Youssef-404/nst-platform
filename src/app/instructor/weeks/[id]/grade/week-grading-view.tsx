@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import {
     ChevronLeft,
+    ChevronDown,
     FileText,
     ExternalLink,
     CheckCircle2,
@@ -46,6 +47,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { StudentAvatar } from "@/components/avatar/student-avatar";
 import { TaskDescriptionDisclosure } from "@/components/instructor/task-description-disclosure";
 import { TaskHintUsagePanel } from "@/components/instructor/task-hint-usage";
+import {
+    NewActivityBadge,
+    NewActivityCounter,
+    ReviewTaskActivityOnMount,
+} from "@/components/instructor/task-activity-indicators";
 import { MarkdownContent } from "@/components/markdown-content";
 import { formatDateTime } from "@/lib/format-date";
 import { getSubmissionFileUrlAction } from "@/lib/actions/submission-management";
@@ -204,12 +210,15 @@ export function WeekGradingView({ data }: { data: WeekGradingViewData }) {
                                                     className="size-8 shrink-0 mt-0.5"
                                                 />
                                                 <div className="space-y-1.5 min-w-0 flex-1">
-                                                    <p
-                                                        className={`text-sm font-bold truncate ${isSelected ? "text-gold-300" : "text-starlight-100"
-                                                            }`}
-                                                    >
-                                                        {student.studentName}
-                                                    </p>
+                                                    <div className="flex items-center gap-1.5 min-w-0">
+                                                        <p
+                                                            className={`text-sm font-bold truncate min-w-0 ${isSelected ? "text-gold-300" : "text-starlight-100"
+                                                                }`}
+                                                        >
+                                                            {student.studentName}
+                                                        </p>
+                                                        <NewActivityCounter count={student.newActivityCount} />
+                                                    </div>
                                                     <div className="flex items-center gap-1.5 flex-wrap">
                                                         {student.isFinalized ? (
                                                             <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-success-500/15 text-success-400 border border-success-500/30">
@@ -709,6 +718,16 @@ function TaskGradingCard({
     const existingGrade = taskData?.draftGrade;
     const submission = taskData?.submission;
 
+    // New student activity on this task (review state is shared across the
+    // Group's instructors). A task with unreviewed activity stays collapsed
+    // until the instructor explicitly opens THAT version of it; opening is
+    // what registers the review. If the student adds more activity later,
+    // the card collapses again until it is reopened.
+    const hasNewActivity = submission?.hasNewActivity ?? false;
+    const [openedVersion, setOpenedVersion] = useState<number | null>(null);
+    const isCollapsed =
+        hasNewActivity && openedVersion !== submission?.activityVersion;
+
     const [markedInvalid, setMarkedInvalid] = useState(
         existingGrade?.markedInvalid ?? false
     );
@@ -799,6 +818,7 @@ function TaskGradingCard({
                                 Earliest Solver
                             </Badge>
                         )}
+                        {hasNewActivity && <NewActivityBadge />}
                     </div>
                 </div>
 
@@ -809,7 +829,39 @@ function TaskGradingCard({
                 </div>
             </CardHeader>
 
-            <CardContent className="p-5 space-y-4 text-xs">
+            {/* Registers the review for the version the instructor opened. It is
+                mounted only after an explicit open, i.e. once the details below
+                are already on screen. */}
+            {submission && openedVersion !== null && (
+                <ReviewTaskActivityOnMount
+                    key={openedVersion}
+                    submissionId={submission.id}
+                    seenVersion={openedVersion}
+                    onFailure={() => setOpenedVersion(null)}
+                />
+            )}
+
+            {/* Collapsed state: this task has student activity nobody has reviewed yet */}
+            {isCollapsed && submission && (
+                <CardContent className="p-5 text-xs">
+                    <button
+                        type="button"
+                        aria-expanded={false}
+                        onClick={() => setOpenedVersion(submission.activityVersion)}
+                        className="flex w-full items-center justify-between gap-3 rounded-xl border border-gold-500/30 bg-gold-500/5 p-3.5 text-left transition-colors hover:bg-gold-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500/40"
+                    >
+                        <span className="flex items-center gap-2 font-semibold text-gold-300">
+                            <Sparkles className="size-3.5 text-gold-400" />
+                            New student activity — open to review
+                        </span>
+                        <ChevronDown className="size-4 shrink-0 text-gold-400" />
+                    </button>
+                </CardContent>
+            )}
+
+            {/* Details stay mounted while collapsed (hidden) so unsaved grading
+                input is never lost. */}
+            <CardContent className={`p-5 space-y-4 text-xs ${isCollapsed ? "hidden" : ""}`}>
                 {/* Full task description (collapsed by default) */}
                 <TaskDescriptionDisclosure description={task.description} />
 

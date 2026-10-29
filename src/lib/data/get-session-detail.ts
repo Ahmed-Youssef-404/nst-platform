@@ -7,6 +7,7 @@
 
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { isTaskActivityUnreviewed } from "@/lib/submissions/task-activity";
 import { computeSessionStatus, type SessionStatus } from "./get-my-groups";
 import type {
     TaskTypeCode,
@@ -35,6 +36,9 @@ export interface SessionDetailRosterEntry {
     studentName: string;
     attendanceStatus: "PRESENT" | "ABSENT" | null;
     engagementGiven: boolean;
+    // Number of DISTINCT tasks in this Session with unreviewed student
+    // activity for this student.
+    newActivityCount: number;
     avatarConfig?: StudentAvatarConfig | null;
 }
 
@@ -70,6 +74,11 @@ export interface SessionDetailSubmission {
         correctnessScore: number | null;
         implementationScore: number | null;
         instructorComment: string | null;
+        // Student-activity tracking (shared across the Group's instructors).
+        // `activityVersion` is the version this payload shows; the review
+        // action acknowledges exactly that version.
+        activityVersion: number;
+        hasNewActivity: boolean;
         taskGrade: {
             id: string;
             totalPoints: number | null;
@@ -122,6 +131,25 @@ export interface SessionDetail {
     feedbackStats: SessionFeedbackStats;
 }
 
+// Minimal shape needed to decide whether a Submission has unreviewed
+// student activity. A Submission counts as handled once it's graded.
+interface ActivitySource {
+    activityVersion: number;
+    gradedAt: Date | null;
+    activityReview: { reviewedVersion: number } | null;
+    taskGrade: { finalizedAt: Date | null } | null;
+}
+
+function submissionHasNewActivity(submission: ActivitySource): boolean {
+    return isTaskActivityUnreviewed({
+        activityVersion: submission.activityVersion,
+        reviewedVersion: submission.activityReview?.reviewedVersion,
+        isGraded:
+            Boolean(submission.gradedAt) ||
+            submission.taskGrade?.finalizedAt != null,
+    });
+}
+
 export async function getSessionDetail(
     sessionId: string,
     instructorId: string
@@ -131,7 +159,6 @@ export async function getSessionDetail(
         include: {
             level: { include: { group: true } },
             tasks: {
-                orderBy: { order: "asc" },
                 include: {
                     hints: { orderBy: { order: "asc" } },
                     rubricFields: { orderBy: { order: "asc" } },
@@ -146,6 +173,9 @@ export async function getSessionDetail(
                                         },
                                     },
                                 },
+                            },
+                            activityReview: {
+                                select: { reviewedVersion: true },
                             },
                         },
                     },
@@ -212,6 +242,21 @@ export async function getSessionDetail(
         engagementTransactions.map((t) => t.studentId)
     );
 
+    // Per student: number of DISTINCT tasks in this Session with unreviewed
+    // activity (one Submission per (student, task), so counting rows is
+    // counting tasks).
+    const newActivityByStudent = new Map<string, number>();
+    for (const task of session.tasks) {
+        if (task.type !== "INTERNAL") continue;
+        for (const submission of task.submissions) {
+            if (!submissionHasNewActivity(submission)) continue;
+            newActivityByStudent.set(
+                submission.studentId,
+                (newActivityByStudent.get(submission.studentId) ?? 0) + 1
+            );
+        }
+    }
+
     const totalFeedbacks = feedbackRows.length;
     const totalEligibleStudents = groupStudents.length;
     const ratingSum = feedbackRows.reduce((acc, f) => acc + f.rating, 0);
@@ -242,6 +287,7 @@ export async function getSessionDetail(
             studentName: student.name,
             attendanceStatus: attendanceByStudent.get(student.id) ?? null,
             engagementGiven: engagedStudentIds.has(student.id),
+            newActivityCount: newActivityByStudent.get(student.id) ?? 0,
             avatarConfig: (student.avatarConfig as unknown as StudentAvatarConfig) ?? null,
         })),
         feedbacks: feedbackRows.map((f) => ({
@@ -310,6 +356,8 @@ export async function getSessionDetail(
                                     correctnessScore: submission.correctnessScore,
                                     implementationScore: submission.implementationScore,
                                     instructorComment: submission.instructorComment,
+                                    activityVersion: submission.activityVersion,
+                                    hasNewActivity: submissionHasNewActivity(submission),
                                     taskGrade: submission.taskGrade
                                         ? {
                                             id: submission.taskGrade.id,

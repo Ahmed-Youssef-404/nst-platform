@@ -19,6 +19,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { MarkdownEditor } from "@/components/ui/markdown-editor";
 import { TaskDescriptionDisclosure } from "@/components/instructor/task-description-disclosure";
 import { TaskHintUsagePanel } from "@/components/instructor/task-hint-usage";
+import {
+    NewActivityBadge,
+    NewActivityCounter,
+    ReviewTaskActivityOnMount,
+} from "@/components/instructor/task-activity-indicators";
 import { MarkdownContent } from "@/components/markdown-content";
 import { formatDateTime } from "@/lib/format-date";
 import { StudentAvatar } from "@/components/avatar/student-avatar";
@@ -537,17 +542,18 @@ function RosterRow({
     return (
         <div className="rounded-xl border border-border/60 bg-space-950/40 p-3 hover:border-gold-500/25 transition-all">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-2.5 min-w-0">
                     <StudentAvatar
                         avatarConfig={entry.avatarConfig}
                         name={entry.studentName}
                         size="sm"
                         className="size-8 shrink-0"
                     />
-                    <div>
-                        <span className="text-xs font-bold text-starlight-100 block">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                        <span className="text-xs font-bold text-starlight-100 truncate">
                             {entry.studentName}
                         </span>
+                        <NewActivityCounter count={entry.newActivityCount} />
                     </div>
                 </div>
 
@@ -702,6 +708,7 @@ function SubmissionsSection({
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-2">
+                                    {row.submission?.hasNewActivity && <NewActivityBadge />}
                                     {row.hintUsage.totalHints > 0 && (
                                         <span className="font-mono text-[11px] px-2 py-0.5 rounded-full border border-border/70 bg-space-850 text-starlight-300">
                                             Hints {row.hintUsage.unlockedCount}/{row.hintUsage.totalHints}
@@ -759,6 +766,15 @@ function SubmissionDetail({
     const [isDownloading, setIsDownloading] = useState(false);
     const [downloadError, setDownloadError] = useState<string | null>(null);
 
+    // SubmissionDetail mounts exactly when the instructor expands the row, so
+    // this captures the version that was open at that moment and whether it
+    // needs a review. Activity that arrives later (after a refresh) is NOT
+    // acknowledged by this open - it stays unreviewed until the row is reopened.
+    const [openedWith] = useState({
+        version: submission.activityVersion,
+        needsReview: submission.hasNewActivity,
+    });
+
     async function handleDownload() {
         if (!submission.fileUrl) return;
         setDownloadError(null);
@@ -775,6 +791,15 @@ function SubmissionDetail({
 
     return (
         <div className="space-y-4 text-xs">
+            {/* Registers the review for the version that was open; mounted after
+                the details below are already rendered. */}
+            {openedWith.needsReview && (
+                <ReviewTaskActivityOnMount
+                    submissionId={submission.id}
+                    seenVersion={openedWith.version}
+                />
+            )}
+
             {/* Metadata Bar */}
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2 text-starlight-400">
                 <span>
