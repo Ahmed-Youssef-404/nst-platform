@@ -228,19 +228,30 @@ export function WeekGradingView({ data }: { data: WeekGradingViewData }) {
                                                             </span>
                                                         )}
 
-                                                        {student.resource?.status === "ACCEPTED" ? (
-                                                            <span className="text-[10px] text-success-400 font-semibold font-mono">
-                                                                File ✓
-                                                            </span>
-                                                        ) : student.resource?.fileUrl ? (
-                                                            <span className="text-[10px] text-amber-400 font-semibold font-mono">
-                                                                File PENDING
-                                                            </span>
-                                                        ) : (
-                                                            <span className="text-[10px] text-starlight-400 font-mono">
-                                                                No file
-                                                            </span>
-                                                        )}
+                                                        {(() => {
+                                                            // Same helper as the detail view, so file and Drive-link
+                                                            // submissions are classified consistently.
+                                                            const rowRes = getResourceSubmissionState(student.resource);
+                                                            const isFile = rowRes.state === "VALID_FILE";
+                                                            const isDrive = rowRes.state === "VALID_DRIVE_LINK";
+                                                            if (!isFile && !isDrive) {
+                                                                return (
+                                                                    <span className="text-[10px] text-starlight-400 font-mono">
+                                                                        No file
+                                                                    </span>
+                                                                );
+                                                            }
+                                                            const label = isDrive ? "Drive link" : "File";
+                                                            return rowRes.status === "ACCEPTED" ? (
+                                                                <span className="text-[10px] text-success-400 font-semibold font-mono">
+                                                                    {label} ✓
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-[10px] text-amber-400 font-semibold font-mono">
+                                                                    {label} PENDING
+                                                                </span>
+                                                            );
+                                                        })()}
                                                     </div>
                                                 </div>
                                             </div>

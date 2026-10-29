@@ -43,7 +43,24 @@ import { MarkdownContent } from "@/components/markdown-content";
 import type { StudentWeekDetailTask } from "@/lib/data/get-student-weeks";
 import type { SubmissionModeCode } from "@/types/types";
 import { formatDateTime } from "@/lib/format-date";
-import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
+
+// Unsaved, in-memory workspace for ONE task. Keyed by task.id in the parent.
+// A field is `undefined` until the student edits it - until then the task's own
+// saved draft is shown, so we never overwrite saved data with an empty value.
+export interface TaskWorkspaceState {
+    mode?: SubmissionModeCode;
+    text?: string;
+    link?: string;
+    file?: File | null;
+}
+
+// Values currently persisted for a task (the saved draft), per field.
+export function getSavedDraftValues(task: StudentWeekDetailTask) {
+    return {
+        text: task.submission?.mode === "TEXT" ? task.submission.textContent ?? "" : "",
+        link: task.submission?.mode === "LINK" ? task.submission.externalLink ?? "" : "",
+    };
+}
 
 export function WeekTaskDetailCard({
     studentId,
@@ -51,43 +68,43 @@ export function WeekTaskDetailCard({
     canWrite,
     beginnerSt,
     weekId,
+    workspace,
+    onWorkspaceChange,
 }: {
     studentId: string;
     task: StudentWeekDetailTask;
     canWrite: boolean;
     beginnerSt: number;
     weekId: string;
+    workspace: TaskWorkspaceState | undefined;
+    onWorkspaceChange: (patch: Partial<TaskWorkspaceState>) => void;
 }) {
     const router = useRouter();
 
-    // Mode selection state
+    // Mode selection state (unsaved choice lives in the per-task workspace)
     const allowedMode = task.allowedSubmissionMode;
     const defaultMode: SubmissionModeCode =
         allowedMode ?? task.submission?.mode ?? "TEXT";
-    const [selectedMode, setSelectedMode] = useState<SubmissionModeCode>(defaultMode);
+    const selectedMode: SubmissionModeCode = workspace?.mode ?? defaultMode;
+    const setSelectedMode = (mode: SubmissionModeCode) => onWorkspaceChange({ mode });
 
-    // Draft form inputs
-    const [textInput, setTextInput] = useState(
-        task.submission?.mode === "TEXT" ? task.submission.textContent ?? "" : ""
-    );
-    const [linkInput, setLinkInput] = useState(
-        task.submission?.mode === "LINK" ? task.submission.externalLink ?? "" : ""
-    );
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    // Draft form inputs: unsaved in-memory value if the student edited it,
+    // otherwise this task's own saved draft.
+    const saved = getSavedDraftValues(task);
+    const textInput = workspace?.text ?? saved.text;
+    const linkInput = workspace?.link ?? saved.link;
+    const setTextInput = (text: string) => onWorkspaceChange({ text });
+    const setLinkInput = (link: string) => onWorkspaceChange({ link });
+    const selectedFile = workspace?.file ?? null;
+    const setSelectedFile = (file: File | null) => onWorkspaceChange({ file });
 
     // Async states
     const [isSavingDraft, setIsSavingDraft] = useState(false);
     const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
     const [saveErrorMsg, setSaveErrorMsg] = useState<string | null>(null);
 
-    const initialText = task.submission?.mode === "TEXT" ? task.submission.textContent ?? "" : "";
-    const initialLink = task.submission?.mode === "LINK" ? task.submission.externalLink ?? "" : "";
-    const isDirty = canWrite && (
-        (textInput.trim() !== initialText.trim() && textInput.trim().length > 0) ||
-        (linkInput.trim() !== initialLink.trim() && linkInput.trim().length > 0) ||
-        selectedFile !== null
-    );
-    useUnsavedChanges(isDirty && !isSavingDraft);
+    // NOTE: the "unsaved changes" refresh/close guard lives in the parent view,
+    // because unsaved work now survives switching between tasks.
 
     // Download state
     const [isDownloading, setIsDownloading] = useState(false);
@@ -155,6 +172,7 @@ export function WeekTaskDetailCard({
                     });
                 } else {
                     setSaveSuccessMsg("Draft link saved successfully!");
+                    setLinkInput(linkInput.trim());
                     showToast({
                         title: "Draft saved",
                         description: "Your link draft was saved successfully.",
@@ -182,6 +200,7 @@ export function WeekTaskDetailCard({
                     });
                 } else {
                     setSaveSuccessMsg("Draft text saved successfully!");
+                    setTextInput(textInput.trim());
                     showToast({
                         title: "Draft saved",
                         description: "Your text draft was saved successfully.",

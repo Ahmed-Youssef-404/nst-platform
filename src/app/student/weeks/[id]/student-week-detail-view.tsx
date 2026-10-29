@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -46,7 +46,12 @@ import {
     DialogDescription,
     DialogFooter,
 } from "@/components/ui/dialog";
-import { WeekTaskDetailCard } from "@/components/student/week-task-detail-card";
+import {
+    WeekTaskDetailCard,
+    getSavedDraftValues,
+    type TaskWorkspaceState,
+} from "@/components/student/week-task-detail-card";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import {
     lockWeekAction,
     saveWeekDriveLinkAction,
@@ -149,6 +154,36 @@ export function StudentWeekDetailView({
 
     // Task Stepper state
     const [currentTaskIndex, setCurrentTaskIndex] = useState(0);
+
+    // Unsaved per-task workspace (Markdown answer / external link / chosen mode),
+    // keyed by the stable task.id. Memory only: lost on refresh by design.
+    const [taskWorkspaces, setTaskWorkspaces] = useState<Record<string, TaskWorkspaceState>>({});
+    const updateTaskWorkspace = useCallback(
+        (taskId: string, patch: Partial<TaskWorkspaceState>) => {
+            setTaskWorkspaces((prev) => ({
+                ...prev,
+                [taskId]: { ...prev[taskId], ...patch },
+            }));
+        },
+        []
+    );
+
+    // Warn on refresh/close/navigation if ANY task has unsaved text, link or selected file.
+    const hasUnsavedTaskWork =
+        week.canWrite &&
+        week.tasks.some((t) => {
+            const ws = taskWorkspaces[t.id];
+            if (!ws) return false;
+            const saved = getSavedDraftValues(t);
+            const text = (ws.text ?? "").trim();
+            const link = (ws.link ?? "").trim();
+            return (
+                ws.file != null ||
+                (ws.text !== undefined && text !== saved.text.trim() && text.length > 0) ||
+                (ws.link !== undefined && link !== saved.link.trim() && link.length > 0)
+            );
+        });
+    useUnsavedChanges(hasUnsavedTaskWork);
 
     // Resource state calculation
     const resState = getResourceSubmissionState(week.resource);
@@ -1123,6 +1158,11 @@ export function StudentWeekDetailView({
                     {/* Task Content Card */}
                     <div className="p-5 md:p-8">
                         <WeekTaskDetailCard
+                            key={currentTask.id}
+                            workspace={taskWorkspaces[currentTask.id]}
+                            onWorkspaceChange={(patch) =>
+                                updateTaskWorkspace(currentTask.id, patch)
+                            }
                             studentId={studentId}
                             task={currentTask}
                             canWrite={week.canWrite}
