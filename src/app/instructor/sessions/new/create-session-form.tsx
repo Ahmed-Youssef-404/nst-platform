@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { MarkdownEditor } from "@/components/ui/markdown-editor";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ReorderItem } from "@/components/reorder-item";
 import {
     Select,
     SelectContent,
@@ -236,8 +237,8 @@ export function CreateSessionForm({ level }: { level: LevelForInstructor }) {
                     task.type === "EXTERNAL"
                         ? null
                         : task.allowedSubmissionMode === "ANY"
-                          ? null
-                          : task.allowedSubmissionMode,
+                            ? null
+                            : task.allowedSubmissionMode,
                 rubricFields,
                 hints,
             };
@@ -444,17 +445,18 @@ export function CreateSessionForm({ level }: { level: LevelForInstructor }) {
                     )}
 
                     {tasks.map((task, index) => (
-                        <TaskEditor
-                            key={task.key}
-                            index={index}
-                            task={task}
-                            totalTasks={tasks.length}
-                            onChange={(patch) => updateTask(index, patch)}
-                            onHintChange={(hintIndex, patch) => updateHint(index, hintIndex, patch)}
-                            onRemove={() => removeTask(index)}
-                            onMoveUp={index > 0 ? () => moveTask(index, "up") : undefined}
-                            onMoveDown={index < tasks.length - 1 ? () => moveTask(index, "down") : undefined}
-                        />
+                        <ReorderItem key={task.key}>
+                            <TaskEditor
+                                index={index}
+                                task={task}
+                                totalTasks={tasks.length}
+                                onChange={(patch) => updateTask(index, patch)}
+                                onHintChange={(hintIndex, patch) => updateHint(index, hintIndex, patch)}
+                                onRemove={() => removeTask(index)}
+                                onMoveUp={index > 0 ? () => moveTask(index, "up") : undefined}
+                                onMoveDown={index < tasks.length - 1 ? () => moveTask(index, "down") : undefined}
+                            />
+                        </ReorderItem>
                     ))}
                 </div>
 
@@ -717,11 +719,10 @@ function TaskEditor({
 
                         <div className="flex items-center gap-2">
                             <span
-                                className={`font-mono text-xs font-bold px-2.5 py-0.5 rounded-full border ${
-                                    isRubricValid
+                                className={`font-mono text-xs font-bold px-2.5 py-0.5 rounded-full border ${isRubricValid
                                         ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
                                         : "bg-red-500/15 text-red-400 border-red-500/30"
-                                }`}
+                                    }`}
                             >
                                 Total: {rubricSum} / 15 pts {isRubricValid ? "✓" : "(!)"}
                             </span>

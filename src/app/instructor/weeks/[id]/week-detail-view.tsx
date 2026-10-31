@@ -54,6 +54,7 @@ import {
     Loader2,
 } from "lucide-react";
 import { MarkdownContent } from "@/components/markdown-content";
+import { ReorderItem } from "@/components/reorder-item";
 import { formatDateTime } from "@/lib/format-date";
 import { hasValidResourceSubmission } from "@/lib/weeks/resource-eligibility";
 import {
@@ -352,23 +353,24 @@ export function WeekDetailView({ week }: { week: WeekDetailForInstructor }) {
                 ) : (
                     <div className="space-y-4">
                         {localTasks.map((task, index) => (
-                            <TaskCard
-                                key={task.id}
-                                index={index + 1}
-                                task={task}
-                                totalTasks={localTasks.length}
-                                canEdit={week.canEditTasks}
-                                onEdit={() =>
-                                    setTaskModalState({ isOpen: true, taskToEdit: task })
-                                }
-                                onDelete={() => handleDeleteTask(task.id)}
-                                onMoveUp={index > 0 ? () => handleReorderTask(task.id, index, "up") : undefined}
-                                onMoveDown={index < localTasks.length - 1 ? () => handleReorderTask(task.id, index + 2, "down") : undefined}
-                                isDeleting={deletingTaskId === task.id}
-                                isReordering={reorderingTaskId === task.id}
-                                reorderingDirection={reorderingTaskId === task.id ? reorderingDirection : null}
-                                isAnyReordering={Boolean(reorderingTaskId)}
-                            />
+                            <ReorderItem key={task.id}>
+                                <TaskCard
+                                    index={index + 1}
+                                    task={task}
+                                    totalTasks={localTasks.length}
+                                    canEdit={week.canEditTasks}
+                                    onEdit={() =>
+                                        setTaskModalState({ isOpen: true, taskToEdit: task })
+                                    }
+                                    onDelete={() => handleDeleteTask(task.id)}
+                                    onMoveUp={index > 0 ? () => handleReorderTask(task.id, index, "up") : undefined}
+                                    onMoveDown={index < localTasks.length - 1 ? () => handleReorderTask(task.id, index + 2, "down") : undefined}
+                                    isDeleting={deletingTaskId === task.id}
+                                    isReordering={reorderingTaskId === task.id}
+                                    reorderingDirection={reorderingTaskId === task.id ? reorderingDirection : null}
+                                    isAnyReordering={Boolean(reorderingTaskId)}
+                                />
+                            </ReorderItem>
                         ))}
                     </div>
                 )}
@@ -919,8 +921,8 @@ function TaskFormDialog({
                     type === "EXTERNAL"
                         ? null
                         : allowedSubmissionMode === "ANY"
-                        ? null
-                        : allowedSubmissionMode,
+                            ? null
+                            : allowedSubmissionMode,
                 hints: hints.map((h) => ({
                     content: h.content.trim(),
                     cost: Number(h.cost) || 0,
@@ -1109,11 +1111,10 @@ function TaskFormDialog({
                             </div>
 
                             <span
-                                className={`text-xs font-mono font-bold px-2.5 py-1 rounded-full border ${
-                                    isRubricValid
+                                className={`text-xs font-mono font-bold px-2.5 py-1 rounded-full border ${isRubricValid
                                         ? "bg-success-500/15 text-success-400 border-success-500/30"
                                         : "bg-amber-500/15 text-amber-300 border-amber-500/30"
-                                }`}
+                                    }`}
                             >
                                 Total: {rubricSum} / 15 pts
                             </span>
