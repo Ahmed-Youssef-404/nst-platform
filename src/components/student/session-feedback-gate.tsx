@@ -54,6 +54,10 @@ export function SessionFeedbackGate({
             setError("Please select a session rating from 1 to 10 before submitting.");
             return;
         }
+        if (comment.trim().length < 5) {
+            setError("Please provide a comment of at least 5 characters.");
+            return;
+        }
 
         setIsSubmitting(true);
         const result = await submitSessionFeedbackAction({
@@ -189,7 +193,7 @@ export function SessionFeedbackGate({
                     {/* Submit Button */}
                     <Button
                         type="submit"
-                        disabled={isSubmitting || !rating}
+                        disabled={isSubmitting || !rating || comment.trim().length < 5}
                         className="w-full h-12 rounded-xl bg-gradient-to-r from-gold-500 to-amber-400 hover:from-gold-400 hover:to-amber-300 text-space-950 font-bold text-sm tracking-wide shadow-gold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {isSubmitting ? (
