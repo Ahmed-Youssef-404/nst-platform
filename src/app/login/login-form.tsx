@@ -16,6 +16,7 @@ import {
     ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { normalizeEmail } from "@/lib/auth/normalize-email";
 
 type LoginMode = "student" | "staff";
 
@@ -33,7 +34,7 @@ export function LoginForm() {
         setIsSubmitting(true);
 
         const result = await loginAction({
-            email: email.trim(),
+            email: normalizeEmail(email),
             password: password.trim(),
         });
 

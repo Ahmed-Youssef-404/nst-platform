@@ -19,6 +19,7 @@ import {
     createStudentAction,
 } from "@/lib/actions/user-management";
 import type { GroupOption } from "@/lib/data/get-groups";
+import { normalizeEmail } from "@/lib/auth/normalize-email";
 
 type Mode = "instructor" | "student";
 
@@ -68,7 +69,7 @@ function InstructorForm() {
         setSuccessMessage(null);
         setIsSubmitting(true);
 
-        const result = await createInstructorAction({ name, email, password });
+        const result = await createInstructorAction({ name, email: normalizeEmail(email), password });
 
         if (result.success) {
             setSuccessMessage(`Instructor "${result.data?.name}" created successfully.`);
@@ -150,7 +151,7 @@ function StudentForm({ groups }: { groups: GroupOption[] }) {
 
         setIsSubmitting(true);
 
-        const result = await createStudentAction({ id, name, email, groupId });
+        const result = await createStudentAction({ id, name, email: normalizeEmail(email), groupId });
 
         if (result.success) {
             setSuccessMessage(

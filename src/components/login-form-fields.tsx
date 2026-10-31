@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { loginAction } from "@/lib/actions/auth";
 import { Eye, EyeOff } from "lucide-react";
+import { normalizeEmail } from "@/lib/auth/normalize-email";
 
 type LoginMode = "staff" | "student";
 
@@ -29,7 +30,7 @@ export function LoginFormFields() {
         setError(null);
         setIsSubmitting(true);
 
-        const result = await loginAction({ email, password });
+        const result = await loginAction({ email: normalizeEmail(email), password });
 
         // Note: if login succeeds, loginAction redirects and this line
         // is never reached. We only get here if it failed.

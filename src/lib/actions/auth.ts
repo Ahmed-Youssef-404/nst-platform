@@ -4,6 +4,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import type { UserRole } from "@/types/types";
+import { normalizeEmail } from "@/lib/auth/normalize-email";
 
 interface LoginInput {
     email: string;
@@ -16,7 +17,8 @@ interface LoginResult {
 }
 
 export async function loginAction(input: LoginInput): Promise<LoginResult> {
-    const { email, password } = input;
+    const { password } = input;
+    const email = normalizeEmail(input.email);
 
     const supabase = await createClient();
 

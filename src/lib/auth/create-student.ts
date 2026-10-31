@@ -6,6 +6,8 @@ import { createClient } from "@supabase/supabase-js";
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { CreateStudentInput } from "@/types/types";
+import { normalizeEmail, isValidEmail } from "@/lib/auth/normalize-email";
+import { assertEmailAvailable } from "@/lib/auth/assert-email-available";
 
 const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -21,7 +23,13 @@ const prisma = new PrismaClient({ adapter });
 const STUDENT_ID_PATTERN = /^[A-Za-z0-9]+$/;
 
 export async function createStudent(input: CreateStudentInput) {
-    const { id, email, name, groupId } = input;
+    const { id, name, groupId } = input;
+    // Never trust the client: normalize again on the server.
+    const email = normalizeEmail(input.email);
+
+    if (!isValidEmail(email)) {
+        throw new Error("Please enter a valid email address.");
+    }
 
     // 1. Validate the ID format before doing anything else
     if (!STUDENT_ID_PATTERN.test(id)) {
@@ -38,6 +46,9 @@ export async function createStudent(input: CreateStudentInput) {
     if (existingStudent) {
         throw new Error(`Student ID "${id}" is already in use.`);
     }
+
+    // 2b. Refuse if this email (any casing) already belongs to any account
+    await assertEmailAvailable(prisma, email);
 
     // 3. Verify the group exists and check its track type (BEGINNER vs INTERMEDIATE)
     const group = await prisma.group.findUnique({

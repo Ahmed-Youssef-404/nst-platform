@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { UserRole } from "@/types/types";
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { normalizeEmail } from "@/lib/auth/normalize-email";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -38,7 +39,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 
     return {
         id: user.id,
-        email: user.email!,
+        email: normalizeEmail(user.email!),
         role,
     };
 }
@@ -60,10 +61,27 @@ export async function getCurrentStudentId(): Promise<string | null> {
         return null;
     }
 
-    const student = await prisma.student.findUnique({
+    // user.email is already normalized by getCurrentUser(). Exact match first
+    // (fast, uses the unique index) - this is the path every correctly
+    // normalized row takes.
+    const exact = await prisma.student.findUnique({
         where: { email: user.email },
         select: { id: true },
     });
 
-    return student?.id ?? null;
+    if (exact) {
+        return exact.id;
+    }
+
+    // Safety net for legacy rows that were stored with different casing
+    // (e.g. "Student@Gmail.com") and have not been migrated yet. Case-
+    // insensitive match, but only trusted when it is unambiguous: if two
+    // rows differ only by case we fail closed rather than guess an identity.
+    const legacy = await prisma.student.findMany({
+        where: { email: { equals: user.email, mode: "insensitive" } },
+        select: { id: true },
+        take: 2,
+    });
+
+    return legacy.length === 1 ? legacy[0].id : null;
 }

@@ -6,6 +6,8 @@ import { createClient } from "@supabase/supabase-js";
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { CreateInstructorInput } from "@/types/types";
+import { normalizeEmail, isValidEmail } from "@/lib/auth/normalize-email";
+import { assertEmailAvailable } from "@/lib/auth/assert-email-available";
 
 const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,7 +18,16 @@ const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
 export async function createInstructor(input: CreateInstructorInput) {
-    const { email, password, name } = input;
+    const { password, name } = input;
+    // Never trust the client: normalize again on the server.
+    const email = normalizeEmail(input.email);
+
+    if (!isValidEmail(email)) {
+        throw new Error("Please enter a valid email address.");
+    }
+
+    // Refuse if this email (any casing) already belongs to any account
+    await assertEmailAvailable(prisma, email);
 
     // 1. Create user in Supabase Auth
     const { data: authUser, error: authError } =

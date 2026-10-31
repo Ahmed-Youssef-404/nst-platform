@@ -58,6 +58,7 @@ import type {
 } from "@/lib/data/get-super-admin-overview";
 import type { GroupOption } from "@/lib/data/get-groups";
 import { formatDate } from "@/lib/format-date";
+import { normalizeEmail } from "@/lib/auth/normalize-email";
 import {
     STUDENT_TRACK_LABELS,
     getStudentStBalance,
@@ -1083,7 +1084,7 @@ function StudentCreationForm({ groups }: { groups: GroupOption[] }) {
         const result = await createStudentAction({
             id: trimmedId,
             name: name.trim(),
-            email: email.trim(),
+            email: normalizeEmail(email),
             groupId,
         });
 
@@ -1355,7 +1356,7 @@ function InstructorCreationForm() {
         const currentPassword = password;
         const result = await createInstructorAction({
             name: name.trim(),
-            email: email.trim(),
+            email: normalizeEmail(email),
             password,
         });
 
