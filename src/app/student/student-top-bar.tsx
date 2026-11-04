@@ -9,6 +9,7 @@ import { StudentAvatar } from "@/components/avatar/student-avatar";
 import { reconcileStudentST } from "@/lib/st-economy/reconcile";
 import { getStudentBalance } from "@/lib/data/get-st-balance";
 import type { BalanceZone } from "@/types/types";
+import { InstructorNavbarClock } from "@/components/instructor/instructor-navbar-clock";
 
 const ZONE_STYLES: Record<
     BalanceZone,
@@ -81,8 +82,12 @@ export async function StudentTopBar({ studentId }: { studentId: string }) {
                     )} */}
                 </div>
 
+
                 {/* Right: Star Tokens Balance */}
                 <div className="flex shrink-0 items-center gap-3">
+
+                    <InstructorNavbarClock />
+
                     <Link
                         href="/student/st-history"
                         className="group flex items-center gap-2 rounded-xl bg-card dark:bg-space-850/90 hover:bg-muted/70 dark:hover:bg-space-800 px-3 py-1.5 border border-gold-500/30 shadow-xs dark:shadow-gold transition-all duration-200"
