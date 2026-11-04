@@ -33,7 +33,7 @@ const STATUS_CONFIG: Record<
     ongoing: {
         label: "Live Now",
         badgeClassName: "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/40 shadow-xs animate-pulse",
-        cardClassName: "border-emerald-500/40 bg-emerald-50/50 shadow-md ring-1 ring-emerald-500/25 dark:border-emerald-500/50 dark:bg-gradient-to-br dark:from-emerald-950/20 dark:via-space-900 dark:to-space-950 dark:ring-emerald-500/30",
+        cardClassName: "border-emerald-500/40 bg-emerald-50/50 shadow-md ring-1 ring-emerald-500/25 dark:border-emerald-500/50 dark:bg-gradient-to-br dark:from-emerald-950 dark:via-space-850 dark:to-space-950 dark:ring-emerald-500/30",
         isInteractive: true,
     },
     completed: {

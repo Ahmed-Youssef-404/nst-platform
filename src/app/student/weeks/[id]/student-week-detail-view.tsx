@@ -560,14 +560,14 @@ export function StudentWeekDetailView({
                             {week.name}
                         </h1>
 
-                        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-starlight-300">
+                        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-base text-starlight-300">
                             <div className="flex items-center gap-1.5">
-                                <Calendar className="size-3.5 text-starlight-400" />
+                                <Calendar className="size-5.5 text-starlight-400" />
                                 <span>{formatDateTime(week.startDate)}</span>
                             </div>
 
                             <div className="flex items-center gap-1.5">
-                                <Clock className="size-3.5 text-starlight-400" />
+                                <Clock className="size-5.5 text-starlight-400" />
                                 <span>Deadline: {formatDateTime(week.endDate)}</span>
                             </div>
 

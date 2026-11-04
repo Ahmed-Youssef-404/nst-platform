@@ -38,7 +38,7 @@ const STATUS_CONFIG: Record<
     ongoing: {
         label: "Live Now",
         badgeClassName: "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/40 shadow-xs animate-pulse",
-        cardClassName: "border-emerald-500/40 bg-emerald-50/50 shadow-md ring-1 ring-emerald-500/25 dark:border-emerald-500/50 dark:bg-gradient-to-br dark:from-emerald-950/20 dark:via-space-900 dark:to-space-950 dark:ring-emerald-500/30",
+        cardClassName: "border-emerald-500/40 bg-emerald-50/50 shadow-md ring-1 ring-emerald-500/25 dark:border-emerald-500/50 dark:bg-gradient-to-br dark:from-emerald-950 dark:via-space-850 dark:to-space-950 dark:ring-emerald-500/30",
         isInteractive: true,
     },
     ended: {
@@ -252,10 +252,9 @@ function WeekCard({ week }: { week: StudentWeekSummary }) {
 
                         {hasValidResourceSubmission(week.resource) ? (
                             <span
-                                className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold border ${
-                                    RESOURCE_STATUS_CONFIG[week.resource!.status]?.badgeClassName ??
+                                className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold border ${RESOURCE_STATUS_CONFIG[week.resource!.status]?.badgeClassName ??
                                     "bg-secondary text-secondary-foreground border-border"
-                                }`}
+                                    }`}
                             >
                                 {RESOURCE_STATUS_CONFIG[week.resource!.status]?.label ?? "Submitted"}
                             </span>
