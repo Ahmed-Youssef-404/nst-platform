@@ -22,6 +22,8 @@ import { computeTaskProgress } from "@/lib/task-progress";
 import type { StudentSessionView } from "@/lib/data/get-student-level";
 import type { SessionStatus } from "@/lib/data/get-my-groups";
 import { formatDateTime } from "@/lib/format-date";
+import { TimeProgressIndicator } from "@/components/time-progress-indicator";
+import { getLatestDeadline } from "@/lib/time-progress";
 
 const STATUS_STYLES: Record<
     SessionStatus,
@@ -53,6 +55,9 @@ export function SessionDetailView({
     const [feedback, setFeedback] = useState(session.feedback);
     const statusStyle = STATUS_STYLES[session.status];
     const progress = computeTaskProgress(session.tasks);
+    // A Session has no single stored deadline - each Task has its own - so the
+    // time indicator runs from the start time to the latest Task deadline.
+    const sessionDeadline = getLatestDeadline(session.tasks.map((t) => t.deadline));
     const progressPercent =
         progress.total > 0 ? Math.round((progress.submitted / progress.total) * 100) : 0;
 
@@ -122,6 +127,13 @@ export function SessionDetailView({
                         </a>
                     )}
                 </div>
+
+                {/* Time Progress (start -> latest Task deadline) */}
+                <TimeProgressIndicator
+                    startDate={session.startTime}
+                    deadline={sessionDeadline}
+                    subject="Session"
+                />
 
                 {/* Progress Summary Strip */}
                 <div className="border-t border-border/60 pt-4">

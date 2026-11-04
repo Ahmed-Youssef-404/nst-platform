@@ -64,6 +64,7 @@ import {
     type WeekResourceStatusCode,
 } from "@/types/types";
 import { formatDateTime } from "@/lib/format-date";
+import { TimeProgressIndicator } from "@/components/time-progress-indicator";
 import {
     getResourceSubmissionState,
     hasValidResourceSubmission,
@@ -593,6 +594,14 @@ export function StudentWeekDetailView({
                         </div>
                     )}
                 </div>
+
+                {/* Time Progress (start date -> deadline); dates are already shown above */}
+                <TimeProgressIndicator
+                    startDate={week.startDate}
+                    deadline={week.endDate}
+                    subject="Week"
+                    showDates={false}
+                />
             </div>
 
             {/* The Two Critical Week Cards: Mandatory Deliverable & Lock Control */}
