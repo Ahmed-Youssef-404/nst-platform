@@ -367,7 +367,7 @@ function PodiumSpot({
             {/* Crown for #1 */}
             {isFirst && (
                 <div className="mb-2 animate-bounce">
-                    <Crown className="size-6 text-gold-400 fill-gold-400/30" />
+                    <Crown className="size-9 text-gold-400 fill-gold-400/30" />
                 </div>
             )}
 
@@ -377,7 +377,7 @@ function PodiumSpot({
                     avatarConfig={student.avatarConfig}
                     name={student.name}
                     className={`
-                        ${config.avatarSize === "lg" ? "size-16 sm:size-20" : "size-12 sm:size-14"}
+                        ${config.avatarSize === "lg" ? "size-18 sm:size-32" : "size-14 sm:size-28"}
                         border-2 border-space-900 bg-space-850 ${config.ringClassName}
                     `}
                 />
@@ -392,14 +392,12 @@ function PodiumSpot({
             {/* Name & ST Score */}
             <div className="text-center mb-3">
                 <p
-                    className={`font-semibold max-w-[100px] sm:max-w-[120px] truncate ${
-                        isFirst ? "text-sm sm:text-base text-starlight-100" : "text-xs text-starlight-200"
-                    }`}
+                    className={`font-semibold max-w-[100px] sm:max-w-[120px] truncate ${isFirst ? "text-base sm:text-xl text-starlight-100" : "text-sm text-starlight-200"}`}
                 >
                     {student.name}
                 </p>
                 <div className="flex items-center justify-center gap-1 mt-0.5">
-                    <span className="font-mono text-xs sm:text-sm font-bold text-gold-300">
+                    <span className="font-mono text-base sm:text-xl font-bold text-gold-300">
                         {stValueOf(student)}
                     </span>
                     <span className="text-[10px] text-starlight-400 uppercase font-semibold">
@@ -440,19 +438,16 @@ function RankingRow({
     return (
         <div
             className={`
-                flex items-center justify-between px-4 py-3 text-xs transition-colors
-                ${
-                    isCurrentStudent
-                        ? "bg-gold-500/10 hover:bg-gold-500/15"
-                        : "hover:bg-space-850/60"
+                flex items-center justify-between px-4 py-3 text-base transition-colors
+                ${isCurrentStudent
+                    ? "bg-gold-500/10 hover:bg-gold-500/15"
+                    : "hover:bg-space-850/60"
                 }
             `}
         >
             <div className="flex items-center gap-3 min-w-0">
                 <span
-                    className={`font-mono font-bold w-7 text-center shrink-0 ${
-                        isCurrentStudent ? "text-gold-400" : "text-starlight-400"
-                    }`}
+                    className={`font-mono font-bold w-7 text-xl text-center shrink-0 ${isCurrentStudent ? "text-gold-400" : "text-starlight-400"}`}
                 >
                     #{student.rank}
                 </span>
@@ -460,16 +455,14 @@ function RankingRow({
                 <StudentAvatar
                     avatarConfig={student.avatarConfig}
                     name={student.name}
-                    size="sm"
-                    className="size-8 bg-space-800 border border-border/60 shrink-0"
+                    size="lg"
+                    className="size-12 sm:size-18 bg-space-800 border border-border/60 shrink-0"
                 />
 
                 <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
                         <span
-                            className={`font-medium truncate ${
-                                isCurrentStudent ? "text-gold-300 font-semibold" : "text-starlight-200"
-                            }`}
+                            className={`font-medium truncate ${isCurrentStudent ? "text-gold-300 font-semibold" : "text-starlight-200"}`}
                         >
                             {student.name}
                         </span>
@@ -483,7 +476,7 @@ function RankingRow({
             </div>
 
             <div className="text-right shrink-0">
-                <span className="font-mono text-sm font-bold text-gold-300">
+                <span className="font-mono text-base sm:text-xl md:text-2xl font-bold text-gold-300">
                     {stValueOf(student)}
                 </span>
                 <span className="text-[10px] text-starlight-400 uppercase ml-1 font-semibold">
