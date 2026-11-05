@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/theme-provider";
 import { RouteProgressBar } from "@/components/route-progress-bar";
 import { Toaster } from "@/components/ui/toast";
+import { AvatarPreviewModal } from "@/components/avatar/avatar-preview-modal";
 import { BootGate } from "@/components/boot/boot-gate";
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
@@ -65,6 +66,7 @@ export default function RootLayout({
           </Suspense>
           {children}
           <Toaster />
+          <AvatarPreviewModal />
         </ThemeProvider>
       </body>
     </html>

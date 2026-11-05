@@ -52,11 +52,7 @@ export function ProfileHeader({
                             avatarConfig={avatarConfig}
                             name={name}
                             fallbackInitials={initialsFallback}
-                            className={cn(
-                                "size-20 shrink-0 sm:size-24 border-2 border-gold-500/40 ring-4 ring-gold-500/15 shadow-gold transition-transform",
-                                onEditAvatar && "cursor-pointer group-hover/avatar:scale-105"
-                            )}
-                            onClick={onEditAvatar}
+                            className="size-20 shrink-0 sm:size-24 border-2 border-gold-500/40 ring-4 ring-gold-500/15 shadow-gold transition-transform"
                         />
                         {onEditAvatar && (
                             <button
