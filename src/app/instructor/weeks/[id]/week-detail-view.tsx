@@ -341,9 +341,7 @@ export function WeekDetailView({ week }: { week: WeekDetailForInstructor }) {
                             <Button
                                 size="sm"
                                 className="bg-gold-500 hover:bg-gold-400 text-space-950 font-bold shadow-gold rounded-xl text-xs transition-all"
-                                onClick={() =>
-                                    setTaskModalState({ isOpen: true, taskToEdit: null })
-                                }
+                                render={<Link href={`/instructor/weeks/${week.id}/tasks/new`} />}
                             >
                                 <Plus className="size-3.5 mr-1" />
                                 Add First Task
@@ -1112,8 +1110,8 @@ function TaskFormDialog({
 
                             <span
                                 className={`text-xs font-mono font-bold px-2.5 py-1 rounded-full border ${isRubricValid
-                                        ? "bg-success-500/15 text-success-400 border-success-500/30"
-                                        : "bg-amber-500/15 text-amber-300 border-amber-500/30"
+                                    ? "bg-success-500/15 text-success-400 border-success-500/30"
+                                    : "bg-amber-500/15 text-amber-300 border-amber-500/30"
                                     }`}
                             >
                                 Total: {rubricSum} / 15 pts
