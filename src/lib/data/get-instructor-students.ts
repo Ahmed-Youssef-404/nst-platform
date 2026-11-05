@@ -6,6 +6,7 @@
 
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import type { StudentAvatarConfig } from "@/types/avatar";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -15,6 +16,7 @@ export interface STAdjustStudent {
     name: string;
     email: string;
     balance: number;
+    avatarConfig?: StudentAvatarConfig | null;
 }
 
 export interface STAdjustGroup {
@@ -43,6 +45,7 @@ export async function getInstructorStudentsForST(
                             id: true,
                             name: true,
                             email: true,
+                            avatarConfig: true,
                             beginnerSt: true,
                             levelStBalances: {
                                 where: { level: { isActive: true } },
@@ -73,6 +76,7 @@ export async function getInstructorStudentsForST(
                 id: student.id,
                 name: student.name,
                 email: student.email,
+                avatarConfig: (student.avatarConfig as unknown as StudentAvatarConfig) ?? null,
                 balance:
                     group.type === "BEGINNER"
                         ? (student.beginnerSt ?? 50)
