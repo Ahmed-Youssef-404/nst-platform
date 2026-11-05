@@ -186,7 +186,7 @@ export function StudentWeekListView({ data }: { data: StudentWeeksData | null })
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {weeks.map((week) => (
+                    {[...weeks].reverse().map((week) => (
                         <WeekCard key={week.id} week={week} />
                     ))}
                 </div>
