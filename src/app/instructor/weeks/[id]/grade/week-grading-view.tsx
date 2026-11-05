@@ -753,6 +753,29 @@ function TaskGradingCard({
 
     const totalAwarded = Object.values(fieldScores).reduce((a, b) => a + b, 0);
 
+    const isAllMax =
+        task.rubricFields.length > 0 &&
+        task.rubricFields.every(
+            (field) => (fieldScores[field.id] ?? 0) === field.maxPoints
+        );
+
+    function handleSetAllMax() {
+        setFieldScores((prev) => {
+            const next = { ...prev };
+            for (const rf of task.rubricFields) {
+                next[rf.id] = rf.maxPoints;
+            }
+            return next;
+        });
+    }
+
+    function handleSetFieldMax(fieldId: string, maxPoints: number) {
+        setFieldScores((prev) => ({
+            ...prev,
+            [fieldId]: maxPoints,
+        }));
+    }
+
     async function handleSaveDraft() {
         setIsSaving(true);
         setError(null);
@@ -971,48 +994,100 @@ function TaskGradingCard({
                             Rubric scoring is disabled because this task is marked as Invalid.
                         </p>
                     ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                            {task.rubricFields.map((field) => {
-                                const currentScore = fieldScores[field.id] ?? 0;
+                        <div className="space-y-2.5">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                {task.rubricFields.map((field) => {
+                                    const currentScore = fieldScores[field.id] ?? 0;
+                                    const isFieldMax = currentScore === field.maxPoints;
 
-                                return (
-                                    <div
-                                        key={field.id}
-                                        className="flex items-center justify-between gap-3 p-3 rounded-xl border border-border/70 bg-space-850/70 text-xs"
-                                    >
-                                        <div className="space-y-0.5">
-                                            <p className="font-semibold text-starlight-100">
-                                                {field.fieldName}
-                                            </p>
-                                            <p className="text-[10px] text-starlight-400 font-mono">
-                                                Max points: {field.maxPoints}
-                                            </p>
-                                        </div>
+                                    return (
+                                        <div
+                                            key={field.id}
+                                            className="flex items-center justify-between gap-3 p-3 rounded-xl border border-border/70 bg-space-850/70 text-xs"
+                                        >
+                                            <div className="space-y-0.5 min-w-0">
+                                                <p className="font-semibold text-starlight-100 truncate">
+                                                    {field.fieldName}
+                                                </p>
+                                                <p className="text-[10px] text-starlight-400 font-mono">
+                                                    Max points: {field.maxPoints}
+                                                </p>
+                                            </div>
 
-                                        <div className="flex items-center gap-2 shrink-0">
-                                            <Input
-                                                type="number"
-                                                min={0}
-                                                max={field.maxPoints}
-                                                value={currentScore}
-                                                onChange={(e) => {
-                                                    const val = Math.min(
-                                                        field.maxPoints,
-                                                        Math.max(0, parseInt(e.target.value, 10) || 0)
-                                                    );
-                                                    setFieldScores((prev) => ({
-                                                        ...prev,
-                                                        [field.id]: val,
-                                                    }));
-                                                }}
-                                                disabled={isFinalized || isSaving}
-                                                className="w-16 text-center text-xs font-mono bg-space-900 border-border/80 text-starlight-100 rounded-lg focus-visible:border-gold-500"
-                                            />
-                                            <span className="text-starlight-400 font-mono">/ {field.maxPoints}</span>
+                                            <div className="flex items-center gap-1.5 shrink-0">
+                                                <Input
+                                                    type="number"
+                                                    min={0}
+                                                    max={field.maxPoints}
+                                                    value={currentScore}
+                                                    onChange={(e) => {
+                                                        const val = Math.min(
+                                                            field.maxPoints,
+                                                            Math.max(0, parseInt(e.target.value, 10) || 0)
+                                                        );
+                                                        setFieldScores((prev) => ({
+                                                            ...prev,
+                                                            [field.id]: val,
+                                                        }));
+                                                    }}
+                                                    disabled={isFinalized || isSaving}
+                                                    className="w-14 text-center text-xs font-mono bg-space-900 border-border/80 text-starlight-100 rounded-lg focus-visible:border-gold-500"
+                                                />
+                                                <span className="text-starlight-400 font-mono text-[11px]">
+                                                    / {field.maxPoints}
+                                                </span>
+                                                <Button
+                                                    type="button"
+                                                    size="xs"
+                                                    variant="outline"
+                                                    disabled={isFinalized || isSaving}
+                                                    onClick={() => handleSetFieldMax(field.id, field.maxPoints)}
+                                                    className={`h-7 px-2 text-[11px] font-semibold rounded-lg transition-colors ${
+                                                        isFieldMax
+                                                            ? "border-gold-500/50 bg-gold-500/20 text-gold-300"
+                                                            : "border-border/80 bg-space-900 hover:bg-space-800 text-starlight-300 hover:text-gold-300 hover:border-gold-500/30"
+                                                    }`}
+                                                    title={`Give full points for ${field.fieldName} (${field.maxPoints} pts)`}
+                                                >
+                                                    Max ({field.maxPoints})
+                                                </Button>
+                                            </div>
                                         </div>
-                                    </div>
-                                );
-                            })}
+                                    );
+                                })}
+                            </div>
+
+                            {/* Give Full Marks (15/15) Button */}
+                            <div className="flex items-center justify-between gap-2 pt-1">
+                                <p className="text-[11px] text-starlight-400 font-mono">
+                                    Total Rubric: <span className="font-bold text-gold-400">{totalAwarded}</span> / 15 pts
+                                </p>
+                                <Button
+                                    type="button"
+                                    size="xs"
+                                    variant="outline"
+                                    disabled={isFinalized || isSaving}
+                                    onClick={handleSetAllMax}
+                                    className={`h-7 px-3 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 ${
+                                        isAllMax
+                                            ? "border-gold-500/50 bg-gold-500/20 text-gold-300 shadow-gold"
+                                            : "border-gold-500/30 bg-gold-500/10 text-gold-300 hover:bg-gold-500/20 hover:text-gold-200"
+                                    }`}
+                                    title="Award full points (15/15) across all rubric criteria"
+                                >
+                                    {isAllMax ? (
+                                        <>
+                                            <Check className="size-3.5 text-gold-400" />
+                                            <span>Full Marks (15/15)</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Sparkles className="size-3.5 text-gold-400" />
+                                            <span>Give Full Marks (15/15)</span>
+                                        </>
+                                    )}
+                                </Button>
+                            </div>
                         </div>
                     )}
                 </div>
