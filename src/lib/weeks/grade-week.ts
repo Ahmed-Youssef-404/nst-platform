@@ -660,7 +660,7 @@ export async function finalizeWeekGrading(
                 );
             }
         }
-    });
+    }, { timeout: 15000 });
 
     const totalStDelta = appliedPositive - penaltySum;
 
