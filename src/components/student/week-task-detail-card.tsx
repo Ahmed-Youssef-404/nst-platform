@@ -322,7 +322,7 @@ export function WeekTaskDetailCard({
                     <FileText className="size-3.5 text-gold-400" />
                     Mission Briefing & Requirements
                 </div>
-                <div className="prose prose-invert max-w-none text-sm text-starlight-200">
+                <div dir="auto" className="prose prose-invert max-w-none text-sm text-starlight-200">
                     <MarkdownContent content={task.description} />
                 </div>
             </div>
