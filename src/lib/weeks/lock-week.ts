@@ -54,8 +54,20 @@ export async function lockWeek(
         );
     }
 
+    const preInternalTasks = await prisma.task.findMany({
+        where: { weekId: input.weekId, type: "INTERNAL" },
+        select: { id: true },
+        orderBy: { id: "asc" },
+    });
+
     return prisma.$transaction(async (tx) => {
-        // Serialize against concurrent saveDraftSubmission / lockWeek calls.
+        // Consistent lock order across all First Solver workflows:
+        // Task(s) first (sorted by id), then Student.
+        await lockRowsForUpdate(
+            tx,
+            "tasks",
+            preInternalTasks.map((t) => t.id)
+        );
         await lockRowsForUpdate(tx, "students", [input.studentId]);
 
         const lockedAt = getNow();

@@ -94,6 +94,8 @@ async function resolveSubmissionForGrading(
     input: SaveDraftGradeInput
 ): Promise<{
     submissionId: string;
+    taskId: string;
+    studentId: string;
     task: {
         weekId: string | null;
         week: { groupId: string } | null;
@@ -124,6 +126,8 @@ async function resolveSubmissionForGrading(
 
         return {
             submissionId: submission.id,
+            taskId: submission.taskId,
+            studentId: submission.studentId,
             task: submission.task,
             taskGrade: submission.taskGrade,
         };
@@ -170,6 +174,8 @@ async function resolveSubmissionForGrading(
 
     return {
         submissionId: submission.id,
+        taskId: input.taskId,
+        studentId: input.studentId,
         task: { weekId: task.weekId, week: task.week, rubricFields: task.rubricFields },
         taskGrade: submission.taskGrade,
     };
@@ -232,6 +238,24 @@ export async function saveDraftGrade(
     }
 
     const taskGradeRow = await prisma.$transaction(async (tx) => {
+        // Consistent lock order (Task first, then Student) so draft grading and
+        // invalidation cannot race with finalizeWeekGrading or confirmTaskFirstSolver.
+        await lockRowsForUpdate(tx, "tasks", [resolved.taskId]);
+        await lockRowsForUpdate(tx, "students", [resolved.studentId]);
+
+        const txSubmission = await tx.submission.findUnique({
+            where: { id: submissionId },
+            select: {
+                taskGrade: { select: { finalizedAt: true } },
+            },
+        });
+
+        if (txSubmission?.taskGrade?.finalizedAt) {
+            throw new Error(
+                "This student's Week has already been finalized. Grading can no longer be changed here - use a manual correction instead."
+            );
+        }
+
         const grade = await tx.taskGrade.upsert({
             where: { submissionId },
             create: {
@@ -373,18 +397,53 @@ export async function finalizeWeekGrading(
         }
     }
 
-    // ONE outer transaction: lock Tasks (if confirming First Solver) then Student,
-    // verify finalization & First Solver eligibility inside tx, write TaskGrades,
-    // and write every STTransaction atomically.
+    // ONE outer transaction: lock Week's Tasks first (sorted by id), then Student,
+    // re-read Week/Submission/TaskGrade/STTransaction state inside tx, validate First Solver
+    // eligibility strictly inside tx, write TaskGrades, and write STTransactions atomically.
     return prisma.$transaction(async (tx) => {
-        await lockRowsForUpdate(tx, "tasks", distinctFirstSolverTaskIds);
+        await lockRowsForUpdate(tx, "tasks", taskIds);
         await lockRowsForUpdate(tx, "students", [input.studentId]);
+
+        const txWeek = await tx.week.findUnique({
+            where: { id: input.weekId },
+            select: {
+                id: true,
+                groupId: true,
+                endDate: true,
+                tasks: {
+                    select: {
+                        id: true,
+                        title: true,
+                        isBonus: true,
+                        type: true,
+                        allowedSubmissionMode: true,
+                    },
+                },
+            },
+        });
+
+        if (!txWeek) {
+            throw new Error("Week not found.");
+        }
+
+        const txTaskIds = txWeek.tasks.map((t) => t.id);
+        const txTaskMap = new Map(txWeek.tasks.map((t) => [t.id, t]));
+
+        for (const fsTaskId of distinctFirstSolverTaskIds) {
+            const fsTask = txTaskMap.get(fsTaskId);
+            if (!fsTask) {
+                throw new Error("First Solver task does not belong to this Week.");
+            }
+            if (fsTask.type !== "INTERNAL") {
+                throw new Error("EXTERNAL tasks cannot receive First Solver bonus.");
+            }
+        }
 
         const now = getNow();
 
         if (
             distinctFirstSolverTaskIds.length > 0 &&
-            now.getTime() < week.endDate.getTime()
+            now.getTime() < txWeek.endDate.getTime()
         ) {
             throw new Error(
                 "First Solver cannot be confirmed before the Week deadline passes."
@@ -393,7 +452,7 @@ export async function finalizeWeekGrading(
 
         const resource = await tx.weekResourceSubmission.findUnique({
             where: {
-                studentId_weekId: { studentId: input.studentId, weekId: week.id },
+                studentId_weekId: { studentId: input.studentId, weekId: txWeek.id },
             },
             select: {
                 type: true,
@@ -410,7 +469,7 @@ export async function finalizeWeekGrading(
         const wasHalvedDueToLateResource = isRewardHalvedForResource(resource);
 
         const submissions = await tx.submission.findMany({
-            where: { studentId: input.studentId, taskId: { in: taskIds } },
+            where: { studentId: input.studentId, taskId: { in: txTaskIds } },
             select: {
                 id: true,
                 taskId: true,
@@ -436,7 +495,7 @@ export async function finalizeWeekGrading(
         const existingGradingTx = await tx.sTTransaction.findFirst({
             where: {
                 studentId: input.studentId,
-                weekId: week.id,
+                weekId: txWeek.id,
                 reason: {
                     in: [
                         "RUBRIC_GRADING",
@@ -461,7 +520,7 @@ export async function finalizeWeekGrading(
 
         // Validate every confirmed First Solver task strictly inside the tx.
         for (const fsTaskId of distinctFirstSolverTaskIds) {
-            const fsTask = taskMap.get(fsTaskId)!;
+            const fsTask = txTaskMap.get(fsTaskId)!;
             const fsSub = submissionByTask.get(fsTaskId);
             const fsMarkedInvalid = fsSub?.taskGrade?.markedInvalid ?? false;
 
@@ -469,7 +528,7 @@ export async function finalizeWeekGrading(
                 !fsSub ||
                 fsMarkedInvalid ||
                 !fsSub.lastSavedAt ||
-                fsSub.lastSavedAt.getTime() >= week.endDate.getTime() ||
+                fsSub.lastSavedAt.getTime() >= txWeek.endDate.getTime() ||
                 !hasValidTaskSubmissionContent(fsSub)
             ) {
                 throw new Error(
@@ -506,7 +565,7 @@ export async function finalizeWeekGrading(
         let positiveSum = 0;
         let allTasksSubmitted = true;
 
-        for (const task of week.tasks) {
+        for (const task of txWeek.tasks) {
             const submission = submissionByTask.get(task.id);
             const grade = submission?.taskGrade;
             const noSubmission = !submission;
@@ -543,7 +602,7 @@ export async function finalizeWeekGrading(
             });
         }
 
-        const finishAllBonusApplied = allTasksSubmitted && week.tasks.length > 0;
+        const finishAllBonusApplied = allTasksSubmitted && txWeek.tasks.length > 0;
         if (finishAllBonusApplied) {
             positiveSum += FINISH_ALL_BONUS;
         }
@@ -555,7 +614,7 @@ export async function finalizeWeekGrading(
             ? Math.floor(positiveSum / 2)
             : positiveSum;
 
-        for (const task of week.tasks) {
+        for (const task of txWeek.tasks) {
             let submission = submissionByTask.get(task.id);
             if (!submission) {
                 const createdSub = await tx.submission.upsert({

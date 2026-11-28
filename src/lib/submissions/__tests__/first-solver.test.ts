@@ -16,6 +16,7 @@ import {
     computeTaskFirstSolverSuggestions,
     confirmTaskFirstSolver,
 } from "@/lib/submissions/first-solver";
+import { cleanupUnusedSubmissionFile } from "@/lib/submissions/upload-file";
 import { saveDraftSubmission } from "@/lib/weeks/save-draft-submission";
 import { lockWeek } from "@/lib/weeks/lock-week";
 import {
@@ -183,6 +184,7 @@ function cloneStore(s: DbStore): DbStore {
 class InMemoryPrisma {
     store: DbStore;
     submissionWriteCount = 0;
+    lockSequences: Array<{ tables: string[]; ids: string[] }> = [];
     private idSeq = 1;
     private txQueue: Promise<void> = Promise.resolve();
     private currentClock: () => Date;
@@ -212,7 +214,10 @@ class InMemoryPrisma {
         return `${prefix}-${this.idSeq++}`;
     }
 
-    private buildClient(getStore: () => DbStore) {
+    private buildClient(
+        getStore: () => DbStore,
+        txLocks?: { tables: string[]; ids: string[] }
+    ) {
         const hydrateTask = (task: DbStore["tasks"] extends Map<string, infer T> ? T : never) => {
             const s = getStore();
             const week = task.weekId ? s.weeks.get(task.weekId) ?? null : null;
@@ -279,7 +284,31 @@ class InMemoryPrisma {
         };
 
         const client = {
-            $queryRaw: async () => [],
+            $queryRaw: async (query: { strings?: readonly string[]; sql?: string; values?: unknown[] }) => {
+                if (txLocks) {
+                    const sqlText = Array.isArray(query?.strings)
+                        ? query.strings.join("?")
+                        : (query?.sql ?? "");
+                    const tableMatch = /FROM\s+"(tasks|students)"/i.exec(sqlText);
+                    if (tableMatch) {
+                        const table = tableMatch[1].toLowerCase();
+                        const ids = Array.isArray(query?.values)
+                            ? query.values.map((v) => String(v))
+                            : [];
+                        if (
+                            table === "tasks" &&
+                            txLocks.tables.includes("students")
+                        ) {
+                            throw new Error(
+                                `Deadlock hazard: locked "tasks" (${ids.join(",")}) after "students"`
+                            );
+                        }
+                        txLocks.tables.push(table);
+                        txLocks.ids.push(...ids);
+                    }
+                }
+                return [];
+            },
             student: {
                 findUnique: async ({ where }: { where: { id: string } }) => {
                     return getStore().students.get(where.id) ?? null;
@@ -440,8 +469,21 @@ class InMemoryPrisma {
                     }
                     return { ...row };
                 },
+                count: async ({ where }: { where?: { fileUrl?: string } }) => {
+                    return Array.from(getStore().weekResources.values()).filter(
+                        (r) => !where?.fileUrl || r.fileUrl === where.fileUrl
+                    ).length;
+                },
             },
             submission: {
+                count: async ({ where }: { where?: Record<string, unknown> }) => {
+                    return Array.from(getStore().submissions.values()).filter((r) => {
+                        if (where?.fileUrl !== undefined && r.fileUrl !== where.fileUrl) {
+                            return false;
+                        }
+                        return matchSubmissionWhere(r, where);
+                    }).length;
+                },
                 findUnique: async ({
                     where,
                 }: {
@@ -738,9 +780,13 @@ class InMemoryPrisma {
                 let result!: T;
                 const run = this.txQueue.then(async () => {
                     const snapshot = cloneStore(this.store);
-                    const txClient = this.buildClient(() => snapshot);
+                    const txLocks = { tables: [] as string[], ids: [] as string[] };
+                    const txClient = this.buildClient(() => snapshot, txLocks);
                     result = await fn(txClient);
                     this.store = snapshot;
+                    if (txLocks.tables.length > 0) {
+                        this.lockSequences.push(txLocks);
+                    }
                 });
                 this.txQueue = run.then(
                     () => undefined,
@@ -1692,6 +1738,486 @@ async function runTests() {
     assert.strictEqual(db.store.students.get("stu-2")!.beginnerSt, stu2BeforeHalved + 15);
 
     console.log("✔ INTERMEDIATE lifecycle, invalid fallback, concurrent safety, and tie-breaking verified.");
+
+    // ------------------------------------------------------------------------
+    // 4. Concurrency Lock Ordering, Closure Races, Invalidation Races & Storage Cleanup
+    // ------------------------------------------------------------------------
+    console.log("4. Testing lock ordering, closure races, invalidation races, and safe storage cleanup...");
+
+    // Reset lock history tracking before section 4 so we can inspect every lock sequence cleanly
+    db.lockSequences = [];
+
+    // Setup fresh INTERMEDIATE session & tasks for concurrency + storage tests
+    const concDeadline = new Date("2026-11-25T20:00:00Z");
+    currentTime = new Date("2026-11-25T10:00:00Z");
+    db.store.tasks.set("ctask-1", {
+        id: "ctask-1",
+        title: "Concurrency Int Task 1",
+        type: "INTERNAL",
+        deadline: concDeadline,
+        isBonus: false,
+        weekId: null,
+        sessionId: "sess-1",
+        allowedSubmissionMode: null,
+        createdAt: new Date("2026-11-25T08:00:00Z"),
+    });
+    db.store.rubricFields.set("rf-c1", {
+        id: "rf-c1",
+        taskId: "ctask-1",
+        fieldName: "Correctness",
+        maxPoints: 15,
+        order: 1,
+    });
+
+    // 4.1 Two students save concurrently for the same task (INTERMEDIATE + BEGINNER)
+    const [concInt1, concInt2] = await Promise.all([
+        createOrUpdateSubmission(
+            { studentId: "istu-1", taskId: "ctask-1", mode: "TEXT", textContent: "concurrent sol 1" },
+            { prisma, now: () => new Date("2026-11-25T10:01:00Z") }
+        ),
+        createOrUpdateSubmission(
+            { studentId: "istu-2", taskId: "ctask-1", mode: "TEXT", textContent: "concurrent sol 2" },
+            { prisma, now: () => new Date("2026-11-25T10:02:00Z") }
+        ),
+    ]);
+    assert.strictEqual(concInt1.lastSavedAt?.toISOString(), "2026-11-25T10:01:00.000Z");
+    assert.strictEqual(concInt2.lastSavedAt?.toISOString(), "2026-11-25T10:02:00.000Z");
+
+    const begConcEnd = new Date("2026-11-29T20:00:00Z");
+    db.store.weeks.set("week-conc", {
+        id: "week-conc",
+        groupId: "grp-beg",
+        startDate: new Date("2026-11-25T09:00:00Z"),
+        endDate: begConcEnd,
+    });
+    db.store.tasks.set("btask-conc", {
+        id: "btask-conc",
+        title: "Concurrency Beg Task",
+        type: "INTERNAL",
+        deadline: begConcEnd,
+        isBonus: false,
+        weekId: "week-conc",
+        sessionId: null,
+        allowedSubmissionMode: null,
+        createdAt: new Date("2026-11-25T09:00:00Z"),
+    });
+    db.store.rubricFields.set("rf-bc1", {
+        id: "rf-bc1",
+        taskId: "btask-conc",
+        fieldName: "Correctness",
+        maxPoints: 15,
+        order: 1,
+    });
+
+    const [concBeg1, concBeg2] = await Promise.all([
+        saveDraftSubmission(
+            { studentId: "stu-1", taskId: "btask-conc", mode: "TEXT", textContent: "beg concurrent 1" },
+            { prisma, now: () => new Date("2026-11-25T11:00:00Z") }
+        ),
+        saveDraftSubmission(
+            { studentId: "stu-2", taskId: "btask-conc", mode: "TEXT", textContent: "beg concurrent 2" },
+            { prisma, now: () => new Date("2026-11-25T11:05:00Z") }
+        ),
+    ]);
+    assert.strictEqual(concBeg1.lastSavedAt?.toISOString(), "2026-11-25T11:00:00.000Z");
+    assert.strictEqual(concBeg2.lastSavedAt?.toISOString(), "2026-11-25T11:05:00.000Z");
+
+    // 4.2 Submission save racing with task/week closure (in-tx deadline recheck rejects after lock)
+    await assert.rejects(
+        () =>
+            createOrUpdateSubmission(
+                { studentId: "istu-3", taskId: "ctask-1", mode: "TEXT", textContent: "raced past deadline" },
+                { prisma, now: () => new Date("2026-11-25T20:00:00Z") } // exact deadline -> blocked inside tx
+            ),
+        /deadline for this Task has passed/
+    );
+    await assert.rejects(
+        () =>
+            saveDraftSubmission(
+                { studentId: "stu-3", taskId: "btask-conc", mode: "TEXT", textContent: "raced past week end" },
+                { prisma, now: () => new Date("2026-11-29T20:00:00Z") } // exact Week.endDate -> blocked inside tx
+            ),
+        /Week has ended/
+    );
+
+    // Also verify existing legacy null lastSavedAt row remains null & ineligible across races
+    db.store.submissions.set("sub-legacy-conc", {
+        id: "sub-legacy-conc",
+        studentId: "stu-3",
+        taskId: "btask-conc",
+        mode: "TEXT",
+        fileUrl: null,
+        externalLink: null,
+        textContent: "legacy untouched",
+        status: "SUBMITTED",
+        submittedAt: new Date("2026-11-25T09:05:00Z"),
+        lastSavedAt: null,
+        isLocked: true,
+        activityVersion: 0,
+        understandingScore: null,
+        approachScore: null,
+        correctnessScore: null,
+        implementationScore: null,
+        instructorComment: null,
+        gradedAt: null,
+        gradedBy: null,
+        createdAt: new Date("2026-11-25T09:05:00Z"),
+    });
+
+    // 4.3 Candidate invalidated concurrently with First Solver confirmation (INTERMEDIATE)
+    // Grade istu-2 valid first so fallback candidate exists after deadline
+    currentTime = new Date("2026-11-25T20:05:00Z");
+    await gradeSubmission(
+        {
+            submissionId: concInt2.id,
+            gradedBy: "inst-1",
+            fieldScores: [{ rubricFieldId: "rf-c1", awardedPoints: 12 }],
+            markedInvalid: false,
+            isFirstSolver: false,
+        },
+        { prisma, now: nowFn }
+    );
+
+    const istu1BeforeRace = db.store.levelStBalances.get("istu-1:lvl-1")!.balance;
+    const istu2BeforeRace = db.store.levelStBalances.get("istu-2:lvl-1")!.balance;
+
+    // Invalidation of istu-1 (markedInvalid: true, isFirstSolver: false) races with confirming istu-1
+    await Promise.allSettled([
+        gradeSubmission(
+            {
+                submissionId: concInt1.id,
+                gradedBy: "inst-1",
+                fieldScores: [{ rubricFieldId: "rf-c1", awardedPoints: 0 }],
+                markedInvalid: true,
+                isFirstSolver: false,
+            },
+            { prisma, now: nowFn }
+        ),
+        confirmTaskFirstSolver(
+            { taskId: "ctask-1", studentId: "istu-1", confirmedBy: "inst-1" },
+            { prisma, now: nowFn }
+        ),
+    ]);
+
+    const ctask1AwardsAfterInvalidRace = Array.from(db.store.stTransactions.values()).filter(
+        (t) => t.reason === "FIRST_SOLVER" && t.relatedEntityId === "ctask-1"
+    );
+    assert.strictEqual(ctask1AwardsAfterInvalidRace.length, 0, "Invalidated candidate must NEVER receive First Solver ST");
+    assert.strictEqual(db.store.levelStBalances.get("istu-1:lvl-1")!.balance, istu1BeforeRace);
+
+    // Next eligible candidate (istu-2) now receives the reward, and concurrent confirmations only record ONCE!
+    const concConfirmResults = await Promise.allSettled([
+        confirmTaskFirstSolver(
+            { taskId: "ctask-1", studentId: "istu-2", confirmedBy: "inst-1" },
+            { prisma, now: nowFn }
+        ),
+        confirmTaskFirstSolver(
+            { taskId: "ctask-1", studentId: "istu-2", confirmedBy: "inst-1" },
+            { prisma, now: nowFn }
+        ),
+    ]);
+    assert.ok(concConfirmResults.every((r) => r.status === "fulfilled"));
+    const ctask1AwardsFinal = Array.from(db.store.stTransactions.values()).filter(
+        (t) => t.reason === "FIRST_SOLVER" && t.relatedEntityId === "ctask-1"
+    );
+    assert.strictEqual(ctask1AwardsFinal.length, 1, "Concurrent confirmations must record exactly ONE +5 ST reward");
+    assert.strictEqual(ctask1AwardsFinal[0].studentId, "istu-2");
+    assert.strictEqual(ctask1AwardsFinal[0].amount, 5);
+    assert.strictEqual(db.store.levelStBalances.get("istu-2:lvl-1")!.balance, istu2BeforeRace + 5);
+
+    // 4.4 BEGINNER invalidation racing with finalizeWeekGrading(firstSolverTaskIds)
+    currentTime = new Date("2026-11-29T21:00:00Z");
+
+    // Case A: Invalidation acquires lock while finalizeWeekGrading waits on the transaction queue
+    db.store.tasks.set("btask-conc-race", {
+        id: "btask-conc-race",
+        title: "Beginner Race Task",
+        type: "INTERNAL",
+        deadline: begConcEnd,
+        isBonus: false,
+        weekId: "week-conc-race",
+        sessionId: null,
+        allowedSubmissionMode: null,
+        createdAt: new Date("2026-11-25T09:00:00Z"),
+    });
+    db.store.weeks.set("week-conc-race", {
+        id: "week-conc-race",
+        groupId: "grp-beg",
+        startDate: new Date("2026-11-25T09:00:00Z"),
+        endDate: begConcEnd,
+    });
+    db.store.rubricFields.set("rf-bcr", {
+        id: "rf-bcr",
+        taskId: "btask-conc-race",
+        fieldName: "Correctness",
+        maxPoints: 15,
+        order: 1,
+    });
+    currentTime = new Date("2026-11-26T10:00:00Z");
+    const raceSub1 = await saveDraftSubmission(
+        { studentId: "stu-1", taskId: "btask-conc-race", mode: "TEXT", textContent: "race ans 1" },
+        { prisma, now: nowFn }
+    );
+    currentTime = new Date("2026-11-26T10:05:00Z");
+    const raceSub2 = await saveDraftSubmission(
+        { studentId: "stu-2", taskId: "btask-conc-race", mode: "TEXT", textContent: "race ans 2" },
+        { prisma, now: nowFn }
+    );
+    currentTime = new Date("2026-11-29T21:00:00Z");
+
+    // Simulate an async yield inside the active transaction queue so both run overlapping concurrently
+    const invalidationPromise = saveDraftGrade(
+        {
+            submissionId: raceSub1.id,
+            gradedBy: "inst-1",
+            fieldScores: [{ rubricFieldId: "rf-bcr", awardedPoints: 0 }],
+            markedInvalid: true,
+        },
+        { prisma }
+    );
+    // Queue finalize right after invalidation starts pre-checks / acquires lock
+    await Promise.resolve();
+    const finalizeRacePromise = finalizeWeekGrading(
+        {
+            studentId: "stu-1",
+            weekId: "week-conc-race",
+            gradedBy: "inst-1",
+            firstSolverTaskIds: ["btask-conc-race"],
+        },
+        { prisma, now: nowFn }
+    );
+    const [invalRes, finRaceRes] = await Promise.allSettled([invalidationPromise, finalizeRacePromise]);
+    const raceStu1Awarded = Array.from(db.store.stTransactions.values()).filter(
+        (t) => t.reason === "FIRST_SOLVER" && t.relatedEntityId === "btask-conc-race" && t.studentId === "stu-1"
+    );
+    const raceSub1Grade = Array.from(db.store.taskGrades.values()).find(
+        (g) => g.submissionId === raceSub1.id
+    );
+    // Strict mutual exclusion invariant: if invalidation succeeded, finalize MUST have rejected and awarded 0 ST;
+    // if finalize won first (pre-invalidation), invalidation MUST reject and grade stays valid.
+    assert.ok(
+        !(raceSub1Grade?.markedInvalid && raceStu1Awarded.length > 0),
+        "An invalidated submission can NEVER coexist with a First Solver reward"
+    );
+    assert.ok(
+        (invalRes.status === "fulfilled" && finRaceRes.status === "rejected" && raceStu1Awarded.length === 0) ||
+        (finRaceRes.status === "fulfilled" && invalRes.status === "rejected"),
+        "Concurrent invalidation and finalization must strictly serialize"
+    );
+
+    // Deterministic order where invalidation commits right before finalize: finalize rejects, stu-2 wins
+    if (finRaceRes.status === "fulfilled") {
+        // Re-verify explicit invalid-before-finalize on btask-conc as well
+        await saveDraftGrade(
+            {
+                submissionId: concBeg1.id,
+                gradedBy: "inst-1",
+                fieldScores: [{ rubricFieldId: "rf-bc1", awardedPoints: 0 }],
+                markedInvalid: true,
+            },
+            { prisma }
+        );
+        await assert.rejects(
+            () =>
+                finalizeWeekGrading(
+                    {
+                        studentId: "stu-1",
+                        weekId: "week-conc",
+                        gradedBy: "inst-1",
+                        firstSolverTaskIds: ["btask-conc"],
+                    },
+                    { prisma, now: nowFn }
+                ),
+            /not eligible for the First Solver bonus/
+        );
+    } else {
+        // raceSub1 was invalidated! Now raceSub2 must become next eligible candidate and win +5 ST
+        await saveDraftGrade(
+            {
+                submissionId: raceSub2.id,
+                gradedBy: "inst-1",
+                fieldScores: [{ rubricFieldId: "rf-bcr", awardedPoints: 10 }],
+                markedInvalid: false,
+            },
+            { prisma }
+        );
+        const raceSuggest = await suggestFirstSolvers({ weekId: "week-conc-race" }, { prisma, now: nowFn });
+        assert.strictEqual(raceSuggest[0].suggestedStudentId, "stu-2");
+
+        // Also mark concBeg1 invalid for the week-conc test below
+        await saveDraftGrade(
+            {
+                submissionId: concBeg1.id,
+                gradedBy: "inst-1",
+                fieldScores: [{ rubricFieldId: "rf-bc1", awardedPoints: 0 }],
+                markedInvalid: true,
+            },
+            { prisma }
+        );
+        await assert.rejects(
+            () =>
+                finalizeWeekGrading(
+                    {
+                        studentId: "stu-1",
+                        weekId: "week-conc",
+                        gradedBy: "inst-1",
+                        firstSolverTaskIds: ["btask-conc"],
+                    },
+                    { prisma, now: nowFn }
+                ),
+            /not eligible for the First Solver bonus/
+        );
+    }
+    const begConcInvalidAwards = Array.from(db.store.stTransactions.values()).filter(
+        (t) => t.reason === "FIRST_SOLVER" && t.relatedEntityId === "btask-conc"
+    );
+    assert.strictEqual(begConcInvalidAwards.length, 0, "Invalidated BEGINNER candidate must NEVER receive First Solver ST");
+
+    // Next candidate stu-2 (with accepted resource) becomes suggested and receives +5 ST; concurrent confirm records once
+    db.store.weekResources.set("stu-2:week-conc", {
+        id: "wrs-conc-2",
+        studentId: "stu-2",
+        weekId: "week-conc",
+        type: "DRIVE_LINK",
+        fileUrl: null,
+        driveUrl: "https://drive.google.com/file/d/conc/view",
+        status: "ACCEPTED",
+        submittedAt: new Date("2026-11-26T10:00:00Z"),
+        lockedAt: null,
+    });
+    await saveDraftGrade(
+        {
+            submissionId: concBeg2.id,
+            gradedBy: "inst-1",
+            fieldScores: [{ rubricFieldId: "rf-bc1", awardedPoints: 10 }],
+            markedInvalid: false,
+        },
+        { prisma }
+    );
+    const stu2ConcBefore = db.store.students.get("stu-2")!.beginnerSt!;
+    await finalizeWeekGrading(
+        {
+            studentId: "stu-2",
+            weekId: "week-conc",
+            gradedBy: "inst-1",
+            firstSolverTaskIds: ["btask-conc"],
+        },
+        { prisma, now: nowFn }
+    );
+    // Double-confirm post-finalization is also a safe no-op
+    await Promise.allSettled([
+        confirmTaskFirstSolver({ taskId: "btask-conc", studentId: "stu-2", confirmedBy: "inst-1" }, { prisma, now: nowFn }),
+        confirmTaskFirstSolver({ taskId: "btask-conc", studentId: "stu-2", confirmedBy: "inst-1" }, { prisma, now: nowFn }),
+    ]);
+    const begConcFinalAwards = Array.from(db.store.stTransactions.values()).filter(
+        (t) => t.reason === "FIRST_SOLVER" && t.relatedEntityId === "btask-conc"
+    );
+    assert.strictEqual(begConcFinalAwards.length, 1);
+    assert.strictEqual(begConcFinalAwards[0].studentId, "stu-2");
+    assert.strictEqual(begConcFinalAwards[0].amount, 5);
+    assert.strictEqual(db.store.students.get("stu-2")!.beginnerSt, stu2ConcBefore + 10 + 5 + 10);
+
+    // Check legacy null row on btask-conc stayed untouched
+    const legacyRowCheck = await prisma.submission.findUniqueOrThrow({ where: { id: "sub-legacy-conc" } });
+    assert.strictEqual(legacyRowCheck.lastSavedAt, null, "Legacy submission lastSavedAt must stay null");
+
+    // Verify EVERY single transaction in Section 4 locked "tasks" BEFORE "students"
+    assert.ok(db.lockSequences.length > 0, "Expected recorded transaction lock sequences");
+    for (const seq of db.lockSequences) {
+        const firstStudentIdx = seq.tables.indexOf("students");
+        const lastTaskIdx = seq.tables.lastIndexOf("tasks");
+        if (firstStudentIdx !== -1 && lastTaskIdx !== -1) {
+            assert.ok(
+                lastTaskIdx < firstStudentIdx,
+                `Expected tasks locked before students, saw order: ${seq.tables.join(" -> ")}`
+            );
+        }
+    }
+
+    // 4.5 Safe Storage Cleanup Tests
+    const cleanupDeadline = new Date("2026-11-30T20:00:00Z");
+    db.store.tasks.set("ctask-files", {
+        id: "ctask-files",
+        title: "Storage Cleanup Task",
+        type: "INTERNAL",
+        deadline: cleanupDeadline,
+        isBonus: false,
+        weekId: null,
+        sessionId: "sess-1",
+        allowedSubmissionMode: null,
+        createdAt: new Date("2026-11-26T08:00:00Z"),
+    });
+
+    const deletedPaths: string[] = [];
+    const mockDeleteFile = async (p: string) => {
+        deletedPaths.push(p);
+    };
+
+    // Initial file save -> nothing old to delete
+    currentTime = new Date("2026-11-26T10:00:00Z");
+    await createOrUpdateSubmission(
+        { studentId: "istu-1", taskId: "ctask-files", mode: "FILE", fileUrl: "ctask-files/istu-1/submission-hash1.pdf" },
+        { prisma, now: nowFn, deleteFile: mockDeleteFile }
+    );
+    assert.deepStrictEqual(deletedPaths, []);
+
+    // Same-content upload -> no DB write, no deletion
+    currentTime = new Date("2026-11-26T10:05:00Z");
+    await createOrUpdateSubmission(
+        { studentId: "istu-1", taskId: "ctask-files", mode: "FILE", fileUrl: "ctask-files/istu-1/submission-hash1.pdf" },
+        { prisma, now: nowFn, deleteFile: mockDeleteFile }
+    );
+    assert.deepStrictEqual(deletedPaths, []);
+
+    // Replaced with different file -> DB succeeds first, then old path hash1 deleted
+    currentTime = new Date("2026-11-26T10:10:00Z");
+    await createOrUpdateSubmission(
+        { studentId: "istu-1", taskId: "ctask-files", mode: "FILE", fileUrl: "ctask-files/istu-1/submission-hash2.pdf" },
+        { prisma, now: nowFn, deleteFile: mockDeleteFile }
+    );
+    assert.deepStrictEqual(deletedPaths, ["ctask-files/istu-1/submission-hash1.pdf"]);
+
+    // If cleanup itself fails, the submission save still succeeds cleanly
+    currentTime = new Date("2026-11-26T10:15:00Z");
+    const savedDespiteCleanupErr = await createOrUpdateSubmission(
+        { studentId: "istu-1", taskId: "ctask-files", mode: "FILE", fileUrl: "ctask-files/istu-1/submission-hash3.pdf" },
+        {
+            prisma,
+            now: nowFn,
+            deleteFile: async () => {
+                throw new Error("Simulated Supabase Storage outage");
+            },
+        }
+    );
+    assert.strictEqual(savedDespiteCleanupErr.fileUrl, "ctask-files/istu-1/submission-hash3.pdf");
+
+    // If a file path is still referenced by another submission, NEVER delete it
+    await createOrUpdateSubmission(
+        { studentId: "istu-2", taskId: "ctask-files", mode: "FILE", fileUrl: "ctask-files/istu-1/submission-hash3.pdf" },
+        { prisma, now: nowFn, deleteFile: mockDeleteFile }
+    );
+    const blockedSharedDelete = await cleanupUnusedSubmissionFile({
+        prisma,
+        oldFileUrl: "ctask-files/istu-1/submission-hash3.pdf",
+        newFileUrl: "ctask-files/istu-1/submission-hash4.pdf",
+        deleteFile: mockDeleteFile,
+    });
+    assert.strictEqual(blockedSharedDelete, false, "Must never delete fileUrl still referenced in DB");
+
+    // Failed DB update (e.g. deadline passed) MUST NOT delete the old file
+    deletedPaths.length = 0;
+    currentTime = new Date("2026-11-30T20:05:00Z");
+    await assert.rejects(
+        () =>
+            createOrUpdateSubmission(
+                { studentId: "istu-1", taskId: "ctask-files", mode: "FILE", fileUrl: "ctask-files/istu-1/submission-hash4.pdf" },
+                { prisma, now: nowFn, deleteFile: mockDeleteFile }
+            ),
+        /deadline for this Task has passed/
+    );
+    assert.deepStrictEqual(deletedPaths, [], "Old storage file MUST NOT be deleted when DB update fails");
+
+    console.log("✔ Concurrency lock order, closure races, invalidation races, and storage cleanup verified.");
     console.log("\n🎉 ALL UNIFIED FIRST SOLVER TESTS PASSED!");
 }
 

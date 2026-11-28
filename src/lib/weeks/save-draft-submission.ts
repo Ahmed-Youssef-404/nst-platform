@@ -40,6 +40,7 @@ import {
     hasSubmissionSolutionChanged,
 } from "@/lib/submissions/task-activity";
 import { lockRowsForUpdate } from "@/lib/submissions/first-solver";
+import { cleanupUnusedSubmissionFile } from "@/lib/submissions/upload-file";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const defaultPrisma = new PrismaClient({ adapter });
@@ -49,6 +50,7 @@ export async function saveDraftSubmission(
     options?: {
         prisma?: PrismaClient;
         now?: () => Date;
+        deleteFile?: (path: string) => Promise<void>;
     }
 ): Promise<DraftSubmissionResult> {
     const prisma = options?.prisma ?? defaultPrisma;
@@ -97,14 +99,49 @@ export async function saveDraftSubmission(
         textContent: input.mode === "TEXT" ? input.textContent ?? null : null,
     };
 
-    return prisma.$transaction(async (tx) => {
-        // Serialize concurrent draft saves and lockWeek for this student.
+    const txResult = await prisma.$transaction(async (tx) => {
+        // Consistent lock order across all First Solver workflows:
+        // Task first, then Student.
+        await lockRowsForUpdate(tx, "tasks", [input.taskId]);
         await lockRowsForUpdate(tx, "students", [input.studentId]);
+
+        const txTask = await tx.task.findUnique({
+            where: { id: input.taskId },
+            select: {
+                id: true,
+                type: true,
+                weekId: true,
+                allowedSubmissionMode: true,
+            },
+        });
+
+        if (!txTask) {
+            throw new Error("Task not found.");
+        }
+
+        if (!txTask.weekId) {
+            throw new Error("This Task does not belong to a Week.");
+        }
+
+        if (txTask.type !== "INTERNAL") {
+            throw new Error(
+                "This Task is EXTERNAL and does not accept submissions."
+            );
+        }
+
+        if (
+            txTask.allowedSubmissionMode &&
+            txTask.allowedSubmissionMode !== input.mode
+        ) {
+            throw new Error(
+                `This Task only accepts submissions of type ${txTask.allowedSubmissionMode}.`
+            );
+        }
 
         const now = getNow();
         await assertStudentCanWriteInWeek(tx, {
             studentId: input.studentId,
-            weekId: task.weekId!,
+            weekId: txTask.weekId,
             now,
         });
 
@@ -144,7 +181,11 @@ export async function saveDraftSubmission(
         // No-op re-save: skip the DB write entirely so lastSavedAt,
         // submittedAt (@updatedAt), and activityVersion stay untouched.
         if (existing && !hasSubmissionSolutionChanged(existing, nextSnapshot)) {
-            return existing as unknown as DraftSubmissionResult;
+            return {
+                submission: existing as unknown as DraftSubmissionResult,
+                previousFileUrl: existing.fileUrl,
+                didChange: false,
+            };
         }
 
         // Bump the activity counter and update server-generated lastSavedAt
@@ -176,8 +217,27 @@ export async function saveDraftSubmission(
             },
         });
 
-        return submission as unknown as DraftSubmissionResult;
+        return {
+            submission: submission as unknown as DraftSubmissionResult,
+            previousFileUrl: existing?.fileUrl ?? null,
+            didChange: true,
+        };
     });
+
+    if (
+        txResult.didChange &&
+        txResult.previousFileUrl &&
+        txResult.previousFileUrl !== txResult.submission.fileUrl
+    ) {
+        await cleanupUnusedSubmissionFile({
+            prisma,
+            oldFileUrl: txResult.previousFileUrl,
+            newFileUrl: txResult.submission.fileUrl,
+            deleteFile: options?.deleteFile,
+        });
+    }
+
+    return txResult.submission;
 }
 
 function validateContentForMode(input: SaveDraftSubmissionInput) {

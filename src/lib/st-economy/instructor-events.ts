@@ -186,7 +186,6 @@ export async function gradeSubmission(
         );
     }
 
-    const levelId = submissionMeta.task.session.levelId;
     const markedInvalid = input.markedInvalid ?? false;
 
     let scoreSum = 0;
@@ -220,11 +219,10 @@ export async function gradeSubmission(
     }
 
     const updatedSubmission = await db.$transaction(async (tx) => {
-        // Lock Task before Student (matching finalizeWeekGrading / confirmTaskFirstSolver)
-        // when First Solver confirmation is requested.
-        if (input.isFirstSolver) {
-            await lockRowsForUpdate(tx, "tasks", [submissionMeta.taskId]);
-        }
+        // Consistent lock order across all First Solver workflows:
+        // ALWAYS lock Task before Student so grading / invalidation can never
+        // race with confirmTaskFirstSolver or concurrent grading on this Task.
+        await lockRowsForUpdate(tx, "tasks", [submissionMeta.taskId]);
         await lockRowsForUpdate(tx, "students", [submissionMeta.studentId]);
 
         const submission = await tx.submission.findUniqueOrThrow({
@@ -239,6 +237,14 @@ export async function gradeSubmission(
                 textContent: true,
                 lastSavedAt: true,
                 gradedAt: true,
+                task: {
+                    select: {
+                        id: true,
+                        isBonus: true,
+                        deadline: true,
+                        session: { select: { levelId: true } },
+                    },
+                },
             },
         });
 
@@ -248,6 +254,13 @@ export async function gradeSubmission(
             );
         }
 
+        if (!submission.task.session) {
+            throw new Error(
+                "gradeSubmission is for INTERMEDIATE tasks only. This task has no Session (likely a BEGINNER-track task) - use the Week grading flow instead."
+            );
+        }
+
+        const txLevelId = submission.task.session.levelId;
         const now = getNow();
         let shouldAwardFirstSolver = false;
 
@@ -269,7 +282,7 @@ export async function gradeSubmission(
                 // Same student already received FIRST_SOLVER for this task: dedupe cleanly.
                 shouldAwardFirstSolver = false;
             } else {
-                if (now.getTime() < submissionMeta.task.deadline.getTime()) {
+                if (now.getTime() < submission.task.deadline.getTime()) {
                     throw new Error(
                         "First Solver cannot be awarded before the task deadline passes."
                     );
@@ -277,7 +290,7 @@ export async function gradeSubmission(
 
                 if (
                     !submission.lastSavedAt ||
-                    submission.lastSavedAt.getTime() >= submissionMeta.task.deadline.getTime() ||
+                    submission.lastSavedAt.getTime() >= submission.task.deadline.getTime() ||
                     !hasValidTaskSubmissionContent(submission)
                 ) {
                     throw new Error(
@@ -365,7 +378,7 @@ export async function gradeSubmission(
                     {
                         track: "INTERMEDIATE",
                         studentId: submission.studentId,
-                        levelId,
+                        levelId: txLevelId,
                         type: "REWARD",
                         reason: "RUBRIC_GRADING",
                         amount: scoreSum,
@@ -378,7 +391,7 @@ export async function gradeSubmission(
         }
 
         // Bonus task solved: +10, only if this task isBonus and not marked invalid and scoreSum > 0
-        if (submissionMeta.task.isBonus && !markedInvalid && scoreSum > 0) {
+        if (submission.task.isBonus && !markedInvalid && scoreSum > 0) {
             const existingBonus = await tx.sTTransaction.findFirst({
                 where: {
                     studentId: submission.studentId,
@@ -392,7 +405,7 @@ export async function gradeSubmission(
                     {
                         track: "INTERMEDIATE",
                         studentId: submission.studentId,
-                        levelId,
+                        levelId: txLevelId,
                         type: "REWARD",
                         reason: "BONUS_TASK_SOLVED",
                         amount: 10,
@@ -410,7 +423,7 @@ export async function gradeSubmission(
                 {
                     track: "INTERMEDIATE",
                     studentId: submission.studentId,
-                    levelId,
+                    levelId: txLevelId,
                     type: "REWARD",
                     reason: "FIRST_SOLVER",
                     amount: FIRST_SOLVER_BONUS_POINTS,
