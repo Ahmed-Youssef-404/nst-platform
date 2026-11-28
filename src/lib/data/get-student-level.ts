@@ -50,6 +50,7 @@ export interface StudentSubmissionView {
     externalLink: string | null;
     textContent: string | null;
     submittedAt: Date;
+    lastSavedAt: Date | null;
     isLocked: boolean;
     isGraded: boolean;
     totalScore: number | null; // out of maxScore (15 for dynamic rubric)
@@ -185,6 +186,7 @@ async function fetchStudentLevelView(
                                                     externalLink: true,
                                                     textContent: true,
                                                     submittedAt: true,
+                                                    lastSavedAt: true,
                                                     isLocked: true,
                                                     gradedAt: true,
                                                     understandingScore: true,
@@ -299,6 +301,7 @@ async function fetchStudentLevelView(
                             externalLink: submission.externalLink,
                             textContent: submission.textContent,
                             submittedAt: submission.submittedAt,
+                            lastSavedAt: submission.lastSavedAt,
                             isLocked: submission.isLocked,
                             isGraded,
                             totalScore: isGraded

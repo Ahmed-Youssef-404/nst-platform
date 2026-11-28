@@ -65,11 +65,13 @@ import {
     setWeekResourceStatusAction,
     finalizeWeekGradingAction,
 } from "@/lib/actions/week-grading";
+import { confirmFirstSolverAction } from "@/lib/actions/st-economy";
 import type {
     WeekGradingViewData,
     StudentGradingRow,
     GradingTask,
 } from "@/lib/data/get-week-grading-data";
+import type { FirstSolverSuggestion } from "@/types/types";
 
 export function WeekGradingView({ data }: { data: WeekGradingViewData }) {
     const router = useRouter();
@@ -303,6 +305,7 @@ export function WeekGradingView({ data }: { data: WeekGradingViewData }) {
                     student={activeStudent}
                     week={data.week}
                     tasks={data.tasks}
+                    firstSolverSuggestions={data.firstSolverSuggestions}
                     isOpen={finalizeModalOpen}
                     onClose={() => setFinalizeModalOpen(false)}
                     onSuccess={() => {
@@ -673,8 +676,8 @@ function StudentGradingWorkspace({
                 <div className="space-y-4">
                     {tasks.map((task, index) => {
                         const taskData = student.tasks.find((t) => t.taskId === task.id);
-                        const isSuggestedFirstSolver =
-                            firstSolverSuggestions.find((s) => s.taskId === task.id)?.suggestedStudentId === student.studentId;
+                        const firstSolverSuggestion =
+                            firstSolverSuggestions.find((s) => s.taskId === task.id) ?? null;
 
                         return (
                             <TaskGradingCard
@@ -684,7 +687,7 @@ function StudentGradingWorkspace({
                                 taskData={taskData}
                                 studentId={student.studentId}
                                 isFinalized={student.isFinalized}
-                                isSuggestedFirstSolver={isSuggestedFirstSolver}
+                                firstSolverSuggestion={firstSolverSuggestion}
                                 onFileOpen={handleOpenFile}
                             />
                         );
@@ -704,7 +707,7 @@ function TaskGradingCard({
     taskData,
     studentId,
     isFinalized,
-    isSuggestedFirstSolver,
+    firstSolverSuggestion,
     onFileOpen,
 }: {
     index: number;
@@ -712,11 +715,18 @@ function TaskGradingCard({
     taskData: StudentGradingRow["tasks"][0] | undefined;
     studentId: string;
     isFinalized: boolean;
-    isSuggestedFirstSolver: boolean;
+    firstSolverSuggestion: FirstSolverSuggestion | null;
     onFileOpen: (fileUrl: string) => void;
 }) {
+    const router = useRouter();
     const existingGrade = taskData?.draftGrade;
     const submission = taskData?.submission;
+    const isSuggestedFirstSolver =
+        firstSolverSuggestion?.status === "CANDIDATE" &&
+        firstSolverSuggestion.suggestedStudentId === studentId;
+    const isAwardedFirstSolver =
+        firstSolverSuggestion?.status === "AWARDED" &&
+        firstSolverSuggestion.awardedStudentId === studentId;
 
     // New student activity on this task (review state is shared across the
     // Group's instructors). A task with unreviewed activity stays collapsed
@@ -749,6 +759,7 @@ function TaskGradingCard({
 
     const [isSaving, setIsSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
+    const [isConfirmingFirstSolver, setIsConfirmingFirstSolver] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const totalAwarded = Object.values(fieldScores).reduce((a, b) => a + b, 0);
@@ -808,11 +819,37 @@ function TaskGradingCard({
             } else {
                 setSaveSuccess(true);
                 setTimeout(() => setSaveSuccess(false), 2500);
+                router.refresh();
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : "Error saving draft grade.");
         } finally {
             setIsSaving(false);
+        }
+    }
+
+    async function handleConfirmPostFinalizationFirstSolver() {
+        setIsConfirmingFirstSolver(true);
+        setError(null);
+        try {
+            const res = await confirmFirstSolverAction({
+                taskId: task.id,
+                studentId,
+            });
+            if (!res.success) {
+                setError(res.error ?? "Failed to confirm First Solver.");
+            } else {
+                showToast({
+                    title: "First Solver Confirmed",
+                    description: "First Solver bonus has been awarded.",
+                    type: "success",
+                });
+                router.refresh();
+            }
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Error confirming First Solver.");
+        } finally {
+            setIsConfirmingFirstSolver(false);
         }
     }
 
@@ -839,6 +876,12 @@ function TaskGradingCard({
                             <Badge className="bg-gold-500/15 text-gold-300 border-gold-500/30 text-[10px] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1 shadow-gold">
                                 <Trophy className="size-3 text-gold-400" />
                                 Earliest Solver
+                            </Badge>
+                        )}
+                        {isAwardedFirstSolver && (
+                            <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/30 text-[10px] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                                <Trophy className="size-3 text-emerald-400" />
+                                First Solver (+5 ST)
                             </Badge>
                         )}
                         {hasNewActivity && <NewActivityBadge />}
@@ -896,7 +939,9 @@ function TaskGradingCard({
                         </span>
                         {submission ? (
                             <span className="text-starlight-400 font-mono text-[11px]">
-                                Submitted {formatDateTime(submission.submittedAt)}
+                                {submission.lastSavedAt
+                                    ? `Last saved ${formatDateTime(submission.lastSavedAt)}`
+                                    : `Submitted ${formatDateTime(submission.submittedAt)}`}
                             </span>
                         ) : (
                             <span className="text-error-400 font-mono text-[11px] font-semibold">
@@ -1126,6 +1171,25 @@ function TaskGradingCard({
                     )}
                 </div>
 
+                {/* Post-Finalization First Solver Confirmation (e.g. if an earlier candidate was invalidated later) */}
+                {isFinalized && isSuggestedFirstSolver && !markedInvalid && (
+                    <div className="flex items-center justify-between gap-3 pt-3 border-t border-border/70">
+                        <span className="text-xs text-gold-300 flex items-center gap-1.5 font-medium">
+                            <Trophy className="size-3.5 text-gold-400" />
+                            This finalized student is now the earliest valid solver for this task.
+                        </span>
+                        <Button
+                            size="sm"
+                            onClick={handleConfirmPostFinalizationFirstSolver}
+                            disabled={isConfirmingFirstSolver}
+                            className="bg-gold-500 hover:bg-gold-400 text-space-950 font-bold rounded-xl text-xs shrink-0"
+                        >
+                            <Trophy className="size-3.5 mr-1" />
+                            {isConfirmingFirstSolver ? "Confirming..." : "Confirm First Solver (+5 ST)"}
+                        </Button>
+                    </div>
+                )}
+
                 {/* Save Draft Action */}
                 {!isFinalized && (
                     <div className="flex items-center justify-end gap-3 pt-3 border-t border-border/70">
@@ -1159,6 +1223,7 @@ function FinalizeGradingModal({
     student,
     week,
     tasks,
+    firstSolverSuggestions,
     isOpen,
     onClose,
     onSuccess,
@@ -1166,6 +1231,7 @@ function FinalizeGradingModal({
     student: StudentGradingRow;
     week: WeekGradingViewData["week"];
     tasks: GradingTask[];
+    firstSolverSuggestions: WeekGradingViewData["firstSolverSuggestions"];
     isOpen: boolean;
     onClose: () => void;
     onSuccess: () => void;
@@ -1173,6 +1239,10 @@ function FinalizeGradingModal({
     const [firstSolverTaskIds, setFirstSolverTaskIds] = useState<string[]>([]);
     const [isFinalizing, setIsFinalizing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    const suggestionByTaskId = new Map(
+        firstSolverSuggestions.map((s) => [s.taskId, s])
+    );
 
     const isResourceAccepted = student.resource?.status === "ACCEPTED";
     const wasHalved = !isResourceAccepted;
@@ -1276,22 +1346,52 @@ function FinalizeGradingModal({
                         </p>
 
                         <div className="space-y-2 pt-1">
-                            {tasks.map((task) => (
-                                <div key={task.id} className="flex items-center gap-2">
-                                    <Checkbox
-                                        id={`first-solver-${task.id}`}
-                                        checked={firstSolverTaskIds.includes(task.id)}
-                                        onCheckedChange={() => toggleFirstSolver(task.id)}
-                                        disabled={isFinalizing}
-                                    />
-                                    <Label
-                                        htmlFor={`first-solver-${task.id}`}
-                                        className="text-xs text-starlight-200 cursor-pointer truncate max-w-sm"
-                                    >
-                                        {task.title}
-                                    </Label>
-                                </div>
-                            ))}
+                            {tasks
+                                .filter((task) => task.type === "INTERNAL")
+                                .map((task) => {
+                                    const suggestion = suggestionByTaskId.get(task.id);
+                                    const studentTask = student.tasks.find((t) => t.taskId === task.id);
+                                    const isInvalid = studentTask?.draftGrade?.markedInvalid ?? false;
+                                    const hasValidSub = Boolean(studentTask?.submission && studentTask.submission.lastSavedAt);
+                                    const isEligibleCandidate =
+                                        suggestion?.status === "CANDIDATE" &&
+                                        suggestion.suggestedStudentId === student.studentId &&
+                                        hasValidSub &&
+                                        !isInvalid;
+
+                                    let statusHint = "No eligible candidate";
+                                    if (isEligibleCandidate && suggestion?.lastSavedAt) {
+                                        statusHint = `Earliest valid save (${formatDateTime(suggestion.lastSavedAt)})`;
+                                    } else if (suggestion?.status === "PENDING_CLOSE") {
+                                        statusHint = "Unlocks after Week deadline";
+                                    } else if (suggestion?.status === "AWARDED") {
+                                        statusHint = `Awarded to ${suggestion.awardedStudentName}`;
+                                    } else if (suggestion?.status === "CANDIDATE") {
+                                        statusHint = `Suggested: ${suggestion.suggestedStudentName}`;
+                                    }
+
+                                    return (
+                                        <div key={task.id} className="flex items-start justify-between gap-2">
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <Checkbox
+                                                    id={`first-solver-${task.id}`}
+                                                    checked={firstSolverTaskIds.includes(task.id)}
+                                                    onCheckedChange={() => toggleFirstSolver(task.id)}
+                                                    disabled={isFinalizing || !isEligibleCandidate}
+                                                />
+                                                <Label
+                                                    htmlFor={`first-solver-${task.id}`}
+                                                    className={`text-xs truncate max-w-[200px] ${isEligibleCandidate ? "text-starlight-100 cursor-pointer font-semibold" : "text-starlight-400 cursor-not-allowed"}`}
+                                                >
+                                                    {task.title}
+                                                </Label>
+                                            </div>
+                                            <span className={`text-[10px] font-mono shrink-0 ${isEligibleCandidate ? "text-gold-400" : "text-starlight-500"}`}>
+                                                {statusHint}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
                         </div>
                     </div>
 

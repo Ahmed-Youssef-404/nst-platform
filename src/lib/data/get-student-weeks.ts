@@ -204,6 +204,7 @@ export interface StudentWeekDetailTask {
         textContent: string | null;
         status: SubmissionStatusCode;
         submittedAt: Date;
+        lastSavedAt: Date | null;
         isLocked: boolean;
         grade: {
             totalPoints: number | null;
@@ -381,6 +382,7 @@ export async function getStudentWeekDetail(
                   textContent: sub.textContent,
                   status: sub.status as SubmissionStatusCode,
                   submittedAt: sub.submittedAt,
+                  lastSavedAt: sub.lastSavedAt,
                   isLocked: sub.isLocked,
                   grade,
               }

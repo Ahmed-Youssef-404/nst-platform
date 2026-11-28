@@ -11,6 +11,13 @@
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { applySTChange, applySTChangeOnce } from "./create-transaction";
+import { hasValidTaskSubmissionContent } from "@/lib/weeks/resource-eligibility";
+import {
+    FIRST_SOLVER_BONUS_POINTS,
+    getFirstSolverIdempotencyKey,
+    getTaskFirstSolverContext,
+    lockRowsForUpdate,
+} from "@/lib/submissions/first-solver";
 import {
     RecordAttendanceInput,
     GradeSubmissionInput,
@@ -18,7 +25,8 @@ import {
 } from "@/types/types";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
-const prisma = new PrismaClient({ adapter });
+const defaultPrisma = new PrismaClient({ adapter });
+const prisma = defaultPrisma;
 
 // ------------------------------------------------------------------
 // Attendance: +10 if PRESENT, -20 if ABSENT. One record per
@@ -140,14 +148,24 @@ export async function recordSessionEngagement(
 // Grading a Submission also locks it (isLocked = true), matching the
 // existing resubmission rule.
 // ------------------------------------------------------------------
-export async function gradeSubmission(input: GradeSubmissionInput) {
-    const submission = await prisma.submission.findUniqueOrThrow({
+export async function gradeSubmission(
+    input: GradeSubmissionInput,
+    options?: {
+        prisma?: PrismaClient;
+        now?: () => Date;
+    }
+) {
+    const db = options?.prisma ?? defaultPrisma;
+    const getNow = options?.now ?? (() => new Date());
+
+    const submissionMeta = await db.submission.findUniqueOrThrow({
         where: { id: input.submissionId },
         include: {
             task: {
                 select: {
                     id: true,
                     isBonus: true,
+                    deadline: true,
                     session: { select: { levelId: true } },
                     rubricFields: { select: { id: true, maxPoints: true } },
                 },
@@ -155,21 +173,20 @@ export async function gradeSubmission(input: GradeSubmissionInput) {
         },
     });
 
-    if (submission.gradedAt) {
+    if (submissionMeta.gradedAt) {
         throw new Error(
             "This submission was already graded. Use a correction flow instead of re-grading."
         );
     }
 
     // Guard explicitly since Task.session is optional at the schema level.
-    if (!submission.task.session) {
+    if (!submissionMeta.task.session) {
         throw new Error(
             "gradeSubmission is for INTERMEDIATE tasks only. This task has no Session (likely a BEGINNER-track task) - use the Week grading flow instead."
         );
     }
 
-    const levelId = submission.task.session.levelId;
-    const now = new Date();
+    const levelId = submissionMeta.task.session.levelId;
     const markedInvalid = input.markedInvalid ?? false;
 
     let scoreSum = 0;
@@ -177,7 +194,7 @@ export async function gradeSubmission(input: GradeSubmissionInput) {
 
     if (isDynamicRubric) {
         if (!markedInvalid) {
-            const fieldsById = new Map(submission.task.rubricFields.map((f) => [f.id, f.maxPoints]));
+            const fieldsById = new Map(submissionMeta.task.rubricFields.map((f) => [f.id, f.maxPoints]));
             for (const s of input.fieldScores!) {
                 const max = fieldsById.get(s.rubricFieldId);
                 if (max === undefined) {
@@ -202,7 +219,91 @@ export async function gradeSubmission(input: GradeSubmissionInput) {
         throw new Error("Rubric total must be between 0 and 15.");
     }
 
-    const updatedSubmission = await prisma.$transaction(async (tx) => {
+    const updatedSubmission = await db.$transaction(async (tx) => {
+        // Lock Task before Student (matching finalizeWeekGrading / confirmTaskFirstSolver)
+        // when First Solver confirmation is requested.
+        if (input.isFirstSolver) {
+            await lockRowsForUpdate(tx, "tasks", [submissionMeta.taskId]);
+        }
+        await lockRowsForUpdate(tx, "students", [submissionMeta.studentId]);
+
+        const submission = await tx.submission.findUniqueOrThrow({
+            where: { id: input.submissionId },
+            select: {
+                id: true,
+                studentId: true,
+                taskId: true,
+                mode: true,
+                fileUrl: true,
+                externalLink: true,
+                textContent: true,
+                lastSavedAt: true,
+                gradedAt: true,
+            },
+        });
+
+        if (submission.gradedAt) {
+            throw new Error(
+                "This submission was already graded. Use a correction flow instead of re-grading."
+            );
+        }
+
+        const now = getNow();
+        let shouldAwardFirstSolver = false;
+
+        if (input.isFirstSolver && !markedInvalid && scoreSum > 0) {
+            const existingFirstSolver = await tx.sTTransaction.findFirst({
+                where: {
+                    reason: "FIRST_SOLVER",
+                    relatedEntityId: submission.taskId,
+                },
+                select: { id: true, studentId: true },
+            });
+
+            if (existingFirstSolver) {
+                if (existingFirstSolver.studentId !== submission.studentId) {
+                    throw new Error(
+                        "First Solver bonus for this task has already been awarded to another student."
+                    );
+                }
+                // Same student already received FIRST_SOLVER for this task: dedupe cleanly.
+                shouldAwardFirstSolver = false;
+            } else {
+                if (now.getTime() < submissionMeta.task.deadline.getTime()) {
+                    throw new Error(
+                        "First Solver cannot be awarded before the task deadline passes."
+                    );
+                }
+
+                if (
+                    !submission.lastSavedAt ||
+                    submission.lastSavedAt.getTime() >= submissionMeta.task.deadline.getTime() ||
+                    !hasValidTaskSubmissionContent(submission)
+                ) {
+                    throw new Error(
+                        "This submission is not eligible for the First Solver bonus."
+                    );
+                }
+
+                const context = await getTaskFirstSolverContext(
+                    tx,
+                    submission.taskId,
+                    now
+                );
+                if (
+                    context.suggestion.status !== "CANDIDATE" ||
+                    context.suggestion.suggestedStudentId !== submission.studentId
+                ) {
+                    throw new Error(
+                        "This student is not the current earliest eligible First Solver candidate for this task."
+                    );
+                }
+
+                shouldAwardFirstSolver = true;
+            }
+        }
+
+        // Note: lastSavedAt is intentionally untouched here.
         const sub = await tx.submission.update({
             where: { id: input.submissionId },
             data: {
@@ -249,47 +350,80 @@ export async function gradeSubmission(input: GradeSubmissionInput) {
             });
         }
 
+        // Rubric reward (0-15), inside the same atomic transaction.
+        if (scoreSum > 0 && !markedInvalid) {
+            const existingRubric = await tx.sTTransaction.findFirst({
+                where: {
+                    studentId: submission.studentId,
+                    reason: "RUBRIC_GRADING",
+                    relatedEntityId: input.submissionId,
+                },
+                select: { id: true },
+            });
+            if (!existingRubric) {
+                await applySTChange(
+                    {
+                        track: "INTERMEDIATE",
+                        studentId: submission.studentId,
+                        levelId,
+                        type: "REWARD",
+                        reason: "RUBRIC_GRADING",
+                        amount: scoreSum,
+                        relatedEntityId: input.submissionId,
+                        idempotencyKey: `RUBRIC_GRADING:${input.submissionId}`,
+                    },
+                    tx
+                );
+            }
+        }
+
+        // Bonus task solved: +10, only if this task isBonus and not marked invalid and scoreSum > 0
+        if (submissionMeta.task.isBonus && !markedInvalid && scoreSum > 0) {
+            const existingBonus = await tx.sTTransaction.findFirst({
+                where: {
+                    studentId: submission.studentId,
+                    reason: "BONUS_TASK_SOLVED",
+                    relatedEntityId: submission.taskId,
+                },
+                select: { id: true },
+            });
+            if (!existingBonus) {
+                await applySTChange(
+                    {
+                        track: "INTERMEDIATE",
+                        studentId: submission.studentId,
+                        levelId,
+                        type: "REWARD",
+                        reason: "BONUS_TASK_SOLVED",
+                        amount: 10,
+                        relatedEntityId: submission.taskId,
+                        idempotencyKey: `BONUS_TASK_SOLVED:${submission.studentId}:${submission.taskId}`,
+                    },
+                    tx
+                );
+            }
+        }
+
+        // First solver: +5 ST, atomically guarded by row lock + idempotencyKey.
+        if (shouldAwardFirstSolver) {
+            await applySTChange(
+                {
+                    track: "INTERMEDIATE",
+                    studentId: submission.studentId,
+                    levelId,
+                    type: "REWARD",
+                    reason: "FIRST_SOLVER",
+                    amount: FIRST_SOLVER_BONUS_POINTS,
+                    relatedEntityId: submission.taskId,
+                    actorId: input.gradedBy,
+                    idempotencyKey: getFirstSolverIdempotencyKey(submission.taskId),
+                },
+                tx
+            );
+        }
+
         return sub;
     });
-
-    // Rubric reward (0-15).
-    if (scoreSum > 0 && !markedInvalid) {
-        await applySTChangeOnce({
-            studentId: submission.studentId,
-            track: "INTERMEDIATE",
-            levelId,
-            type: "REWARD",
-            reason: "RUBRIC_GRADING",
-            amount: scoreSum,
-            relatedEntityId: input.submissionId,
-        });
-    }
-
-    // Bonus task solved: +10, only if this task isBonus and not marked invalid and scoreSum > 0
-    if (submission.task.isBonus && !markedInvalid && scoreSum > 0) {
-        await applySTChangeOnce({
-            studentId: submission.studentId,
-            track: "INTERMEDIATE",
-            levelId,
-            type: "REWARD",
-            reason: "BONUS_TASK_SOLVED",
-            amount: 10,
-            relatedEntityId: submission.task.id,
-        });
-    }
-
-    // First solver: instructor explicitly flags this at grading time
-    if (input.isFirstSolver && !markedInvalid && scoreSum > 0) {
-        await applySTChangeOnce({
-            studentId: submission.studentId,
-            track: "INTERMEDIATE",
-            levelId,
-            type: "REWARD",
-            reason: "FIRST_SOLVER",
-            amount: 5,
-            relatedEntityId: submission.task.id,
-        });
-    }
 
     return updatedSubmission;
 }

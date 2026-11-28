@@ -35,14 +35,25 @@ import type {
     SaveDraftSubmissionInput,
 } from "@/types/types";
 import { assertStudentCanWriteInWeek } from "@/lib/weeks/week-student-guard";
-import { buildActivityWrite } from "@/lib/submissions/task-activity";
+import {
+    buildActivityWrite,
+    hasSubmissionSolutionChanged,
+} from "@/lib/submissions/task-activity";
+import { lockRowsForUpdate } from "@/lib/submissions/first-solver";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
-const prisma = new PrismaClient({ adapter });
+const defaultPrisma = new PrismaClient({ adapter });
 
 export async function saveDraftSubmission(
-    input: SaveDraftSubmissionInput
+    input: SaveDraftSubmissionInput,
+    options?: {
+        prisma?: PrismaClient;
+        now?: () => Date;
+    }
 ): Promise<DraftSubmissionResult> {
+    const prisma = options?.prisma ?? defaultPrisma;
+    const getNow = options?.now ?? (() => new Date());
+
     const task = await prisma.task.findUnique({
         where: { id: input.taskId },
         select: {
@@ -67,11 +78,6 @@ export async function saveDraftSubmission(
         );
     }
 
-    await assertStudentCanWriteInWeek(prisma, {
-        studentId: input.studentId,
-        weekId: task.weekId,
-    });
-
     if (
         task.allowedSubmissionMode &&
         task.allowedSubmissionMode !== input.mode
@@ -83,29 +89,6 @@ export async function saveDraftSubmission(
 
     validateContentForMode(input);
 
-    const existing = await prisma.submission.findUnique({
-        where: {
-            studentId_taskId: {
-                studentId: input.studentId,
-                taskId: input.taskId,
-            },
-        },
-        select: {
-            status: true,
-            isLocked: true,
-            mode: true,
-            fileUrl: true,
-            externalLink: true,
-            textContent: true,
-        },
-    });
-
-    if (existing && (existing.status !== "DRAFT" || existing.isLocked)) {
-        throw new Error(
-            "This submission has already been sent and can no longer be changed."
-        );
-    }
-
     // Content columns not relevant to the chosen mode are explicitly reset
     // to null, so switching mode on a re-save never leaves stale data.
     const contentData = {
@@ -114,37 +97,87 @@ export async function saveDraftSubmission(
         textContent: input.mode === "TEXT" ? input.textContent ?? null : null,
     };
 
-    // Bump the activity counter only for a meaningful change (a retry or a
-    // no-op re-save of identical content must not create new "activity").
-    const activity = buildActivityWrite(existing, {
-        mode: input.mode,
-        ...contentData,
-    });
+    return prisma.$transaction(async (tx) => {
+        // Serialize concurrent draft saves and lockWeek for this student.
+        await lockRowsForUpdate(tx, "students", [input.studentId]);
 
-    const submission = await prisma.submission.upsert({
-        where: {
-            studentId_taskId: {
+        const now = getNow();
+        await assertStudentCanWriteInWeek(tx, {
+            studentId: input.studentId,
+            weekId: task.weekId!,
+            now,
+        });
+
+        const existing = await tx.submission.findUnique({
+            where: {
+                studentId_taskId: {
+                    studentId: input.studentId,
+                    taskId: input.taskId,
+                },
+            },
+            select: {
+                id: true,
+                studentId: true,
+                taskId: true,
+                status: true,
+                isLocked: true,
+                mode: true,
+                fileUrl: true,
+                externalLink: true,
+                textContent: true,
+                submittedAt: true,
+                lastSavedAt: true,
+            },
+        });
+
+        if (existing && (existing.status !== "DRAFT" || existing.isLocked)) {
+            throw new Error(
+                "This submission has already been sent and can no longer be changed."
+            );
+        }
+
+        const nextSnapshot = {
+            mode: input.mode,
+            ...contentData,
+        };
+
+        // No-op re-save: skip the DB write entirely so lastSavedAt,
+        // submittedAt (@updatedAt), and activityVersion stay untouched.
+        if (existing && !hasSubmissionSolutionChanged(existing, nextSnapshot)) {
+            return existing as unknown as DraftSubmissionResult;
+        }
+
+        // Bump the activity counter and update server-generated lastSavedAt
+        // only when the persisted student solution actually changed.
+        const activity = buildActivityWrite(existing, nextSnapshot);
+
+        const submission = await tx.submission.upsert({
+            where: {
+                studentId_taskId: {
+                    studentId: input.studentId,
+                    taskId: input.taskId,
+                },
+            },
+            create: {
                 studentId: input.studentId,
                 taskId: input.taskId,
+                mode: input.mode,
+                status: "DRAFT",
+                lastSavedAt: now,
+                ...contentData,
+                ...activity.create,
             },
-        },
-        create: {
-            studentId: input.studentId,
-            taskId: input.taskId,
-            mode: input.mode,
-            status: "DRAFT",
-            ...contentData,
-            ...activity.create,
-        },
-        update: {
-            mode: input.mode,
-            ...contentData,
-            ...activity.update,
-            // submittedAt auto-refreshes via @updatedAt in the schema
-        },
-    });
+            update: {
+                mode: input.mode,
+                lastSavedAt: now,
+                ...contentData,
+                ...activity.update,
+                // submittedAt auto-refreshes via @updatedAt in the schema
+            },
+        });
 
-    return submission as unknown as DraftSubmissionResult;
+        return submission as unknown as DraftSubmissionResult;
+    });
 }
 
 function validateContentForMode(input: SaveDraftSubmissionInput) {

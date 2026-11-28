@@ -27,6 +27,7 @@
 // Bucket: "submissions" (private - not publicly readable; access should
 // go through signed URLs generated on demand, not a public bucket).
 
+import { createHash } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import {
     SUBMISSION_MAX_FILE_SIZE_BYTES,
@@ -61,14 +62,22 @@ export async function uploadSubmissionFile(params: {
     }
 
     const extension = EXTENSION_BY_MIME_TYPE[file.type];
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const contentHash = createHash("sha256")
+        .update(buffer)
+        .digest("hex")
+        .slice(0, 16);
     const supabase = await createClient();
 
-    const path = `${taskId}/${studentId}/submission.${extension}`;
+    // Include a content hash in the object path so replacing a file with
+    // different bytes changes `fileUrl` (updating lastSavedAt), while
+    // re-uploading identical bytes yields the exact same `fileUrl`.
+    const path = `${taskId}/${studentId}/submission-${contentHash}.${extension}`;
 
     const { error } = await supabase.storage
         .from(BUCKET_NAME)
-        .upload(path, file, {
-            upsert: true, // resubmission overwrites the previous file
+        .upload(path, buffer, {
+            upsert: true,
             contentType: file.type,
         });
 

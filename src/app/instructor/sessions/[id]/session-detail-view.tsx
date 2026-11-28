@@ -61,6 +61,7 @@ import type {
 } from "@/lib/data/get-session-detail";
 import {
     gradeSubmissionAction,
+    confirmFirstSolverAction,
     recordAttendanceAction,
     recordSessionEngagementAction,
 } from "@/lib/actions/st-economy";
@@ -658,9 +659,49 @@ function SubmissionsSection({
     task: SessionDetailTask;
     instructorId: string;
 }) {
+    const router = useRouter();
     const [openStudentId, setOpenStudentId] = useState<string | null>(null);
+    const [isConfirmingFirstSolver, setIsConfirmingFirstSolver] = useState(false);
+    const [firstSolverError, setFirstSolverError] = useState<string | null>(null);
     const submittedCount = task.submissions.filter((s) => s.submission).length;
     const gradedCount = task.submissions.filter((s) => s.submission?.isGraded).length;
+    const firstSolver = task.firstSolver;
+
+    const suggestedRow =
+        firstSolver?.status === "CANDIDATE" && firstSolver.suggestedStudentId
+            ? task.submissions.find((r) => r.studentId === firstSolver.suggestedStudentId)
+            : undefined;
+    const suggestedSub = suggestedRow?.submission ?? null;
+    const suggestedScore = suggestedSub
+        ? suggestedSub.taskGrade?.totalPoints ??
+          ((suggestedSub.understandingScore ?? 0) +
+              (suggestedSub.approachScore ?? 0) +
+              (suggestedSub.correctnessScore ?? 0) +
+              (suggestedSub.implementationScore ?? 0))
+        : 0;
+    const canConfirmAlreadyGraded = Boolean(
+        firstSolver?.status === "CANDIDATE" &&
+            firstSolver.suggestedStudentId &&
+            suggestedSub?.isGraded &&
+            !suggestedSub.taskGrade?.markedInvalid &&
+            suggestedScore > 0
+    );
+
+    async function handleConfirmFirstSolver() {
+        if (!firstSolver?.suggestedStudentId) return;
+        setFirstSolverError(null);
+        setIsConfirmingFirstSolver(true);
+        const res = await confirmFirstSolverAction({
+            taskId: task.id,
+            studentId: firstSolver.suggestedStudentId,
+        });
+        setIsConfirmingFirstSolver(false);
+        if (res.success) {
+            router.refresh();
+        } else {
+            setFirstSolverError(res.error ?? "Failed to confirm First Solver.");
+        }
+    }
 
     return (
         <div className="space-y-3 border-t border-border/60 pt-4">
@@ -675,6 +716,70 @@ function SubmissionsSection({
                 </div>
             </div>
 
+            {firstSolver && (
+                <div className="rounded-xl border border-border/70 bg-space-950/60 px-3.5 py-2.5 text-xs space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                            <Trophy className="size-3.5 text-gold-400 shrink-0" />
+                            {firstSolver.status === "PENDING_CLOSE" && (
+                                <span className="text-starlight-400">
+                                    First Solver opens after task deadline ({formatDateTime(task.deadline)}).
+                                </span>
+                            )}
+                            {firstSolver.status === "AWARDED" && (
+                                <span className="text-emerald-300 font-semibold">
+                                    Confirmed First Solver: {firstSolver.awardedStudentName} (+5 ST)
+                                </span>
+                            )}
+                            {firstSolver.status === "NO_CANDIDATE" && (
+                                <span className="text-starlight-400">
+                                    First Solver: No eligible candidate
+                                    {firstSolver.excludedInvalidCount > 0
+                                        ? ` (${firstSolver.excludedInvalidCount} invalid excluded)`
+                                        : ""}
+                                </span>
+                            )}
+                            {firstSolver.status === "CANDIDATE" && (
+                                <span className="text-gold-300 font-medium">
+                                    Suggested First Solver: <strong className="font-bold">{firstSolver.suggestedStudentName}</strong>
+                                    {firstSolver.lastSavedAt
+                                        ? ` · saved ${formatDateTime(firstSolver.lastSavedAt)}`
+                                        : ""}
+                                    {firstSolver.excludedInvalidCount > 0
+                                        ? ` · ${firstSolver.excludedInvalidCount} invalid excluded`
+                                        : ""}
+                                </span>
+                            )}
+                        </div>
+
+                        {canConfirmAlreadyGraded && (
+                            <Button
+                                type="button"
+                                size="xs"
+                                onClick={handleConfirmFirstSolver}
+                                disabled={isConfirmingFirstSolver}
+                                className="bg-gold-500 hover:bg-gold-400 text-space-950 font-bold rounded-lg text-[11px] h-7 px-2.5 shrink-0"
+                            >
+                                {isConfirmingFirstSolver ? (
+                                    <>
+                                        <Loader2 className="size-3 mr-1 animate-spin" />
+                                        Confirming...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Trophy className="size-3 mr-1" />
+                                        Confirm First Solver (+5 ST)
+                                    </>
+                                )}
+                            </Button>
+                        )}
+                    </div>
+                    {firstSolverError && (
+                        <p className="text-[11px] text-red-400">{firstSolverError}</p>
+                    )}
+                </div>
+            )}
+
             <div className="space-y-2">
                 {task.submissions.map((row) => {
                     const badge = submissionStatusBadge(row);
@@ -682,6 +787,12 @@ function SubmissionsSection({
                     const canExpand =
                         Boolean(row.submission) || row.hintUsage.unlockedCount > 0;
                     const isOpen = canExpand && openStudentId === row.studentId;
+                    const isSuggestedFirstSolver =
+                        firstSolver?.status === "CANDIDATE" &&
+                        firstSolver.suggestedStudentId === row.studentId;
+                    const isAwardedFirstSolver =
+                        firstSolver?.status === "AWARDED" &&
+                        firstSolver.awardedStudentId === row.studentId;
 
                     return (
                         <div
@@ -708,6 +819,18 @@ function SubmissionsSection({
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-2">
+                                    {isSuggestedFirstSolver && (
+                                        <span className="inline-flex items-center gap-1 font-mono text-[10px] px-2 py-0.5 rounded-full border border-gold-500/30 bg-gold-500/15 text-gold-300 font-semibold">
+                                            <Trophy className="size-3 text-gold-400" />
+                                            Earliest Solver
+                                        </span>
+                                    )}
+                                    {isAwardedFirstSolver && (
+                                        <span className="inline-flex items-center gap-1 font-mono text-[10px] px-2 py-0.5 rounded-full border border-emerald-500/30 bg-emerald-500/15 text-emerald-300 font-semibold">
+                                            <Trophy className="size-3 text-emerald-400" />
+                                            First Solver (+5 ST)
+                                        </span>
+                                    )}
                                     {row.submission?.hasNewActivity && <NewActivityBadge />}
                                     {row.hintUsage.totalHints > 0 && (
                                         <span className="font-mono text-[11px] px-2 py-0.5 rounded-full border border-border/70 bg-space-850 text-starlight-300">
@@ -803,7 +926,10 @@ function SubmissionDetail({
             {/* Metadata Bar */}
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2 text-starlight-400">
                 <span>
-                    Submitted on <span className="font-mono text-starlight-200">{formatDateTime(submission.submittedAt)}</span>
+                    {submission.lastSavedAt ? "Last saved on " : "Submitted on "}
+                    <span className="font-mono text-starlight-200">
+                        {formatDateTime(submission.lastSavedAt ?? submission.submittedAt)}
+                    </span>
                 </span>
                 <span className="font-mono rounded-md bg-space-850 px-2 py-0.5 text-[11px] text-starlight-300 border border-border/60">
                     Format: {submission.mode}
@@ -937,6 +1063,7 @@ function SubmissionDetail({
             ) : (
                 <DynamicGradingForm
                     task={task}
+                    studentId={studentId}
                     submissionId={submission.id}
                     instructorId={instructorId}
                 />
@@ -951,10 +1078,12 @@ function SubmissionDetail({
 
 function DynamicGradingForm({
     task,
+    studentId,
     submissionId,
     instructorId,
 }: {
     task: SessionDetailTask;
+    studentId: string;
     submissionId: string;
     instructorId: string;
 }) {
@@ -980,6 +1109,30 @@ function DynamicGradingForm({
         ? 0
         : task.rubricFields.reduce((sum, rf) => sum + (fieldScores[rf.id] ?? 0), 0);
 
+    const firstSolver = task.firstSolver;
+    const canGrantFirstSolver = Boolean(
+        firstSolver?.status === "CANDIDATE" &&
+            firstSolver.suggestedStudentId === studentId &&
+            !markedInvalid &&
+            totalScore > 0
+    );
+
+    let firstSolverHint: string | null = null;
+    if (markedInvalid || totalScore <= 0) {
+        firstSolverHint = "Invalid or 0-score submissions cannot receive First Solver.";
+    } else if (firstSolver?.status === "PENDING_CLOSE") {
+        firstSolverHint = `Unlocks after deadline (${formatDateTime(task.deadline)}).`;
+    } else if (firstSolver?.status === "AWARDED") {
+        firstSolverHint = `Already awarded to ${firstSolver.awardedStudentName}.`;
+    } else if (
+        firstSolver?.status === "CANDIDATE" &&
+        firstSolver.suggestedStudentId !== studentId
+    ) {
+        firstSolverHint = `Earliest candidate is ${firstSolver.suggestedStudentName}.`;
+    } else if (firstSolver?.status === "NO_CANDIDATE") {
+        firstSolverHint = "No eligible candidate for First Solver.";
+    }
+
     function updateScore(fieldId: string, val: number, max: number) {
         const clamped = Math.max(0, Math.min(max, val));
         setFieldScores((prev) => ({ ...prev, [fieldId]: clamped }));
@@ -999,7 +1152,7 @@ function DynamicGradingForm({
             markedInvalid,
             instructorComment: instructorComment.trim() || undefined,
             gradedBy: instructorId,
-            isFirstSolver,
+            isFirstSolver: canGrantFirstSolver && isFirstSolver,
         });
         setIsSubmitting(false);
 
@@ -1045,7 +1198,11 @@ function DynamicGradingForm({
                 <Checkbox
                     id={`invalid-${submissionId}`}
                     checked={markedInvalid}
-                    onCheckedChange={(checked) => setMarkedInvalid(checked === true)}
+                    onCheckedChange={(checked) => {
+                        const nextInvalid = checked === true;
+                        setMarkedInvalid(nextInvalid);
+                        if (nextInvalid) setIsFirstSolver(false);
+                    }}
                 />
                 <Label
                     htmlFor={`invalid-${submissionId}`}
@@ -1132,19 +1289,27 @@ function DynamicGradingForm({
             </div>
 
             {/* First Solver Bonus */}
-            <div className="flex items-center gap-2 pt-1">
-                <Checkbox
-                    id={`first-solver-${submissionId}`}
-                    checked={isFirstSolver}
-                    onCheckedChange={(checked) => setIsFirstSolver(checked === true)}
-                />
-                <Label
-                    htmlFor={`first-solver-${submissionId}`}
-                    className="text-xs text-starlight-300 font-normal cursor-pointer flex items-center gap-1"
-                >
-                    <Trophy className="size-3 text-gold-400" />
-                    First solver in group (+5 ST bonus)
-                </Label>
+            <div className="space-y-1 pt-1">
+                <div className="flex items-center gap-2">
+                    <Checkbox
+                        id={`first-solver-${submissionId}`}
+                        checked={canGrantFirstSolver && isFirstSolver}
+                        disabled={!canGrantFirstSolver}
+                        onCheckedChange={(checked) => setIsFirstSolver(checked === true)}
+                    />
+                    <Label
+                        htmlFor={`first-solver-${submissionId}`}
+                        className={`text-xs font-normal flex items-center gap-1 ${canGrantFirstSolver ? "text-starlight-200 cursor-pointer" : "text-starlight-500 cursor-not-allowed"}`}
+                    >
+                        <Trophy className="size-3 text-gold-400" />
+                        First solver in group (+5 ST bonus)
+                    </Label>
+                </div>
+                {firstSolverHint && (
+                    <p className="text-[11px] text-starlight-400 pl-6">
+                        {firstSolverHint}
+                    </p>
+                )}
             </div>
 
             {error && (

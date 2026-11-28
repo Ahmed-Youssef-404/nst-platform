@@ -448,7 +448,7 @@ export function WeekTaskDetailCard({
                                         Current Saved Work ({sub.mode})
                                     </span>
                                     <span className="font-mono text-[11px] text-starlight-400">
-                                        Last saved: {formatDateTime(sub.submittedAt)}
+                                        Last saved: {formatDateTime(sub.lastSavedAt ?? sub.submittedAt)}
                                     </span>
                                 </div>
 

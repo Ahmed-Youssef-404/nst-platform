@@ -37,7 +37,7 @@
 // (rubric+bonus+first-solver+finish-all) for the whole batch; the -10
 // penalty per Task is never halved.
 
-import { PrismaClient, Prisma } from "@/generated/prisma/client";
+import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { applySTChange } from "@/lib/st-economy/create-transaction";
 import type {
@@ -48,10 +48,19 @@ import type {
     FinalizeWeekGradingInput,
     FinalizeWeekGradingResult,
 } from "@/types/types";
-import { isRewardHalvedForResource } from "@/lib/weeks/resource-eligibility";
+import {
+    hasValidTaskSubmissionContent,
+    isRewardHalvedForResource,
+} from "@/lib/weeks/resource-eligibility";
+import {
+    computeTaskFirstSolverSuggestions,
+    getFirstSolverIdempotencyKey,
+    getTaskFirstSolverContext,
+    lockRowsForUpdate,
+} from "@/lib/submissions/first-solver";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
-const prisma = new PrismaClient({ adapter });
+const defaultPrisma = new PrismaClient({ adapter });
 
 const FINISH_ALL_BONUS = 10;
 const BONUS_TASK_POINTS = 5;
@@ -59,10 +68,11 @@ const FIRST_SOLVER_POINTS = 5;
 const NOT_SUBMITTED_PENALTY = 10;
 
 async function assertInstructorAssignedToGroup(
+    db: Pick<PrismaClient, "instructorGroup">,
     instructorId: string,
     groupId: string
 ): Promise<void> {
-    const assignment = await prisma.instructorGroup.findUnique({
+    const assignment = await db.instructorGroup.findUnique({
         where: {
             instructorId_groupId: { instructorId, groupId },
         },
@@ -80,6 +90,7 @@ async function assertInstructorAssignedToGroup(
 // resolved Submission's Task (groupId for auth, rubric fields for
 // validation) plus its current TaskGrade (to block edits after finalize).
 async function resolveSubmissionForGrading(
+    db: PrismaClient,
     input: SaveDraftGradeInput
 ): Promise<{
     submissionId: string;
@@ -91,7 +102,7 @@ async function resolveSubmissionForGrading(
     taskGrade: { finalizedAt: Date | null } | null;
 }> {
     if ("submissionId" in input) {
-        const submission = await prisma.submission.findUnique({
+        const submission = await db.submission.findUnique({
             where: { id: input.submissionId },
             include: {
                 task: {
@@ -123,7 +134,7 @@ async function resolveSubmissionForGrading(
     // go through the submissionId path - they have a real Submission the
     // student created) and synthesize one, reusing it on repeat calls via
     // the (studentId, taskId) unique constraint.
-    const task = await prisma.task.findUnique({
+    const task = await db.task.findUnique({
         where: { id: input.taskId },
         select: {
             type: true,
@@ -143,7 +154,7 @@ async function resolveSubmissionForGrading(
         );
     }
 
-    const submission = await prisma.submission.upsert({
+    const submission = await db.submission.upsert({
         where: {
             studentId_taskId: { studentId: input.studentId, taskId: input.taskId },
         },
@@ -168,12 +179,16 @@ async function resolveSubmissionForGrading(
 // 1. saveDraftGrade
 // ------------------------------------------------------------------
 export async function saveDraftGrade(
-    input: SaveDraftGradeInput
+    input: SaveDraftGradeInput,
+    options?: {
+        prisma?: PrismaClient;
+    }
 ): Promise<DraftGradeResult> {
-    const resolved = await resolveSubmissionForGrading(input);
+    const prisma = options?.prisma ?? defaultPrisma;
+    const resolved = await resolveSubmissionForGrading(prisma, input);
     const { submissionId, task, taskGrade } = resolved;
 
-    await assertInstructorAssignedToGroup(input.gradedBy, task.week!.groupId);
+    await assertInstructorAssignedToGroup(prisma, input.gradedBy, task.week!.groupId);
 
     if (taskGrade?.finalizedAt) {
         throw new Error(
@@ -271,70 +286,64 @@ export async function saveDraftGrade(
 // 2. suggestFirstSolvers - read-only, never applies anything
 // ------------------------------------------------------------------
 export async function suggestFirstSolvers(
-    input: FirstSolverSuggestionInput
+    input: FirstSolverSuggestionInput,
+    options?: {
+        prisma?: PrismaClient;
+        now?: () => Date;
+    }
 ): Promise<FirstSolverSuggestion[]> {
+    const prisma = options?.prisma ?? defaultPrisma;
+    const now = options?.now ? options.now() : new Date();
+
     const week = await prisma.week.findUniqueOrThrow({
         where: { id: input.weekId },
         select: {
+            groupId: true,
+            endDate: true,
             tasks: {
                 where: { type: "INTERNAL" },
-                select: { id: true, title: true },
+                select: { id: true, title: true, type: true },
                 orderBy: { createdAt: "asc" },
             },
         },
     });
 
-    const suggestions: FirstSolverSuggestion[] = [];
-
-    for (const task of week.tasks) {
-        // Only manually-locked submissions are first-solver-eligible - a
-        // lazy auto-submit at Week.endDate never qualifies. We identify
-        // "manually locked" via WeekResourceSubmission.lockedAt on the
-        // same (studentId, weekId), since the lock is per-Week.
-        const earliest = await prisma.submission.findFirst({
-            where: {
-                taskId: task.id,
-                status: "SUBMITTED",
-                student: {
-                    weekResourceSubmissions: {
-                        some: { weekId: input.weekId, lockedAt: { not: null } },
-                    },
-                },
-            },
-            orderBy: { submittedAt: "asc" },
-            select: {
-                studentId: true,
-                submittedAt: true,
-                student: { select: { name: true } },
-            },
-        });
-
-        suggestions.push({
-            taskId: task.id,
-            taskTitle: task.title,
-            suggestedStudentId: earliest?.studentId ?? null,
-            suggestedStudentName: earliest?.student.name ?? null,
-            submittedAt: earliest?.submittedAt ?? null,
-        });
-    }
-
-    return suggestions;
+    return computeTaskFirstSolverSuggestions(prisma, {
+        track: "BEGINNER",
+        groupId: week.groupId,
+        tasks: week.tasks.map((t) => ({
+            id: t.id,
+            title: t.title,
+            type: t.type,
+            closesAt: week.endDate,
+        })),
+        now,
+    });
 }
 
 // ------------------------------------------------------------------
 // 3. finalizeWeekGrading - the atomic finish for one student+Week
 // ------------------------------------------------------------------
 export async function finalizeWeekGrading(
-    input: FinalizeWeekGradingInput
+    input: FinalizeWeekGradingInput,
+    options?: {
+        prisma?: PrismaClient;
+        now?: () => Date;
+    }
 ): Promise<FinalizeWeekGradingResult> {
+    const prisma = options?.prisma ?? defaultPrisma;
+    const getNow = options?.now ?? (() => new Date());
+
     const week = await prisma.week.findUnique({
         where: { id: input.weekId },
         select: {
             id: true,
             groupId: true,
+            endDate: true,
             tasks: {
                 select: {
                     id: true,
+                    title: true,
                     isBonus: true,
                     type: true,
                     allowedSubmissionMode: true,
@@ -347,123 +356,205 @@ export async function finalizeWeekGrading(
         throw new Error("Week not found.");
     }
 
-    await assertInstructorAssignedToGroup(input.gradedBy, week.groupId);
+    await assertInstructorAssignedToGroup(prisma, input.gradedBy, week.groupId);
 
-    const resource = await prisma.weekResourceSubmission.findUnique({
-        where: {
-            studentId_weekId: { studentId: input.studentId, weekId: week.id },
-        },
-        select: {
-            type: true,
-            fileUrl: true,
-            driveUrl: true,
-            status: true,
-            lockedAt: true,
-        },
-    });
-
-    // Any status other than ACCEPTED (PENDING, REJECTED, or no valid resource at
-    // all) triggers the halving - only an explicit ACCEPTED verdict on a valid
-    // resource (FILE or DRIVE_LINK) avoids it.
-    const wasHalvedDueToLateResource = isRewardHalvedForResource(resource);
-
-    // Pull, per Task, this student's Submission (existence/id) and any
-    // TaskGrade draft already saved via saveDraftGrade (markedInvalid is a
-    // real column now - no more inferring it from an empty fieldScores
-    // array, which was ambiguous with "scored all fields as 0").
     const taskIds = week.tasks.map((t) => t.id);
-    const submissions = await prisma.submission.findMany({
-        where: { studentId: input.studentId, taskId: { in: taskIds } },
-        select: {
-            id: true,
-            taskId: true,
-            taskGrade: {
-                select: {
-                    finalizedAt: true,
-                    markedInvalid: true,
-                    fieldScores: { select: { awardedPoints: true } },
-                },
-            },
-        },
-    });
+    const taskMap = new Map(week.tasks.map((t) => [t.id, t]));
+    const firstSolverSet = new Set(input.firstSolverTaskIds);
+    const distinctFirstSolverTaskIds = Array.from(firstSolverSet);
 
-    const submissionByTask = new Map(submissions.map((s) => [s.taskId, s]));
-
-    // ST transactions may come from purchases, hints, or other economy events.
-    // They do not indicate that instructor grading has been finalized.
-    if (submissions.some((s) => s.taskGrade?.finalizedAt != null)) {
-        throw new Error(
-            "This student's Week grading has already been finalized."
-        );
+    for (const fsTaskId of distinctFirstSolverTaskIds) {
+        const fsTask = taskMap.get(fsTaskId);
+        if (!fsTask) {
+            throw new Error("First Solver task does not belong to this Week.");
+        }
+        if (fsTask.type !== "INTERNAL") {
+            throw new Error("EXTERNAL tasks cannot receive First Solver bonus.");
+        }
     }
 
-    const firstSolverSet = new Set(input.firstSolverTaskIds);
+    // ONE outer transaction: lock Tasks (if confirming First Solver) then Student,
+    // verify finalization & First Solver eligibility inside tx, write TaskGrades,
+    // and write every STTransaction atomically.
+    return prisma.$transaction(async (tx) => {
+        await lockRowsForUpdate(tx, "tasks", distinctFirstSolverTaskIds);
+        await lockRowsForUpdate(tx, "students", [input.studentId]);
 
-    const taskResults: FinalizeWeekGradingResult["taskResults"] = [];
-    let positiveSum = 0;
-    let allTasksSubmitted = true;
+        const now = getNow();
 
-    for (const task of week.tasks) {
-        const submission = submissionByTask.get(task.id);
-        const grade = submission?.taskGrade;
-        const noSubmission = !submission;
-        const markedInvalid = grade?.markedInvalid ?? false;
-
-        if (noSubmission || markedInvalid) {
-            allTasksSubmitted = false;
-            taskResults.push({
-                taskId: task.id,
-                rubricPoints: null,
-                bonusPoints: 0,
-                firstSolverPoints: 0,
-                penaltyPoints: NOT_SUBMITTED_PENALTY,
-            });
-            continue;
+        if (
+            distinctFirstSolverTaskIds.length > 0 &&
+            now.getTime() < week.endDate.getTime()
+        ) {
+            throw new Error(
+                "First Solver cannot be confirmed before the Week deadline passes."
+            );
         }
 
-        const rubricPoints = grade
-            ? grade.fieldScores.reduce((sum, f) => sum + f.awardedPoints, 0)
-            : 0;
-        const bonusPoints = task.isBonus ? BONUS_TASK_POINTS : 0;
-        const firstSolverPoints = firstSolverSet.has(task.id)
-            ? FIRST_SOLVER_POINTS
-            : 0;
-
-        positiveSum += rubricPoints + bonusPoints + firstSolverPoints;
-
-        taskResults.push({
-            taskId: task.id,
-            rubricPoints,
-            bonusPoints,
-            firstSolverPoints,
-            penaltyPoints: 0,
+        const resource = await tx.weekResourceSubmission.findUnique({
+            where: {
+                studentId_weekId: { studentId: input.studentId, weekId: week.id },
+            },
+            select: {
+                type: true,
+                fileUrl: true,
+                driveUrl: true,
+                status: true,
+                lockedAt: true,
+            },
         });
-    }
 
-    const finishAllBonusApplied = allTasksSubmitted && week.tasks.length > 0;
-    if (finishAllBonusApplied) {
-        positiveSum += FINISH_ALL_BONUS;
-    }
+        // Any status other than ACCEPTED (PENDING, REJECTED, or no valid resource at
+        // all) triggers the halving - only an explicit ACCEPTED verdict on a valid
+        // resource (FILE or DRIVE_LINK) avoids it.
+        const wasHalvedDueToLateResource = isRewardHalvedForResource(resource);
 
-    const penaltySum = taskResults.reduce((sum, r) => sum + r.penaltyPoints, 0);
+        const submissions = await tx.submission.findMany({
+            where: { studentId: input.studentId, taskId: { in: taskIds } },
+            select: {
+                id: true,
+                taskId: true,
+                mode: true,
+                fileUrl: true,
+                externalLink: true,
+                textContent: true,
+                lastSavedAt: true,
+                taskGrade: {
+                    select: {
+                        finalizedAt: true,
+                        markedInvalid: true,
+                        fieldScores: { select: { awardedPoints: true } },
+                    },
+                },
+            },
+        });
 
-    // Halving applies ONCE to the summed positive total for the whole
-    // batch (not per-component - flooring each component separately would
-    // lose more points to rounding than flooring the sum once). The
-    // penalty sum is never halved.
-    const appliedPositive = wasHalvedDueToLateResource
-        ? Math.floor(positiveSum / 2)
-        : positiveSum;
+        const submissionByTask = new Map(submissions.map((s) => [s.taskId, s]));
 
-    const now = new Date();
+        // Guard inside the transaction after acquiring the student lock so
+        // concurrent finalize requests can never double-award ST.
+        const existingGradingTx = await tx.sTTransaction.findFirst({
+            where: {
+                studentId: input.studentId,
+                weekId: week.id,
+                reason: {
+                    in: [
+                        "RUBRIC_GRADING",
+                        "BONUS_TASK_SOLVED",
+                        "FIRST_SOLVER",
+                        "FINISH_ALL_TASKS",
+                        "TASK_NOT_SUBMITTED",
+                    ],
+                },
+            },
+            select: { id: true },
+        });
 
-    // ONE outer transaction: TaskGrade finalize writes + every
-    // STTransaction component all commit together or all roll back
-    // together. applySTChange now accepts this same `tx` (see
-    // create-transaction.ts) instead of opening its own, which is what
-    // makes this genuinely atomic as a whole unit - unlike a plain
-    // sequence of independent applySTChange calls.
-    await prisma.$transaction(async (tx) => {
+        if (
+            submissions.some((s) => s.taskGrade?.finalizedAt != null) ||
+            existingGradingTx !== null
+        ) {
+            throw new Error(
+                "This student's Week grading has already been finalized."
+            );
+        }
+
+        // Validate every confirmed First Solver task strictly inside the tx.
+        for (const fsTaskId of distinctFirstSolverTaskIds) {
+            const fsTask = taskMap.get(fsTaskId)!;
+            const fsSub = submissionByTask.get(fsTaskId);
+            const fsMarkedInvalid = fsSub?.taskGrade?.markedInvalid ?? false;
+
+            if (
+                !fsSub ||
+                fsMarkedInvalid ||
+                !fsSub.lastSavedAt ||
+                fsSub.lastSavedAt.getTime() >= week.endDate.getTime() ||
+                !hasValidTaskSubmissionContent(fsSub)
+            ) {
+                throw new Error(
+                    `Submission for "${fsTask.title}" is not eligible for the First Solver bonus.`
+                );
+            }
+
+            const existingAward = await tx.sTTransaction.findFirst({
+                where: {
+                    reason: "FIRST_SOLVER",
+                    relatedEntityId: fsTaskId,
+                },
+                select: { id: true },
+            });
+
+            if (existingAward) {
+                throw new Error(
+                    `First Solver bonus for "${fsTask.title}" has already been awarded.`
+                );
+            }
+
+            const context = await getTaskFirstSolverContext(tx, fsTaskId, now);
+            if (
+                context.suggestion.status !== "CANDIDATE" ||
+                context.suggestion.suggestedStudentId !== input.studentId
+            ) {
+                throw new Error(
+                    `This student is not the current earliest eligible First Solver candidate for "${fsTask.title}".`
+                );
+            }
+        }
+
+        const taskResults: FinalizeWeekGradingResult["taskResults"] = [];
+        let positiveSum = 0;
+        let allTasksSubmitted = true;
+
+        for (const task of week.tasks) {
+            const submission = submissionByTask.get(task.id);
+            const grade = submission?.taskGrade;
+            const noSubmission = !submission;
+            const markedInvalid = grade?.markedInvalid ?? false;
+
+            if (noSubmission || markedInvalid) {
+                allTasksSubmitted = false;
+                taskResults.push({
+                    taskId: task.id,
+                    rubricPoints: null,
+                    bonusPoints: 0,
+                    firstSolverPoints: 0,
+                    penaltyPoints: NOT_SUBMITTED_PENALTY,
+                });
+                continue;
+            }
+
+            const rubricPoints = grade
+                ? grade.fieldScores.reduce((sum, f) => sum + f.awardedPoints, 0)
+                : 0;
+            const bonusPoints = task.isBonus ? BONUS_TASK_POINTS : 0;
+            const firstSolverPoints = firstSolverSet.has(task.id)
+                ? FIRST_SOLVER_POINTS
+                : 0;
+
+            positiveSum += rubricPoints + bonusPoints + firstSolverPoints;
+
+            taskResults.push({
+                taskId: task.id,
+                rubricPoints,
+                bonusPoints,
+                firstSolverPoints,
+                penaltyPoints: 0,
+            });
+        }
+
+        const finishAllBonusApplied = allTasksSubmitted && week.tasks.length > 0;
+        if (finishAllBonusApplied) {
+            positiveSum += FINISH_ALL_BONUS;
+        }
+
+        const penaltySum = taskResults.reduce((sum, r) => sum + r.penaltyPoints, 0);
+
+        // Halving applies ONCE to the summed positive total for the whole batch.
+        const appliedPositive = wasHalvedDueToLateResource
+            ? Math.floor(positiveSum / 2)
+            : positiveSum;
+
         for (const task of week.tasks) {
             let submission = submissionByTask.get(task.id);
             if (!submission) {
@@ -489,9 +580,15 @@ export async function finalizeWeekGrading(
                 submission = {
                     id: createdSub.id,
                     taskId: task.id,
+                    mode: createdSub.mode,
+                    fileUrl: createdSub.fileUrl,
+                    externalLink: createdSub.externalLink,
+                    textContent: createdSub.textContent,
+                    lastSavedAt: createdSub.lastSavedAt,
                     taskGrade: null,
                 };
             } else {
+                // Note: lastSavedAt is intentionally untouched here.
                 await tx.submission.update({
                     where: { id: submission.id },
                     data: {
@@ -505,8 +602,8 @@ export async function finalizeWeekGrading(
             const totalPoints =
                 taskResult.rubricPoints !== null
                     ? taskResult.rubricPoints +
-                    taskResult.bonusPoints +
-                    taskResult.firstSolverPoints
+                      taskResult.bonusPoints +
+                      taskResult.firstSolverPoints
                     : -NOT_SUBMITTED_PENALTY;
 
             await tx.taskGrade.upsert({
@@ -545,21 +642,12 @@ export async function finalizeWeekGrading(
             },
         });
 
-        // Each component gets its own STTransaction with a distinct
-        // reason, per the agreed design. The per-component amounts here
-        // are the RAW (pre-halving) points - only the aggregate
-        // `appliedPositive` is halved, so we scale each component down
-        // proportionally against the batch-level halving, using the raw
-        // sum as the base. Simplest exact way to do this without
-        // re-introducing per-component rounding loss: apply the halving
-        // to the LAST positive component's amount as a remainder-absorber,
-        // so the sum of what actually gets written always equals
-        // appliedPositive exactly.
         let positiveRemaining = appliedPositive;
         const positiveComponents: {
             reason: "RUBRIC_GRADING" | "BONUS_TASK_SOLVED" | "FIRST_SOLVER" | "FINISH_ALL_TASKS";
             amount: number;
             relatedEntityId: string;
+            idempotencyKey: string;
         }[] = [];
 
         for (const taskResult of taskResults) {
@@ -568,6 +656,7 @@ export async function finalizeWeekGrading(
                     reason: "RUBRIC_GRADING",
                     amount: taskResult.rubricPoints,
                     relatedEntityId: taskResult.taskId,
+                    idempotencyKey: `RUBRIC_GRADING:${input.studentId}:${taskResult.taskId}`,
                 });
             }
             if (taskResult.bonusPoints > 0) {
@@ -575,6 +664,7 @@ export async function finalizeWeekGrading(
                     reason: "BONUS_TASK_SOLVED",
                     amount: taskResult.bonusPoints,
                     relatedEntityId: taskResult.taskId,
+                    idempotencyKey: `BONUS_TASK_SOLVED:${input.studentId}:${taskResult.taskId}`,
                 });
             }
             if (taskResult.firstSolverPoints > 0) {
@@ -582,6 +672,7 @@ export async function finalizeWeekGrading(
                     reason: "FIRST_SOLVER",
                     amount: taskResult.firstSolverPoints,
                     relatedEntityId: taskResult.taskId,
+                    idempotencyKey: getFirstSolverIdempotencyKey(taskResult.taskId),
                 });
             }
         }
@@ -590,16 +681,10 @@ export async function finalizeWeekGrading(
                 reason: "FINISH_ALL_TASKS",
                 amount: FINISH_ALL_BONUS,
                 relatedEntityId: week.id,
+                idempotencyKey: `FINISH_ALL_TASKS:${input.studentId}:${week.id}`,
             });
         }
 
-        // If no halving applies, every component is written at its raw
-        // amount unchanged (this is the common case - resource ACCEPTED).
-        // Only when halving actually applies do we need to shrink the
-        // components so they sum to the halved total: give each
-        // component its own floor(amount/2), then hand any 1-point
-        // remainder (lost to flooring) to the last component, so the
-        // written components always sum to exactly `appliedPositive`.
         if (!wasHalvedDueToLateResource) {
             for (const component of positiveComponents) {
                 await applySTChange(
@@ -612,6 +697,7 @@ export async function finalizeWeekGrading(
                         amount: component.amount,
                         relatedEntityId: component.relatedEntityId,
                         wasHalvedDueToLateResource: false,
+                        idempotencyKey: component.idempotencyKey,
                     },
                     tx
                 );
@@ -635,6 +721,7 @@ export async function finalizeWeekGrading(
                             amount: scaledAmount,
                             relatedEntityId: component.relatedEntityId,
                             wasHalvedDueToLateResource: true,
+                            idempotencyKey: component.idempotencyKey,
                         },
                         tx
                     );
@@ -655,28 +742,29 @@ export async function finalizeWeekGrading(
                         amount: taskResult.penaltyPoints,
                         relatedEntityId: taskResult.taskId,
                         wasHalvedDueToLateResource: false,
+                        idempotencyKey: `TASK_NOT_SUBMITTED:${input.studentId}:${taskResult.taskId}`,
                     },
                     tx
                 );
             }
         }
+
+        const totalStDelta = appliedPositive - penaltySum;
+
+        const student = await tx.student.findUniqueOrThrow({
+            where: { id: input.studentId },
+            select: { beginnerSt: true },
+        });
+
+        return {
+            studentId: input.studentId,
+            weekId: week.id,
+            finalizedAt: now,
+            wasHalvedDueToLateResource,
+            taskResults,
+            finishAllBonusApplied,
+            totalStDelta,
+            beginnerStBalance: student.beginnerSt ?? 0,
+        };
     }, { timeout: 15000 });
-
-    const totalStDelta = appliedPositive - penaltySum;
-
-    const student = await prisma.student.findUniqueOrThrow({
-        where: { id: input.studentId },
-        select: { beginnerSt: true },
-    });
-
-    return {
-        studentId: input.studentId,
-        weekId: week.id,
-        finalizedAt: now,
-        wasHalvedDueToLateResource,
-        taskResults,
-        finishAllBonusApplied,
-        totalStDelta,
-        beginnerStBalance: student.beginnerSt ?? 0,
-    };
 }

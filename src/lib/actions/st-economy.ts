@@ -11,6 +11,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { requireRole } from "@/lib/auth/require-role";
 import { getCurrentStudentId } from "@/lib/auth/get-current-user";
 import { recordAttendance, recordSessionEngagement, gradeSubmission } from "@/lib/st-economy/instructor-events";
+import { confirmTaskFirstSolver } from "@/lib/submissions/first-solver";
 import { unlockHint } from "@/lib/st-economy/hint-unlock";
 import { reconcileStudentST } from "@/lib/st-economy/reconcile";
 import { getStudentSTHistory } from "@/lib/data/get-st-balance";
@@ -115,6 +116,28 @@ export async function gradeSubmissionAction(input: GradeSubmissionInput) {
         const graded = await gradeSubmission(input);
         revalidatePath("/instructor");
         return { success: true, data: graded };
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : "Unknown error occurred",
+        };
+    }
+}
+
+export async function confirmFirstSolverAction(input: {
+    taskId: string;
+    studentId: string;
+}) {
+    const user = await requireRole(["instructor"]);
+
+    try {
+        const result = await confirmTaskFirstSolver({
+            taskId: input.taskId,
+            studentId: input.studentId,
+            confirmedBy: user.id,
+        });
+        revalidatePath("/instructor");
+        return { success: true, data: result };
     } catch (error) {
         return {
             success: false,

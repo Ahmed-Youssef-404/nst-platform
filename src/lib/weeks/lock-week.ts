@@ -20,17 +20,28 @@ import {
     hasValidResourceSubmission,
     hasValidTaskSubmissionContent,
 } from "@/lib/weeks/resource-eligibility";
+import { lockRowsForUpdate } from "@/lib/submissions/first-solver";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
-const prisma = new PrismaClient({ adapter });
+const defaultPrisma = new PrismaClient({ adapter });
 
-export async function lockWeek(input: LockWeekInput): Promise<LockWeekResult> {
+export async function lockWeek(
+    input: LockWeekInput,
+    options?: {
+        prisma?: PrismaClient;
+        now?: () => Date;
+    }
+): Promise<LockWeekResult> {
+    const prisma = options?.prisma ?? defaultPrisma;
+    const getNow = options?.now ?? (() => new Date());
+
     // allowLocked: true so we can return a clear "already locked" message
     // below instead of the guard's generic one.
     const ctx = await assertStudentCanWriteInWeek(prisma, {
         studentId: input.studentId,
         weekId: input.weekId,
         allowLocked: true,
+        now: getNow(),
     });
 
     if (ctx.lockedAt) {
@@ -43,43 +54,28 @@ export async function lockWeek(input: LockWeekInput): Promise<LockWeekResult> {
         );
     }
 
-    // Condition 2: Every internal task in this week must be solved/submitted
-    const internalTasks = await prisma.task.findMany({
-        where: { weekId: input.weekId, type: "INTERNAL" },
-        select: { id: true, title: true },
-    });
-    const internalTaskIds = internalTasks.map((t) => t.id);
-
-    const existingSubmissions = await prisma.submission.findMany({
-        where: {
-            studentId: input.studentId,
-            taskId: { in: internalTaskIds },
-        },
-        select: {
-            id: true,
-            taskId: true,
-            status: true,
-            mode: true,
-            fileUrl: true,
-            externalLink: true,
-            textContent: true,
-        },
-    });
-
-    const validSubmissionTaskIds = new Set(
-        existingSubmissions
-            .filter((s) => hasValidTaskSubmissionContent(s))
-            .map((s) => s.taskId)
-    );
-
-    const unsolvedTasks = internalTasks.filter((t) => !validSubmissionTaskIds.has(t.id));
-    if (unsolvedTasks.length > 0) {
-        throw new Error(
-            `All tasks must be completed before locking this Week. Missing ${unsolvedTasks.length} task(s).`
-        );
-    }
-
     return prisma.$transaction(async (tx) => {
+        // Serialize against concurrent saveDraftSubmission / lockWeek calls.
+        await lockRowsForUpdate(tx, "students", [input.studentId]);
+
+        const lockedAt = getNow();
+        const txCtx = await assertStudentCanWriteInWeek(tx, {
+            studentId: input.studentId,
+            weekId: input.weekId,
+            allowLocked: true,
+            now: lockedAt,
+        });
+
+        if (txCtx.lockedAt) {
+            throw new Error("You have already locked this Week.");
+        }
+
+        if (!txCtx.hasResource) {
+            throw new Error(
+                "You must upload a deliverable file or submit a Google Drive link before locking this Week."
+            );
+        }
+
         // Re-check current resource inside transaction to prevent race conditions
         const currentResource = await tx.weekResourceSubmission.findUnique({
             where: {
@@ -107,23 +103,54 @@ export async function lockWeek(input: LockWeekInput): Promise<LockWeekResult> {
             );
         }
 
-        const drafts = await tx.submission.findMany({
+        // Condition 2: Every internal task in this week must be solved/submitted
+        const internalTasks = await tx.task.findMany({
+            where: { weekId: input.weekId, type: "INTERNAL" },
+            select: { id: true, title: true },
+        });
+        const internalTaskIds = internalTasks.map((t) => t.id);
+
+        const existingSubmissions = await tx.submission.findMany({
             where: {
                 studentId: input.studentId,
                 taskId: { in: internalTaskIds },
-                status: "DRAFT",
             },
-            select: { id: true, taskId: true },
+            select: {
+                id: true,
+                taskId: true,
+                status: true,
+                mode: true,
+                fileUrl: true,
+                externalLink: true,
+                textContent: true,
+            },
         });
 
+        const validSubmissionTaskIds = new Set(
+            existingSubmissions
+                .filter((s) => hasValidTaskSubmissionContent(s))
+                .map((s) => s.taskId)
+        );
+
+        const unsolvedTasks = internalTasks.filter(
+            (t) => !validSubmissionTaskIds.has(t.id)
+        );
+        if (unsolvedTasks.length > 0) {
+            throw new Error(
+                `All tasks must be completed before locking this Week. Missing ${unsolvedTasks.length} task(s).`
+            );
+        }
+
+        const drafts = existingSubmissions.filter((s) => s.status === "DRAFT");
+
         if (drafts.length > 0) {
+            // Note: lastSavedAt is intentionally untouched here; locking never
+            // counts as a student solution save.
             await tx.submission.updateMany({
                 where: { id: { in: drafts.map((d) => d.id) } },
                 data: { status: "SUBMITTED" },
             });
         }
-
-        const lockedAt = new Date();
 
         await tx.weekResourceSubmission.update({
             where: {

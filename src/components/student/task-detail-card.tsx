@@ -409,7 +409,7 @@ function SubmissionPanel({
                 <div className="rounded-xl border border-border/70 bg-space-900/70 p-4 space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-starlight-400 border-b border-border/50 pb-2">
                         <span>
-                            Submitted on {formatDateTime(submission.submittedAt)}
+                            Submitted on {formatDateTime(submission.lastSavedAt ?? submission.submittedAt)}
                         </span>
                         <span className="font-mono rounded-md bg-space-850 px-2 py-0.5 text-[11px] text-starlight-300 border border-border/60">
                             Mode: {submission.mode}

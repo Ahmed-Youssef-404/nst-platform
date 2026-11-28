@@ -483,6 +483,11 @@ model Submission {
   status SubmissionStatus @default(SUBMITTED)
 
   submittedAt DateTime @default(now()) @updatedAt
+  // Server timestamp of the student's last actual solution change
+  // successfully persisted (null for legacy pre-migration rows and
+  // synthetic EXTERNAL/placeholder rows). Never modified by locking,
+  // auto-submit, unchanged re-saves, or instructor grading.
+  lastSavedAt DateTime?
   isLocked    Boolean  @default(false) // بيتفعّل وقت التقييم، بيمنع أي resubmit بعد كده
 
   // Student-activity tracking (instructor "new activity" indicators).
@@ -513,6 +518,7 @@ model Submission {
   activityReview SubmissionActivityReview?
 
   @@unique([studentId, taskId])
+  @@index([taskId, lastSavedAt])
   @@map("submissions")
 }
 

@@ -35,14 +35,25 @@ import {
     CreateOrUpdateSubmissionInput,
     SubmissionResult,
 } from "@/types/types";
-import { buildActivityWrite } from "./task-activity";
+import {
+    buildActivityWrite,
+    hasSubmissionSolutionChanged,
+} from "./task-activity";
+import { lockRowsForUpdate } from "./first-solver";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
-const prisma = new PrismaClient({ adapter });
+const defaultPrisma = new PrismaClient({ adapter });
 
 export async function createOrUpdateSubmission(
-    input: CreateOrUpdateSubmissionInput
+    input: CreateOrUpdateSubmissionInput,
+    options?: {
+        prisma?: PrismaClient;
+        now?: () => Date;
+    }
 ): Promise<SubmissionResult> {
+    const prisma = options?.prisma ?? defaultPrisma;
+    const getNow = options?.now ?? (() => new Date());
+
     const task = await prisma.task.findUnique({
         where: { id: input.taskId },
         select: {
@@ -81,13 +92,6 @@ export async function createOrUpdateSubmission(
         );
     }
 
-    const now = new Date();
-    if (task.deadline <= now) {
-        throw new Error(
-            "The deadline for this Task has passed. Submissions are no longer accepted."
-        );
-    }
-
     if (task.allowedSubmissionMode && task.allowedSubmissionMode !== input.mode) {
         throw new Error(
             `This Task only accepts submissions of type ${task.allowedSubmissionMode}.`
@@ -95,21 +99,6 @@ export async function createOrUpdateSubmission(
     }
 
     validateContentForMode(input);
-
-    const existing = await prisma.submission.findUnique({
-        where: {
-            studentId_taskId: {
-                studentId: input.studentId,
-                taskId: input.taskId,
-            },
-        },
-    });
-
-    if (existing && existing.isLocked) {
-        throw new Error(
-            "This submission has already been graded and can no longer be changed."
-        );
-    }
 
     // Content columns not relevant to the chosen mode are explicitly reset
     // to null, so switching mode on a resubmit (e.g. LINK -> TEXT) never
@@ -120,36 +109,73 @@ export async function createOrUpdateSubmission(
         textContent: input.mode === "TEXT" ? input.textContent ?? null : null,
     };
 
-    // Bump the activity counter only for a meaningful change (a retry or a
-    // no-op resubmit of identical content must not create new "activity").
-    const activity = buildActivityWrite(existing, {
-        mode: input.mode,
-        ...contentData,
-    });
+    return prisma.$transaction(async (tx) => {
+        // Serialize concurrent submissions/resubmissions for this student.
+        await lockRowsForUpdate(tx, "students", [input.studentId]);
 
-    const submission = await prisma.submission.upsert({
-        where: {
-            studentId_taskId: {
+        const now = getNow();
+        if (task.deadline <= now) {
+            throw new Error(
+                "The deadline for this Task has passed. Submissions are no longer accepted."
+            );
+        }
+
+        const existing = await tx.submission.findUnique({
+            where: {
+                studentId_taskId: {
+                    studentId: input.studentId,
+                    taskId: input.taskId,
+                },
+            },
+        });
+
+        if (existing && existing.isLocked) {
+            throw new Error(
+                "This submission has already been graded and can no longer be changed."
+            );
+        }
+
+        const nextSnapshot = {
+            mode: input.mode,
+            ...contentData,
+        };
+
+        // No-op resubmit: skip the DB write entirely so lastSavedAt,
+        // submittedAt (@updatedAt), and activityVersion stay untouched.
+        if (existing && !hasSubmissionSolutionChanged(existing, nextSnapshot)) {
+            return existing as unknown as SubmissionResult;
+        }
+
+        // Bump the activity counter and update server-generated lastSavedAt
+        // only when the persisted student solution actually changed.
+        const activity = buildActivityWrite(existing, nextSnapshot);
+
+        const submission = await tx.submission.upsert({
+            where: {
+                studentId_taskId: {
+                    studentId: input.studentId,
+                    taskId: input.taskId,
+                },
+            },
+            create: {
                 studentId: input.studentId,
                 taskId: input.taskId,
+                mode: input.mode,
+                lastSavedAt: now,
+                ...contentData,
+                ...activity.create,
             },
-        },
-        create: {
-            studentId: input.studentId,
-            taskId: input.taskId,
-            mode: input.mode,
-            ...contentData,
-            ...activity.create,
-        },
-        update: {
-            mode: input.mode,
-            ...contentData,
-            ...activity.update,
-            // submittedAt auto-refreshes via @updatedAt in the schema
-        },
-    });
+            update: {
+                mode: input.mode,
+                lastSavedAt: now,
+                ...contentData,
+                ...activity.update,
+                // submittedAt auto-refreshes via @updatedAt in the schema
+            },
+        });
 
-    return submission as unknown as SubmissionResult;
+        return submission as unknown as SubmissionResult;
+    });
 }
 
 function validateContentForMode(input: CreateOrUpdateSubmissionInput) {

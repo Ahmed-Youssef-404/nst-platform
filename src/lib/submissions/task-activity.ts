@@ -19,16 +19,37 @@ export interface SubmissionContentSnapshot {
     textContent: string | null;
 }
 
-function normalizeText(value: string | null | undefined): string {
+export function normalizeSubmissionText(value: string | null | undefined): string {
     return (value ?? "").replace(/\r\n/g, "\n").trim();
+}
+
+// Did this save meaningfully change the persisted student solution across all
+// solution fields (mode, fileUrl, externalLink, textContent)?
+// Used as the authoritative check for updating Submission.lastSavedAt.
+// Preserves isMeaningfulSubmissionChange below for activityVersion tracking.
+export function hasSubmissionSolutionChanged(
+    existing: SubmissionContentSnapshot | null,
+    next: SubmissionContentSnapshot
+): boolean {
+    if (!existing) return true;
+    if (existing.mode !== next.mode) return true;
+
+    return (
+        normalizeSubmissionText(existing.fileUrl) !==
+            normalizeSubmissionText(next.fileUrl) ||
+        normalizeSubmissionText(existing.externalLink) !==
+            normalizeSubmissionText(next.externalLink) ||
+        normalizeSubmissionText(existing.textContent) !==
+            normalizeSubmissionText(next.textContent)
+    );
 }
 
 // Did this write change the persisted answer in a way an Instructor
 // should care about?
 //   - first write for the (student, task)            -> yes
-//   - FILE: every completed upload counts. The storage path is reused on
-//     re-upload (same path => same fileUrl), so a changed file can't be
-//     detected by comparing columns; the persisted upload IS the activity.
+//   - FILE: every completed upload counts. The storage path may be reused on
+//     re-upload, so a changed file can't always be detected by comparing
+//     columns; the persisted upload IS the activity.
 //   - mode switched (e.g. LINK -> TEXT)               -> yes
 //   - LINK / TEXT: only if the content differs, ignoring surrounding
 //     whitespace and CRLF-vs-LF differences          -> otherwise no-op
@@ -41,10 +62,16 @@ export function isMeaningfulSubmissionChange(
     if (existing.mode !== next.mode) return true;
 
     if (next.mode === "LINK") {
-        return normalizeText(existing.externalLink) !== normalizeText(next.externalLink);
+        return (
+            normalizeSubmissionText(existing.externalLink) !==
+            normalizeSubmissionText(next.externalLink)
+        );
     }
     if (next.mode === "TEXT") {
-        return normalizeText(existing.textContent) !== normalizeText(next.textContent);
+        return (
+            normalizeSubmissionText(existing.textContent) !==
+            normalizeSubmissionText(next.textContent)
+        );
     }
     return true;
 }

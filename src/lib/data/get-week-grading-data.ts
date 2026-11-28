@@ -56,6 +56,7 @@ export interface StudentTaskGradingData {
         instructorComment: string | null;
         status: "DRAFT" | "SUBMITTED";
         submittedAt: Date;
+        lastSavedAt: Date | null;
         // Student-activity tracking (shared across the Group's instructors).
         // `activityVersion` is the version this payload shows; the review
         // action acknowledges exactly that version.
@@ -232,6 +233,7 @@ export async function getWeekGradingData(
                         instructorComment: sub.instructorComment ?? null,
                         status: sub.status,
                         submittedAt: sub.submittedAt,
+                        lastSavedAt: sub.lastSavedAt,
                         activityVersion: sub.activityVersion,
                         hasNewActivity: isTaskActivityUnreviewed({
                             activityVersion: sub.activityVersion,

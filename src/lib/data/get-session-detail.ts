@@ -8,12 +8,14 @@
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { isTaskActivityUnreviewed } from "@/lib/submissions/task-activity";
+import { computeTaskFirstSolverSuggestions } from "@/lib/submissions/first-solver";
 import { computeSessionStatus, type SessionStatus } from "./get-my-groups";
 import type {
     TaskTypeCode,
     SubmissionModeCode,
     SessionFeedbackDetail,
     SessionFeedbackStats,
+    FirstSolverSuggestion,
 } from "@/types/types";
 import type { StudentAvatarConfig } from "@/types/avatar";
 import {
@@ -67,6 +69,7 @@ export interface SessionDetailSubmission {
         externalLink: string | null;
         textContent: string | null;
         submittedAt: Date;
+        lastSavedAt: Date | null;
         isLocked: boolean;
         isGraded: boolean;
         understandingScore: number | null;
@@ -108,6 +111,8 @@ export interface SessionDetailTask {
     allowedSubmissionMode: SubmissionModeCode | null;
     hints: SessionDetailHint[];
     rubricFields: SessionDetailRubricField[];
+    // First Solver ranking & suggestion (INTERNAL tasks only, null for EXTERNAL).
+    firstSolver: FirstSolverSuggestion | null;
     // Only populated for INTERNAL tasks - EXTERNAL tasks have no submissions.
     submissions: SessionDetailSubmission[];
 }
@@ -217,8 +222,9 @@ export async function getSessionDetail(
 
     // Existing Attendance rows for this Session (one per student max,
     // enforced by the unique constraint), SESSION_ENGAGEMENT
-    // transactions already recorded for it, and all SessionFeedback rows.
-    const [attendanceRows, engagementTransactions, feedbackRows] = await Promise.all([
+    // transactions already recorded for it, all SessionFeedback rows,
+    // and unified First Solver suggestions for INTERNAL tasks.
+    const [attendanceRows, engagementTransactions, feedbackRows, firstSolverSuggestions] = await Promise.all([
         prisma.attendance.findMany({
             where: { sessionId },
             select: { studentId: true, status: true },
@@ -234,7 +240,20 @@ export async function getSessionDetail(
             },
             orderBy: { createdAt: "desc" },
         }),
+        computeTaskFirstSolverSuggestions(prisma, {
+            track: "INTERMEDIATE",
+            groupId: session.level.groupId,
+            tasks: session.tasks.map((t) => ({
+                id: t.id,
+                title: t.title,
+                type: t.type,
+                closesAt: t.deadline,
+            })),
+        }),
     ]);
+    const firstSolverByTaskId = new Map(
+        firstSolverSuggestions.map((s) => [s.taskId, s])
+    );
     const attendanceByStudent = new Map(
         attendanceRows.map((a) => [a.studentId, a.status])
     );
@@ -326,6 +345,10 @@ export async function getSessionDetail(
                 maxPoints: rf.maxPoints,
                 order: rf.order,
             })),
+            firstSolver:
+                task.type === "INTERNAL"
+                    ? (firstSolverByTaskId.get(task.id) ?? null)
+                    : null,
             submissions:
                 task.type === "INTERNAL"
                     ? groupStudents.map((student) => {
@@ -349,6 +372,7 @@ export async function getSessionDetail(
                                     externalLink: submission.externalLink,
                                     textContent: submission.textContent,
                                     submittedAt: submission.submittedAt,
+                                    lastSavedAt: submission.lastSavedAt,
                                     isLocked: submission.isLocked,
                                     isGraded: !!submission.gradedAt,
                                     understandingScore: submission.understandingScore,

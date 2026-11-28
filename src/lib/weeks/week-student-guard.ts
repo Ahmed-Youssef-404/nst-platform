@@ -40,6 +40,7 @@ export async function assertStudentCanWriteInWeek(
         studentId: string;
         weekId: string;
         allowLocked?: boolean;
+        now?: Date;
     }
 ): Promise<StudentWeekContext> {
     const { studentId, weekId, allowLocked = false } = params;
@@ -72,7 +73,7 @@ export async function assertStudentCanWriteInWeek(
         throw new Error("This Week does not belong to your Group.");
     }
 
-    const now = new Date();
+    const now = params.now ?? new Date();
 
     if (now < week.startDate) {
         throw new Error("This Week has not started yet.");

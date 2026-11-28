@@ -314,6 +314,7 @@ export interface SubmissionResult {
     externalLink: string | null;
     textContent: string | null;
     submittedAt: Date;
+    lastSavedAt: Date | null;
     isLocked: boolean;
 }
 
@@ -529,6 +530,7 @@ export interface DraftSubmissionResult {
     textContent: string | null;
     status: SubmissionStatusCode;
     submittedAt: Date;
+    lastSavedAt: Date | null;
 }
 
 export interface UploadWeekResourceInput {
@@ -620,20 +622,47 @@ export interface DraftGradeResult {
 }
 
 // Read-only suggestion, never auto-applied - the Instructor must
-// explicitly confirm via finalizeWeekGrading's `firstSolverTaskIds`.
+// explicitly confirm First Solver after reviewing the candidate's solution.
 export interface FirstSolverSuggestionInput {
     weekId: string;
 }
 
+export type FirstSolverStatusCode =
+    | "PENDING_CLOSE"
+    | "CANDIDATE"
+    | "NO_CANDIDATE"
+    | "AWARDED";
+
 export interface FirstSolverSuggestion {
     taskId: string;
     taskTitle: string;
-    // studentId of the earliest manual-lock submitter for this Task, or
-    // null if no student has manually locked with a submission for it yet
-    // (auto-submitted-at-endDate submissions are never eligible).
+    status: FirstSolverStatusCode;
+    isClosed: boolean;
+    closesAt: Date;
+    // studentId of the earliest valid eligible candidate for this Task, or
+    // null when pending close, already awarded, or no eligible candidates remain.
     suggestedStudentId: string | null;
     suggestedStudentName: string | null;
+    // Backward-compatible alias for lastSavedAt of the suggested candidate.
     submittedAt: Date | null;
+    lastSavedAt: Date | null;
+    awardedStudentId: string | null;
+    awardedStudentName: string | null;
+    excludedInvalidCount: number;
+}
+
+export interface ConfirmFirstSolverInput {
+    taskId: string;
+    studentId: string;
+    confirmedBy: string;
+}
+
+export interface ConfirmFirstSolverResult {
+    taskId: string;
+    studentId: string;
+    track: GroupTypeCode;
+    awardedAmount: number;
+    wasHalvedDueToLateResource: boolean;
 }
 
 export interface FinalizeWeekGradingInput {
