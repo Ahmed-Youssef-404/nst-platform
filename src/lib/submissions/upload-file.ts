@@ -154,32 +154,101 @@ export async function uploadSubmissionFile(
 }
 
 /**
+ * Extracts a Supabase Storage object path inside the `"submissions"` bucket from
+ * either a persisted relative path (`{taskId}/{studentId}/...`) or a Supabase
+ * Storage URL. Returns null for external links, other buckets, `week-resources/`,
+ * or invalid paths so unrelated objects are never targeted.
+ */
+export function extractSubmissionStoragePath(
+    fileUrl: string | null | undefined
+): string | null {
+    const trimmed = fileUrl?.trim();
+    if (!trimmed) {
+        return null;
+    }
+
+    let candidate = trimmed;
+
+    if (/^https?:\/\//i.test(trimmed)) {
+        try {
+            const parsed = new URL(trimmed);
+            const match =
+                /\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/]+)\/(.+)$/.exec(
+                    parsed.pathname
+                );
+            if (!match || match[1] !== BUCKET_NAME) {
+                return null;
+            }
+            candidate = decodeURIComponent(match[2]);
+        } catch {
+            return null;
+        }
+    }
+
+    candidate = candidate.replace(/^\/+/, "");
+    if (candidate.startsWith(`${BUCKET_NAME}/`)) {
+        candidate = candidate.slice(BUCKET_NAME.length + 1);
+    }
+
+    if (
+        !candidate ||
+        candidate.startsWith("week-resources/") ||
+        candidate.includes("..")
+    ) {
+        return null;
+    }
+
+    return candidate;
+}
+
+/**
  * Safely deletes a superseded submission file from Supabase Storage ONLY AFTER
  * the database transaction committing the new submission has succeeded.
  * Refuses to delete if the old path matches the new path, belongs to week
- * deliverables, or is still referenced by any submission/resource row.
+ * deliverables or another student/task, or is still referenced elsewhere.
  * Never throws so cleanup failures cannot fail or reverse a committed save.
  */
 export async function cleanupUnusedSubmissionFile(params: {
     prisma: Pick<PrismaClient, "submission" | "weekResourceSubmission">;
     oldFileUrl: string | null | undefined;
     newFileUrl: string | null | undefined;
+    taskId?: string;
+    studentId?: string;
     deleteFile?: (path: string) => Promise<void>;
 }): Promise<boolean> {
-    const { prisma, oldFileUrl, newFileUrl, deleteFile } = params;
+    const { prisma, oldFileUrl, newFileUrl, taskId, studentId, deleteFile } =
+        params;
 
-    if (!oldFileUrl || oldFileUrl === newFileUrl) {
+    const oldStoragePath = extractSubmissionStoragePath(oldFileUrl);
+    if (!oldStoragePath) {
         return false;
     }
 
-    if (oldFileUrl.startsWith("week-resources/")) {
+    const newStoragePath = extractSubmissionStoragePath(newFileUrl);
+    if (oldStoragePath === newStoragePath) {
         return false;
     }
+
+    if (
+        taskId &&
+        studentId &&
+        !oldStoragePath.startsWith(`${taskId}/${studentId}/`)
+    ) {
+        return false;
+    }
+
+    const refCandidates = Array.from(
+        new Set([oldFileUrl!.trim(), oldStoragePath])
+    );
 
     try {
         const [submissionRefs, resourceRefs] = await Promise.all([
-            prisma.submission.count({ where: { fileUrl: oldFileUrl } }),
-            prisma.weekResourceSubmission.count({ where: { fileUrl: oldFileUrl } }),
+            prisma.submission.count({
+                where: { fileUrl: { in: refCandidates } },
+            }),
+            prisma.weekResourceSubmission.count({
+                where: { fileUrl: { in: refCandidates } },
+            }),
         ]);
 
         if (submissionRefs > 0 || resourceRefs > 0) {
@@ -187,7 +256,7 @@ export async function cleanupUnusedSubmissionFile(params: {
         }
 
         if (deleteFile) {
-            await deleteFile(oldFileUrl);
+            await deleteFile(oldStoragePath);
             return true;
         }
 
@@ -201,11 +270,11 @@ export async function cleanupUnusedSubmissionFile(params: {
         const supabase = await createClient();
         const { error } = await supabase.storage
             .from(BUCKET_NAME)
-            .remove([oldFileUrl]);
+            .remove([oldStoragePath]);
 
         if (error) {
             console.warn(
-                `Failed to clean up superseded submission file "${oldFileUrl}": ${error.message}`
+                `Failed to delete superseded submission file (bucket="${BUCKET_NAME}", path="${oldStoragePath}", taskId="${taskId ?? ""}", studentId="${studentId ?? ""}"): ${error.message}`
             );
             return false;
         }
@@ -213,7 +282,7 @@ export async function cleanupUnusedSubmissionFile(params: {
         return true;
     } catch (error) {
         console.warn(
-            `Failed to clean up superseded submission file "${oldFileUrl}":`,
+            `Failed to delete superseded submission file (bucket="${BUCKET_NAME}", path="${oldStoragePath}", taskId="${taskId ?? ""}", studentId="${studentId ?? ""}"):`,
             error instanceof Error ? error.message : error
         );
         return false;

@@ -28,6 +28,7 @@ import { gradeSubmission } from "@/lib/st-economy/instructor-events";
 import {
     uploadSubmissionFile,
     cleanupUnusedSubmissionFile,
+    extractSubmissionStoragePath,
     withSubmissionUploadLock,
 } from "@/lib/submissions/upload-file";
 
@@ -473,17 +474,28 @@ class InMemoryPrisma {
                     }
                     return { ...row };
                 },
-                count: async ({ where }: { where?: { fileUrl?: string } }) => {
-                    return Array.from(getStore().weekResources.values()).filter(
-                        (r) => !where?.fileUrl || r.fileUrl === where.fileUrl
-                    ).length;
+                count: async ({ where }: { where?: { fileUrl?: string | { in: string[] } } }) => {
+                    return Array.from(getStore().weekResources.values()).filter((r) => {
+                        if (!where?.fileUrl) return true;
+                        if (typeof where.fileUrl === "string") return r.fileUrl === where.fileUrl;
+                        return r.fileUrl !== null && where.fileUrl.in.includes(r.fileUrl);
+                    }).length;
                 },
             },
             submission: {
                 count: async ({ where }: { where?: Record<string, unknown> }) => {
                     return Array.from(getStore().submissions.values()).filter((r) => {
-                        if (where?.fileUrl !== undefined && r.fileUrl !== where.fileUrl) {
-                            return false;
+                        if (where?.fileUrl !== undefined) {
+                            if (typeof where.fileUrl === "string") {
+                                if (r.fileUrl !== where.fileUrl) return false;
+                            } else if (
+                                typeof where.fileUrl === "object" &&
+                                where.fileUrl !== null &&
+                                "in" in where.fileUrl
+                            ) {
+                                const allowed = (where.fileUrl as { in: string[] }).in;
+                                if (!r.fileUrl || !allowed.includes(r.fileUrl)) return false;
+                            }
                         }
                         return matchSubmissionWhere(r, where);
                     }).length;
@@ -2470,6 +2482,86 @@ async function runTests() {
         [finalConcBegSub.fileUrl],
         "BEGINNER student must have at most ONE active file for the task in Storage"
     );
+
+    // Storage path extraction & safety guardrails (path vs URL, other student/task, missing object)
+    assert.strictEqual(
+        extractSubmissionStoragePath("t1/s1/submission-abc.pdf"),
+        "t1/s1/submission-abc.pdf"
+    );
+    assert.strictEqual(
+        extractSubmissionStoragePath("https://proj.supabase.co/storage/v1/object/sign/submissions/t1/s1/submission-abc.pdf?token=xyz"),
+        "t1/s1/submission-abc.pdf"
+    );
+    assert.strictEqual(
+        extractSubmissionStoragePath("https://proj.supabase.co/storage/v1/object/public/submissions/t1/s1/submission.pdf"),
+        "t1/s1/submission.pdf"
+    );
+    assert.strictEqual(
+        extractSubmissionStoragePath("https://drive.google.com/file/d/123/view"),
+        null,
+        "External URLs must not map to storage object paths"
+    );
+    assert.strictEqual(
+        extractSubmissionStoragePath("week-resources/w1/s1/resource.pdf"),
+        null,
+        "Week resource paths must never be targeted by submission cleanup"
+    );
+    assert.strictEqual(
+        extractSubmissionStoragePath("t1/s1/../../other/secret.pdf"),
+        null,
+        "Path traversal must be rejected"
+    );
+
+    // Failed new upload leaves existing submission & old Storage object untouched
+    storageDeleteLog.length = 0;
+    await assert.rejects(
+        () =>
+            withSubmissionUploadLock("ctask-files", "istu-1", async () => {
+                const uploadedPath = await uploadSubmissionFile(
+                    { taskId: "ctask-files", studentId: "istu-1", file: pdfV1 },
+                    {
+                        uploadObject: async () => {
+                            throw new Error("Simulated upload failure");
+                        },
+                    }
+                );
+                return createOrUpdateSubmission(
+                    { studentId: "istu-1", taskId: "ctask-files", mode: "FILE", fileUrl: uploadedPath },
+                    { prisma, now: nowFn, deleteFile: mockDeleteFile }
+                );
+            }),
+        /Simulated upload failure/
+    );
+    assert.strictEqual(storageObjects.has(intPath3), true, "Failed upload must keep old file in Storage");
+    assert.deepStrictEqual(storageDeleteLog, []);
+
+    // Folder isolation: cleanup scoped to (ctask-files, istu-1) refuses deleting another student's/task's file
+    const otherStudentFile = "ctask-files/other-stu/submission-other.pdf";
+    storageObjects.set(otherStudentFile, { buffer: Buffer.from("other"), contentType: "application/pdf" });
+    const blockedOtherFolderDelete = await cleanupUnusedSubmissionFile({
+        prisma,
+        oldFileUrl: otherStudentFile,
+        newFileUrl: "ctask-files/istu-1/submission-new.pdf",
+        taskId: "ctask-files",
+        studentId: "istu-1",
+        deleteFile: mockDeleteFile,
+    });
+    assert.strictEqual(blockedOtherFolderDelete, false, "Must never delete another student's file");
+    assert.strictEqual(storageObjects.has(otherStudentFile), true);
+
+    // Supabase Storage URL-formatted oldFileUrl extracts exact object key & removes it safely (even if already missing)
+    const deletedViaUrl = await cleanupUnusedSubmissionFile({
+        prisma,
+        oldFileUrl: "https://proj.supabase.co/storage/v1/object/sign/submissions/ctask-files/istu-1/submission-missing.pdf?token=abc",
+        newFileUrl: "ctask-files/istu-1/submission-new.pdf",
+        taskId: "ctask-files",
+        studentId: "istu-1",
+        deleteFile: async (path) => {
+            assert.strictEqual(path, "ctask-files/istu-1/submission-missing.pdf");
+            storageObjects.delete(path); // safe even when object is already missing
+        },
+    });
+    assert.strictEqual(deletedViaUrl, true);
 
     console.log("✔ Safe Storage file replacement, reference preservation, and concurrent ABA safety verified.");
     console.log("\n🎉 ALL UNIFIED FIRST SOLVER & STORAGE REPLACEMENT TESTS PASSED!");

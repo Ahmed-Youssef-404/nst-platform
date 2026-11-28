@@ -249,6 +249,8 @@ export async function createOrUpdateSubmission(
                 prisma,
                 oldFileUrl: txResult.previousFileUrl,
                 newFileUrl: txResult.submission.fileUrl,
+                taskId: input.taskId,
+                studentId: input.studentId,
                 deleteFile: options?.deleteFile,
             });
         }
