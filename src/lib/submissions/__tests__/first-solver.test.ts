@@ -25,6 +25,11 @@ import {
 } from "@/lib/weeks/grade-week";
 import { createOrUpdateSubmission } from "@/lib/submissions/create-submission";
 import { gradeSubmission } from "@/lib/st-economy/instructor-events";
+import {
+    uploadSubmissionFile,
+    cleanupUnusedSubmissionFile,
+    withSubmissionUploadLock,
+} from "@/lib/submissions/upload-file";
 
 // ============================================================================
 // In-Memory Transactional Prisma Double (zero external DB connection)
@@ -2133,63 +2138,341 @@ async function runTests() {
         }
     }
 
-    // 4.5 FILE submission replacement & safe no-deletion preservation
-    const fileTaskDeadline = new Date("2026-11-30T20:00:00Z");
+    // 4.5 Safe Replaced Submission File Deletion (BEGINNER & INTERMEDIATE)
+    console.log("5. Testing safe Supabase Storage file replacement & deletion (BEGINNER & INTERMEDIATE)...");
+
+    const storageObjects = new Map<string, { buffer: Buffer; contentType: string }>();
+    const storageUploadLog: string[] = [];
+    const storageDeleteLog: string[] = [];
+
+    const mockUploadObject = async (path: string, buffer: Buffer, contentType: string) => {
+        storageUploadLog.push(path);
+        storageObjects.set(path, { buffer, contentType });
+    };
+    const mockDeleteFile = async (path: string) => {
+        storageDeleteLog.push(path);
+        storageObjects.delete(path);
+    };
+
+    const fileIntDeadline = new Date("2026-11-30T20:00:00Z");
     db.store.tasks.set("ctask-files", {
         id: "ctask-files",
-        title: "File Replacement Task",
+        title: "Intermediate File Replacement Task",
         type: "INTERNAL",
-        deadline: fileTaskDeadline,
+        deadline: fileIntDeadline,
         isBonus: false,
         weekId: null,
         sessionId: "sess-1",
+        allowedSubmissionMode: "FILE",
+        createdAt: new Date("2026-11-26T08:00:00Z"),
+    });
+
+    const fileBegEnd = new Date("2026-11-30T20:00:00Z");
+    db.store.weeks.set("week-files", {
+        id: "week-files",
+        groupId: "grp-beg",
+        startDate: new Date("2026-11-25T09:00:00Z"),
+        endDate: fileBegEnd,
+    });
+    db.store.tasks.set("btask-files", {
+        id: "btask-files",
+        title: "Beginner File Replacement Task",
+        type: "INTERNAL",
+        deadline: fileBegEnd,
+        isBonus: false,
+        weekId: "week-files",
+        sessionId: null,
         allowedSubmissionMode: null,
         createdAt: new Date("2026-11-26T08:00:00Z"),
     });
 
+    const pdfV1 = new File([Buffer.from("%PDF-1.4 version one solution")], "v1.pdf", { type: "application/pdf" });
+    const pdfV1Clone = new File([Buffer.from("%PDF-1.4 version one solution")], "v1-copy.pdf", { type: "application/pdf" });
+    const pdfV2 = new File([Buffer.from("%PDF-1.4 version two improved solution")], "v2.pdf", { type: "application/pdf" });
+    const zipV3 = new File([Buffer.from("PK\x03\x04 version three archive")], "v3.zip", { type: "application/zip" });
+
+    // (1) First file upload works (INTERMEDIATE & BEGINNER)
     currentTime = new Date("2026-11-26T10:00:00Z");
-    const f1 = await createOrUpdateSubmission(
-        { studentId: "istu-1", taskId: "ctask-files", mode: "FILE", fileUrl: "ctask-files/istu-1/submission-hash1.pdf" },
-        { prisma, now: nowFn }
+    const intPath1 = await uploadSubmissionFile(
+        { taskId: "ctask-files", studentId: "istu-1", file: pdfV1 },
+        { uploadObject: mockUploadObject }
     );
-    assert.strictEqual(f1.lastSavedAt?.toISOString(), "2026-11-26T10:00:00.000Z");
+    const intSub1 = await createOrUpdateSubmission(
+        { studentId: "istu-1", taskId: "ctask-files", mode: "FILE", fileUrl: intPath1 },
+        { prisma, now: nowFn, deleteFile: mockDeleteFile }
+    );
+    assert.strictEqual(intSub1.fileUrl, intPath1);
+    assert.strictEqual(intSub1.lastSavedAt?.toISOString(), "2026-11-26T10:00:00.000Z");
+    assert.strictEqual(storageObjects.has(intPath1), true);
+    assert.deepStrictEqual(storageDeleteLog, []);
 
-    // Same-content upload -> no DB write, lastSavedAt unchanged
-    const writesBeforeSameFile = db.submissionWriteCount;
+    const begPath1 = await uploadSubmissionFile(
+        { taskId: "btask-files", studentId: "stu-1", file: pdfV1 },
+        { uploadObject: mockUploadObject }
+    );
+    const begSub1 = await saveDraftSubmission(
+        { studentId: "stu-1", taskId: "btask-files", mode: "FILE", fileUrl: begPath1 },
+        { prisma, now: nowFn, deleteFile: mockDeleteFile }
+    );
+    assert.strictEqual(begSub1.fileUrl, begPath1);
+    assert.strictEqual(storageObjects.has(begPath1), true);
+    assert.deepStrictEqual(storageDeleteLog, []);
+
+    // (4) Exact same file re-upload reuses same path, skips DB write, and does NOT delete
+    const writesBeforeSame = db.submissionWriteCount;
     currentTime = new Date("2026-11-26T10:05:00Z");
-    const f2 = await createOrUpdateSubmission(
-        { studentId: "istu-1", taskId: "ctask-files", mode: "FILE", fileUrl: "ctask-files/istu-1/submission-hash1.pdf" },
-        { prisma, now: nowFn }
+    const intPath1Again = await uploadSubmissionFile(
+        { taskId: "ctask-files", studentId: "istu-1", file: pdfV1Clone },
+        { uploadObject: mockUploadObject }
     );
-    assert.strictEqual(db.submissionWriteCount, writesBeforeSameFile);
-    assert.strictEqual(f2.lastSavedAt?.toISOString(), "2026-11-26T10:00:00.000Z");
+    assert.strictEqual(intPath1Again, intPath1, "Same file content must produce identical path");
+    const intSubSame = await createOrUpdateSubmission(
+        { studentId: "istu-1", taskId: "ctask-files", mode: "FILE", fileUrl: intPath1Again },
+        { prisma, now: nowFn, deleteFile: mockDeleteFile }
+    );
+    assert.strictEqual(db.submissionWriteCount, writesBeforeSame, "No DB write for identical file");
+    assert.strictEqual(intSubSame.lastSavedAt?.toISOString(), "2026-11-26T10:00:00.000Z");
+    assert.strictEqual(storageObjects.has(intPath1), true);
+    assert.deepStrictEqual(storageDeleteLog, []);
 
-    // Replaced with different file -> updates fileUrl and lastSavedAt
+    const taskFilesInStorage = (tId: string, sId: string) =>
+        Array.from(storageObjects.keys()).filter((k) => k.startsWith(`${tId}/${sId}/`));
+
+    // (2 & 3) Replacing file updates DB, deletes old file, and preserves new file in both tracks
     currentTime = new Date("2026-11-26T10:10:00Z");
-    const f3 = await createOrUpdateSubmission(
-        { studentId: "istu-1", taskId: "ctask-files", mode: "FILE", fileUrl: "ctask-files/istu-1/submission-hash2.pdf" },
-        { prisma, now: nowFn }
+    const intPath2 = await uploadSubmissionFile(
+        { taskId: "ctask-files", studentId: "istu-1", file: pdfV2 },
+        { uploadObject: mockUploadObject }
     );
-    assert.strictEqual(f3.fileUrl, "ctask-files/istu-1/submission-hash2.pdf");
-    assert.strictEqual(f3.lastSavedAt?.toISOString(), "2026-11-26T10:10:00.000Z");
+    assert.notStrictEqual(intPath2, intPath1);
+    const intSub2 = await createOrUpdateSubmission(
+        { studentId: "istu-1", taskId: "ctask-files", mode: "FILE", fileUrl: intPath2 },
+        { prisma, now: nowFn, deleteFile: mockDeleteFile }
+    );
+    assert.strictEqual(intSub2.fileUrl, intPath2);
+    assert.strictEqual(intSub2.lastSavedAt?.toISOString(), "2026-11-26T10:10:00.000Z");
+    assert.strictEqual(storageObjects.has(intPath1), false, "INTERMEDIATE old file must be deleted");
+    assert.strictEqual(storageObjects.has(intPath2), true, "INTERMEDIATE new file must remain available");
+    assert.deepStrictEqual(taskFilesInStorage("ctask-files", "istu-1"), [intPath2]);
 
-    // Failed DB update after deadline preserves existing submission & fileUrl
+    const begPath2 = await uploadSubmissionFile(
+        { taskId: "btask-files", studentId: "stu-1", file: pdfV2 },
+        { uploadObject: mockUploadObject }
+    );
+    const begSub2 = await saveDraftSubmission(
+        { studentId: "stu-1", taskId: "btask-files", mode: "FILE", fileUrl: begPath2 },
+        { prisma, now: nowFn, deleteFile: mockDeleteFile }
+    );
+    assert.strictEqual(begSub2.fileUrl, begPath2);
+    assert.strictEqual(storageObjects.has(begPath1), false, "BEGINNER old file must be deleted");
+    assert.strictEqual(storageObjects.has(begPath2), true, "BEGINNER new file must remain available");
+    assert.deepStrictEqual(taskFilesInStorage("btask-files", "stu-1"), [begPath2]);
+
+    // Switching BEGINNER mode FILE -> TEXT also deletes the unreferenced file
+    currentTime = new Date("2026-11-26T10:12:00Z");
+    const begTextSwitch = await saveDraftSubmission(
+        { studentId: "stu-1", taskId: "btask-files", mode: "TEXT", textContent: "switched to text answer" },
+        { prisma, now: nowFn, deleteFile: mockDeleteFile }
+    );
+    assert.strictEqual(begTextSwitch.fileUrl, null);
+    assert.strictEqual(storageObjects.has(begPath2), false, "Old file must be deleted when switching mode away from FILE");
+    assert.deepStrictEqual(taskFilesInStorage("btask-files", "stu-1"), []);
+
+    // (6) Storage deletion failure does NOT break a committed submission update
+    currentTime = new Date("2026-11-26T10:15:00Z");
+    const intPath3 = await uploadSubmissionFile(
+        { taskId: "ctask-files", studentId: "istu-1", file: zipV3 },
+        { uploadObject: mockUploadObject }
+    );
+    const savedDespiteDeleteErr = await createOrUpdateSubmission(
+        { studentId: "istu-1", taskId: "ctask-files", mode: "FILE", fileUrl: intPath3 },
+        {
+            prisma,
+            now: nowFn,
+            deleteFile: async () => {
+                throw new Error("Simulated Supabase Storage transient failure");
+            },
+        }
+    );
+    assert.strictEqual(savedDespiteDeleteErr.fileUrl, intPath3);
+    assert.strictEqual(savedDespiteDeleteErr.lastSavedAt?.toISOString(), "2026-11-26T10:15:00.000Z");
+    assert.strictEqual(storageObjects.has(intPath3), true);
+    // Clean up intPath2 for clean state in subsequent count check
+    await mockDeleteFile(intPath2);
+
+    // (7) Old file still referenced by another submission (or weekResourceSubmission) is NEVER deleted
+    const sharedPath = "ctask-files/shared/submission-shared123.pdf";
+    storageObjects.set(sharedPath, { buffer: Buffer.from("shared"), contentType: "application/pdf" });
+    await createOrUpdateSubmission(
+        { studentId: "istu-2", taskId: "ctask-files", mode: "FILE", fileUrl: sharedPath },
+        { prisma, now: nowFn, deleteFile: mockDeleteFile }
+    );
+    const blockedSharedSubmissionDelete = await cleanupUnusedSubmissionFile({
+        prisma,
+        oldFileUrl: sharedPath,
+        newFileUrl: "ctask-files/other/submission-new.pdf",
+        deleteFile: mockDeleteFile,
+    });
+    assert.strictEqual(blockedSharedSubmissionDelete, false, "Must never delete file still referenced by a submission");
+    assert.strictEqual(storageObjects.has(sharedPath), true);
+
+    const resourceRefPath = "ctask-files/stu-ref/submission-resref.pdf";
+    storageObjects.set(resourceRefPath, { buffer: Buffer.from("resref"), contentType: "application/pdf" });
+    db.store.weekResources.set("stu-ref:week-files", {
+        id: "wrs-ref-1",
+        studentId: "stu-ref",
+        weekId: "week-files",
+        type: "FILE",
+        fileUrl: resourceRefPath,
+        driveUrl: null,
+        status: "PENDING",
+        submittedAt: new Date("2026-11-26T10:00:00Z"),
+        lockedAt: null,
+    });
+    const blockedResourceRefDelete = await cleanupUnusedSubmissionFile({
+        prisma,
+        oldFileUrl: resourceRefPath,
+        newFileUrl: "ctask-files/stu-ref/submission-other.pdf",
+        deleteFile: mockDeleteFile,
+    });
+    assert.strictEqual(blockedResourceRefDelete, false, "Must never delete file referenced by a week resource");
+    assert.strictEqual(storageObjects.has(resourceRefPath), true);
+
+    // (5) Database update failure preserves the old file (both deadline failure & BEGINNER Week lock failure)
+    storageDeleteLog.length = 0;
+    const begReuploadPath = await uploadSubmissionFile(
+        { taskId: "btask-files", studentId: "stu-2", file: pdfV1 },
+        { uploadObject: mockUploadObject }
+    );
+    currentTime = new Date("2026-11-26T10:20:00Z");
+    await saveDraftSubmission(
+        { studentId: "stu-2", taskId: "btask-files", mode: "FILE", fileUrl: begReuploadPath },
+        { prisma, now: nowFn, deleteFile: mockDeleteFile }
+    );
+    // Lock stu-2's week manually -> subsequent save must reject and preserve begReuploadPath
+    db.store.weekResources.set("stu-2:week-files", {
+        id: "wrs-stu2-files",
+        studentId: "stu-2",
+        weekId: "week-files",
+        type: "DRIVE_LINK",
+        fileUrl: null,
+        driveUrl: "https://drive.google.com/file/d/stu2files/view",
+        status: "ACCEPTED",
+        submittedAt: new Date("2026-11-26T10:21:00Z"),
+        lockedAt: new Date("2026-11-26T10:22:00Z"),
+    });
+    await assert.rejects(
+        () =>
+            saveDraftSubmission(
+                { studentId: "stu-2", taskId: "btask-files", mode: "FILE", fileUrl: "btask-files/stu-2/submission-blocked.pdf" },
+                { prisma, now: nowFn, deleteFile: mockDeleteFile }
+            ),
+        /already locked/
+    );
+    assert.strictEqual(storageObjects.has(begReuploadPath), true, "BEGINNER old file preserved when DB save fails");
+    assert.deepStrictEqual(storageDeleteLog, []);
+
+    // INTERMEDIATE deadline passed -> rejects and preserves intPath3
     currentTime = new Date("2026-11-30T20:05:00Z");
     await assert.rejects(
         () =>
             createOrUpdateSubmission(
-                { studentId: "istu-1", taskId: "ctask-files", mode: "FILE", fileUrl: "ctask-files/istu-1/submission-hash3.pdf" },
-                { prisma, now: nowFn }
+                { studentId: "istu-1", taskId: "ctask-files", mode: "FILE", fileUrl: "ctask-files/istu-1/submission-late.pdf" },
+                { prisma, now: nowFn, deleteFile: mockDeleteFile }
             ),
         /deadline for this Task has passed/
     );
-    const preservedFileSub = await prisma.submission.findUniqueOrThrow({
+    const preservedIntSub = await prisma.submission.findUniqueOrThrow({
         where: { studentId_taskId: { studentId: "istu-1", taskId: "ctask-files" } },
     });
-    assert.strictEqual(preservedFileSub.fileUrl, "ctask-files/istu-1/submission-hash2.pdf");
+    assert.strictEqual(preservedIntSub.fileUrl, intPath3);
+    assert.strictEqual(storageObjects.has(intPath3), true, "INTERMEDIATE old file preserved when DB save fails");
+    assert.deepStrictEqual(storageDeleteLog, []);
 
-    console.log("✔ Concurrency lock order, closure races, invalidation races, and file preservation verified.");
-    console.log("\n🎉 ALL UNIFIED FIRST SOLVER TESTS PASSED!");
+    // (8) Concurrent replacement attempts (including ABA H1 -> H2 and H2 -> H1) cannot delete final active file
+    currentTime = new Date("2026-11-26T12:00:00Z");
+    const runConcurrentActionReplacement = (
+        track: "BEGINNER" | "INTERMEDIATE",
+        tId: string,
+        sId: string,
+        file: File
+    ) =>
+        withSubmissionUploadLock(tId, sId, async () => {
+            const uploadedPath = await uploadSubmissionFile(
+                { taskId: tId, studentId: sId, file },
+                { uploadObject: mockUploadObject }
+            );
+            if (track === "BEGINNER") {
+                return saveDraftSubmission(
+                    { studentId: sId, taskId: tId, mode: "FILE", fileUrl: uploadedPath },
+                    { prisma, now: nowFn, deleteFile: mockDeleteFile }
+                );
+            }
+            return createOrUpdateSubmission(
+                { studentId: sId, taskId: tId, mode: "FILE", fileUrl: uploadedPath },
+                { prisma, now: nowFn, deleteFile: mockDeleteFile }
+            );
+        });
+
+    // Clear istu-1 storage tracking for ctask-files and seed initial active file pdfV1 before deadline
+    db.store.tasks.set("ctask-conc-files", {
+        id: "ctask-conc-files",
+        title: "Concurrent File Task",
+        type: "INTERNAL",
+        deadline: fileIntDeadline,
+        isBonus: false,
+        weekId: null,
+        sessionId: "sess-1",
+        allowedSubmissionMode: "FILE",
+        createdAt: new Date("2026-11-26T08:00:00Z"),
+    });
+
+    await runConcurrentActionReplacement("INTERMEDIATE", "ctask-conc-files", "istu-3", pdfV1);
+    // Fire concurrent replacements: v2 -> v3 -> v1 (ABA back to initial content!)
+    await Promise.all([
+        runConcurrentActionReplacement("INTERMEDIATE", "ctask-conc-files", "istu-3", pdfV2),
+        runConcurrentActionReplacement("INTERMEDIATE", "ctask-conc-files", "istu-3", zipV3),
+        runConcurrentActionReplacement("INTERMEDIATE", "ctask-conc-files", "istu-3", pdfV1),
+    ]);
+    const finalConcIntSub = await prisma.submission.findUniqueOrThrow({
+        where: { studentId_taskId: { studentId: "istu-3", taskId: "ctask-conc-files" } },
+    });
+    assert.ok(finalConcIntSub.fileUrl, "Final concurrent INTERMEDIATE submission must have fileUrl");
+    assert.strictEqual(
+        storageObjects.has(finalConcIntSub.fileUrl),
+        true,
+        "Final referenced INTERMEDIATE file must STILL exist in Storage after concurrent ABA replacements"
+    );
+    assert.deepStrictEqual(
+        taskFilesInStorage("ctask-conc-files", "istu-3"),
+        [finalConcIntSub.fileUrl],
+        "Student must have at most ONE active file for the task in Storage"
+    );
+
+    // Same concurrent ABA test for BEGINNER track (`stu-3` on `btask-files`)
+    await runConcurrentActionReplacement("BEGINNER", "btask-files", "stu-3", pdfV1);
+    await Promise.all([
+        runConcurrentActionReplacement("BEGINNER", "btask-files", "stu-3", pdfV2),
+        runConcurrentActionReplacement("BEGINNER", "btask-files", "stu-3", zipV3),
+        runConcurrentActionReplacement("BEGINNER", "btask-files", "stu-3", pdfV1),
+    ]);
+    const finalConcBegSub = await prisma.submission.findUniqueOrThrow({
+        where: { studentId_taskId: { studentId: "stu-3", taskId: "btask-files" } },
+    });
+    assert.ok(finalConcBegSub.fileUrl, "Final concurrent BEGINNER submission must have fileUrl");
+    assert.strictEqual(
+        storageObjects.has(finalConcBegSub.fileUrl),
+        true,
+        "Final referenced BEGINNER file must STILL exist in Storage after concurrent ABA replacements"
+    );
+    assert.deepStrictEqual(
+        taskFilesInStorage("btask-files", "stu-3"),
+        [finalConcBegSub.fileUrl],
+        "BEGINNER student must have at most ONE active file for the task in Storage"
+    );
+
+    console.log("✔ Safe Storage file replacement, reference preservation, and concurrent ABA safety verified.");
+    console.log("\n🎉 ALL UNIFIED FIRST SOLVER & STORAGE REPLACEMENT TESTS PASSED!");
 }
 
 runTests().catch((err) => {

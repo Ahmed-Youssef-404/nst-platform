@@ -12,6 +12,7 @@ import { createOrUpdateSubmission } from "@/lib/submissions/create-submission";
 import {
     uploadSubmissionFile,
     getSubmissionFileUrl,
+    withSubmissionUploadLock,
 } from "@/lib/submissions/upload-file";
 import type { SubmissionModeCode } from "@/types/types";
 
@@ -67,14 +68,24 @@ export async function submitFileAction(formData: FormData) {
             throw new Error("Missing taskId or file.");
         }
 
-        const fileUrl = await uploadSubmissionFile({ taskId, studentId, file });
-
-        const submission = await createOrUpdateSubmission({
-            studentId,
+        const submission = await withSubmissionUploadLock(
             taskId,
-            mode: "FILE",
-            fileUrl,
-        });
+            studentId,
+            async () => {
+                const fileUrl = await uploadSubmissionFile({
+                    taskId,
+                    studentId,
+                    file,
+                });
+
+                return createOrUpdateSubmission({
+                    studentId,
+                    taskId,
+                    mode: "FILE",
+                    fileUrl,
+                });
+            }
+        );
 
         revalidatePath("/student");
         return { success: true, data: submission };

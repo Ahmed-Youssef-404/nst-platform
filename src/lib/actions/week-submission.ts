@@ -15,7 +15,10 @@ import { getCurrentStudentId } from "@/lib/auth/get-current-user";
 import { saveDraftSubmission } from "@/lib/weeks/save-draft-submission";
 import { saveWeekResource, saveWeekDriveLink } from "@/lib/weeks/week-resource";
 import { lockWeek } from "@/lib/weeks/lock-week";
-import { uploadSubmissionFile } from "@/lib/submissions/upload-file";
+import {
+    uploadSubmissionFile,
+    withSubmissionUploadLock,
+} from "@/lib/submissions/upload-file";
 import { uploadWeekResourceFile } from "@/lib/weeks/upload-week-resource";
 import type { SubmissionModeCode } from "@/types/types";
 
@@ -71,14 +74,24 @@ export async function saveDraftFileAction(formData: FormData) {
             throw new Error("Missing taskId or file.");
         }
 
-        const fileUrl = await uploadSubmissionFile({ taskId, studentId, file });
-
-        const submission = await saveDraftSubmission({
-            studentId,
+        const submission = await withSubmissionUploadLock(
             taskId,
-            mode: "FILE",
-            fileUrl,
-        });
+            studentId,
+            async () => {
+                const fileUrl = await uploadSubmissionFile({
+                    taskId,
+                    studentId,
+                    file,
+                });
+
+                return saveDraftSubmission({
+                    studentId,
+                    taskId,
+                    mode: "FILE",
+                    fileUrl,
+                });
+            }
+        );
 
         revalidatePath("/student");
         return { success: true, data: submission };

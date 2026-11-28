@@ -7,17 +7,14 @@
 // calls this first to get a fileUrl, then passes that fileUrl into
 // createOrUpdateSubmission().
 //
-// Storage layout: submissions/{taskId}/{studentId}/submission.{ext}
-// - The folder (taskId/studentId) is already unique and deterministic,
-//   matching the DB's own uniqueness rule (one Submission per
-//   studentId+taskId) - so the filename itself doesn't need to be
-//   unique or descriptive. We deliberately use a FIXED name
-//   ("submission.pdf" / "submission.zip") instead of the student's
-//   original filename, to avoid sanitizing arbitrary user input
-//   (Arabic text, spaces, symbols) into a valid storage path.
-// - A resubmit uploads to the same path; upsert: true overwrites the
-//   previous file in place (no history is kept, matching the Submission
-//   row itself having no history table).
+// Storage layout: submissions/{taskId}/{studentId}/submission-{sha256}.{ext}
+// - The folder (taskId/studentId) isolates each student's submission files per task,
+//   and the 16-char SHA-256 content-hash suffix ensures different file bytes
+//   produce distinct `fileUrl`s (updating `lastSavedAt`) while re-uploading the
+//   exact same bytes resolves to the exact same path (`upsert: true`).
+// - When a submission replaces or removes its active file in the database,
+//   cleanupUnusedSubmissionFile() runs strictly post-commit to delete the old
+//   object only if no submission/resource row still references it.
 //
 // A separate, human-readable name (student name + task title) is only
 // generated at DOWNLOAD time via buildSubmissionDownloadName() - that's
@@ -28,6 +25,7 @@
 // go through signed URLs generated on demand, not a public bucket).
 
 import { createHash } from "node:crypto";
+import type { PrismaClient } from "@/generated/prisma/client";
 import { createClient } from "@/lib/supabase/server";
 import {
     SUBMISSION_MAX_FILE_SIZE_BYTES,
@@ -42,11 +40,72 @@ const EXTENSION_BY_MIME_TYPE: Record<string, string> = {
     "application/x-zip-compressed": "zip",
 };
 
-export async function uploadSubmissionFile(params: {
-    taskId: string;
-    studentId: string;
-    file: File;
-}): Promise<string> {
+const uploadLocks = new Map<string, Promise<void>>();
+const mutationLocks = new Map<string, Promise<void>>();
+
+async function runWithKeyedLock<T>(
+    lockMap: Map<string, Promise<void>>,
+    key: string,
+    fn: () => Promise<T>
+): Promise<T> {
+    const previous = lockMap.get(key) ?? Promise.resolve();
+    let release!: () => void;
+    const current = new Promise<void>((resolve) => {
+        release = resolve;
+    });
+    const queued = previous.then(() => current);
+    lockMap.set(key, queued);
+
+    await previous;
+    try {
+        return await fn();
+    } finally {
+        release();
+        if (lockMap.get(key) === queued) {
+            lockMap.delete(key);
+        }
+    }
+}
+
+/**
+ * Serializes upload + DB save + cleanup across concurrent Server Action requests
+ * for the same (taskId, studentId) within the current server process.
+ */
+export function withSubmissionUploadLock<T>(
+    taskId: string,
+    studentId: string,
+    fn: () => Promise<T>
+): Promise<T> {
+    return runWithKeyedLock(uploadLocks, `${taskId}:${studentId}`, fn);
+}
+
+/**
+ * Serializes DB commit + post-commit old-file cleanup for the same (taskId, studentId)
+ * within the current server process so an overlapping update cannot switch back to
+ * oldFileUrl between the DB commit and Storage deletion.
+ */
+export function withSubmissionMutationLock<T>(
+    taskId: string,
+    studentId: string,
+    fn: () => Promise<T>
+): Promise<T> {
+    return runWithKeyedLock(mutationLocks, `${taskId}:${studentId}`, fn);
+}
+
+export async function uploadSubmissionFile(
+    params: {
+        taskId: string;
+        studentId: string;
+        file: File;
+    },
+    options?: {
+        uploadObject?: (
+            path: string,
+            buffer: Buffer,
+            contentType: string
+        ) => Promise<void>;
+    }
+): Promise<string> {
     const { taskId, studentId, file } = params;
 
     if (file.size > SUBMISSION_MAX_FILE_SIZE_BYTES) {
@@ -67,12 +126,18 @@ export async function uploadSubmissionFile(params: {
         .update(buffer)
         .digest("hex")
         .slice(0, 16);
-    const supabase = await createClient();
 
     // Include a content hash in the object path so replacing a file with
     // different bytes changes `fileUrl` (updating lastSavedAt), while
     // re-uploading identical bytes yields the exact same `fileUrl`.
     const path = `${taskId}/${studentId}/submission-${contentHash}.${extension}`;
+
+    if (options?.uploadObject) {
+        await options.uploadObject(path, buffer, file.type);
+        return path;
+    }
+
+    const supabase = await createClient();
 
     const { error } = await supabase.storage
         .from(BUCKET_NAME)
@@ -86,6 +151,73 @@ export async function uploadSubmissionFile(params: {
     }
 
     return path;
+}
+
+/**
+ * Safely deletes a superseded submission file from Supabase Storage ONLY AFTER
+ * the database transaction committing the new submission has succeeded.
+ * Refuses to delete if the old path matches the new path, belongs to week
+ * deliverables, or is still referenced by any submission/resource row.
+ * Never throws so cleanup failures cannot fail or reverse a committed save.
+ */
+export async function cleanupUnusedSubmissionFile(params: {
+    prisma: Pick<PrismaClient, "submission" | "weekResourceSubmission">;
+    oldFileUrl: string | null | undefined;
+    newFileUrl: string | null | undefined;
+    deleteFile?: (path: string) => Promise<void>;
+}): Promise<boolean> {
+    const { prisma, oldFileUrl, newFileUrl, deleteFile } = params;
+
+    if (!oldFileUrl || oldFileUrl === newFileUrl) {
+        return false;
+    }
+
+    if (oldFileUrl.startsWith("week-resources/")) {
+        return false;
+    }
+
+    try {
+        const [submissionRefs, resourceRefs] = await Promise.all([
+            prisma.submission.count({ where: { fileUrl: oldFileUrl } }),
+            prisma.weekResourceSubmission.count({ where: { fileUrl: oldFileUrl } }),
+        ]);
+
+        if (submissionRefs > 0 || resourceRefs > 0) {
+            return false;
+        }
+
+        if (deleteFile) {
+            await deleteFile(oldFileUrl);
+            return true;
+        }
+
+        if (
+            !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+            !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+        ) {
+            return false;
+        }
+
+        const supabase = await createClient();
+        const { error } = await supabase.storage
+            .from(BUCKET_NAME)
+            .remove([oldFileUrl]);
+
+        if (error) {
+            console.warn(
+                `Failed to clean up superseded submission file "${oldFileUrl}": ${error.message}`
+            );
+            return false;
+        }
+
+        return true;
+    } catch (error) {
+        console.warn(
+            `Failed to clean up superseded submission file "${oldFileUrl}":`,
+            error instanceof Error ? error.message : error
+        );
+        return false;
+    }
 }
 
 // Generates a short-lived signed URL to view/download a submitted file.

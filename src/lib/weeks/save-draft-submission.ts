@@ -40,6 +40,10 @@ import {
     hasSubmissionSolutionChanged,
 } from "@/lib/submissions/task-activity";
 import { lockRowsForUpdate } from "@/lib/submissions/first-solver";
+import {
+    cleanupUnusedSubmissionFile,
+    withSubmissionMutationLock,
+} from "@/lib/submissions/upload-file";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const defaultPrisma = new PrismaClient({ adapter });
@@ -49,6 +53,7 @@ export async function saveDraftSubmission(
     options?: {
         prisma?: PrismaClient;
         now?: () => Date;
+        deleteFile?: (path: string) => Promise<void>;
     }
 ): Promise<DraftSubmissionResult> {
     const prisma = options?.prisma ?? defaultPrisma;
@@ -97,121 +102,146 @@ export async function saveDraftSubmission(
         textContent: input.mode === "TEXT" ? input.textContent ?? null : null,
     };
 
-    return prisma.$transaction(async (tx) => {
-        // Consistent lock order across all First Solver workflows:
-        // Task first, then Student.
-        await lockRowsForUpdate(tx, "tasks", [input.taskId]);
-        await lockRowsForUpdate(tx, "students", [input.studentId]);
+    return withSubmissionMutationLock(input.taskId, input.studentId, async () => {
+        const txResult = await prisma.$transaction(async (tx) => {
+            // Consistent lock order across all First Solver workflows:
+            // Task first, then Student.
+            await lockRowsForUpdate(tx, "tasks", [input.taskId]);
+            await lockRowsForUpdate(tx, "students", [input.studentId]);
 
-        const txTask = await tx.task.findUnique({
-            where: { id: input.taskId },
-            select: {
-                id: true,
-                type: true,
-                weekId: true,
-                allowedSubmissionMode: true,
-            },
+            const txTask = await tx.task.findUnique({
+                where: { id: input.taskId },
+                select: {
+                    id: true,
+                    type: true,
+                    weekId: true,
+                    allowedSubmissionMode: true,
+                },
+            });
+
+            if (!txTask) {
+                throw new Error("Task not found.");
+            }
+
+            if (!txTask.weekId) {
+                throw new Error("This Task does not belong to a Week.");
+            }
+
+            if (txTask.type !== "INTERNAL") {
+                throw new Error(
+                    "This Task is EXTERNAL and does not accept submissions."
+                );
+            }
+
+            if (
+                txTask.allowedSubmissionMode &&
+                txTask.allowedSubmissionMode !== input.mode
+            ) {
+                throw new Error(
+                    `This Task only accepts submissions of type ${txTask.allowedSubmissionMode}.`
+                );
+            }
+
+            const now = getNow();
+            await assertStudentCanWriteInWeek(tx, {
+                studentId: input.studentId,
+                weekId: txTask.weekId,
+                now,
+            });
+
+            const existing = await tx.submission.findUnique({
+                where: {
+                    studentId_taskId: {
+                        studentId: input.studentId,
+                        taskId: input.taskId,
+                    },
+                },
+                select: {
+                    id: true,
+                    studentId: true,
+                    taskId: true,
+                    status: true,
+                    isLocked: true,
+                    mode: true,
+                    fileUrl: true,
+                    externalLink: true,
+                    textContent: true,
+                    submittedAt: true,
+                    lastSavedAt: true,
+                },
+            });
+
+            if (existing && (existing.status !== "DRAFT" || existing.isLocked)) {
+                throw new Error(
+                    "This submission has already been sent and can no longer be changed."
+                );
+            }
+
+            const nextSnapshot = {
+                mode: input.mode,
+                ...contentData,
+            };
+
+            // No-op re-save: skip the DB write entirely so lastSavedAt,
+            // submittedAt (@updatedAt), and activityVersion stay untouched.
+            if (existing && !hasSubmissionSolutionChanged(existing, nextSnapshot)) {
+                return {
+                    submission: existing as unknown as DraftSubmissionResult,
+                    previousFileUrl: existing.fileUrl,
+                    didChange: false,
+                };
+            }
+
+            // Bump the activity counter and update server-generated lastSavedAt
+            // only when the persisted student solution actually changed.
+            const activity = buildActivityWrite(existing, nextSnapshot);
+
+            const submission = await tx.submission.upsert({
+                where: {
+                    studentId_taskId: {
+                        studentId: input.studentId,
+                        taskId: input.taskId,
+                    },
+                },
+                create: {
+                    studentId: input.studentId,
+                    taskId: input.taskId,
+                    mode: input.mode,
+                    status: "DRAFT",
+                    lastSavedAt: now,
+                    ...contentData,
+                    ...activity.create,
+                },
+                update: {
+                    mode: input.mode,
+                    lastSavedAt: now,
+                    ...contentData,
+                    ...activity.update,
+                    // submittedAt auto-refreshes via @updatedAt in the schema
+                },
+            });
+
+            return {
+                submission: submission as unknown as DraftSubmissionResult,
+                previousFileUrl: existing?.fileUrl ?? null,
+                didChange: true,
+            };
         });
-
-        if (!txTask) {
-            throw new Error("Task not found.");
-        }
-
-        if (!txTask.weekId) {
-            throw new Error("This Task does not belong to a Week.");
-        }
-
-        if (txTask.type !== "INTERNAL") {
-            throw new Error(
-                "This Task is EXTERNAL and does not accept submissions."
-            );
-        }
 
         if (
-            txTask.allowedSubmissionMode &&
-            txTask.allowedSubmissionMode !== input.mode
+            txResult.didChange &&
+            txResult.previousFileUrl &&
+            txResult.previousFileUrl !== txResult.submission.fileUrl
         ) {
-            throw new Error(
-                `This Task only accepts submissions of type ${txTask.allowedSubmissionMode}.`
-            );
+            await cleanupUnusedSubmissionFile({
+                prisma,
+                oldFileUrl: txResult.previousFileUrl,
+                newFileUrl: txResult.submission.fileUrl,
+                deleteFile: options?.deleteFile,
+            });
         }
 
-        const now = getNow();
-        await assertStudentCanWriteInWeek(tx, {
-            studentId: input.studentId,
-            weekId: txTask.weekId,
-            now,
-        });
-
-        const existing = await tx.submission.findUnique({
-            where: {
-                studentId_taskId: {
-                    studentId: input.studentId,
-                    taskId: input.taskId,
-                },
-            },
-            select: {
-                id: true,
-                studentId: true,
-                taskId: true,
-                status: true,
-                isLocked: true,
-                mode: true,
-                fileUrl: true,
-                externalLink: true,
-                textContent: true,
-                submittedAt: true,
-                lastSavedAt: true,
-            },
-        });
-
-        if (existing && (existing.status !== "DRAFT" || existing.isLocked)) {
-            throw new Error(
-                "This submission has already been sent and can no longer be changed."
-            );
-        }
-
-        const nextSnapshot = {
-            mode: input.mode,
-            ...contentData,
-        };
-
-        // No-op re-save: skip the DB write entirely so lastSavedAt,
-        // submittedAt (@updatedAt), and activityVersion stay untouched.
-        if (existing && !hasSubmissionSolutionChanged(existing, nextSnapshot)) {
-            return existing as unknown as DraftSubmissionResult;
-        }
-
-        // Bump the activity counter and update server-generated lastSavedAt
-        // only when the persisted student solution actually changed.
-        const activity = buildActivityWrite(existing, nextSnapshot);
-
-        const submission = await tx.submission.upsert({
-            where: {
-                studentId_taskId: {
-                    studentId: input.studentId,
-                    taskId: input.taskId,
-                },
-            },
-            create: {
-                studentId: input.studentId,
-                taskId: input.taskId,
-                mode: input.mode,
-                status: "DRAFT",
-                lastSavedAt: now,
-                ...contentData,
-                ...activity.create,
-            },
-            update: {
-                mode: input.mode,
-                lastSavedAt: now,
-                ...contentData,
-                ...activity.update,
-                // submittedAt auto-refreshes via @updatedAt in the schema
-            },
-        });
-
-        return submission as unknown as DraftSubmissionResult;
+        return txResult.submission;
     });
 }
 
