@@ -28,7 +28,6 @@
 // go through signed URLs generated on demand, not a public bucket).
 
 import { createHash } from "node:crypto";
-import type { PrismaClient } from "@/generated/prisma/client";
 import { createClient } from "@/lib/supabase/server";
 import {
     SUBMISSION_MAX_FILE_SIZE_BYTES,
@@ -87,72 +86,6 @@ export async function uploadSubmissionFile(params: {
     }
 
     return path;
-}
-
-/**
- * Best-effort post-commit cleanup for a superseded task submission file.
- * Runs ONLY after the database update succeeds, never deletes when the path
- * matches the new file or is still referenced by any submission/resource row,
- * and never throws so cleanup failures cannot invalidate a successful save.
- */
-export async function cleanupUnusedSubmissionFile(params: {
-    prisma: Pick<PrismaClient, "submission" | "weekResourceSubmission">;
-    oldFileUrl: string | null | undefined;
-    newFileUrl: string | null | undefined;
-    deleteFile?: (path: string) => Promise<void>;
-}): Promise<boolean> {
-    const { prisma, oldFileUrl, newFileUrl, deleteFile } = params;
-
-    if (!oldFileUrl || oldFileUrl === newFileUrl) {
-        return false;
-    }
-
-    if (oldFileUrl.startsWith("week-resources/")) {
-        return false;
-    }
-
-    try {
-        const [submissionRefs, resourceRefs] = await Promise.all([
-            prisma.submission.count({ where: { fileUrl: oldFileUrl } }),
-            prisma.weekResourceSubmission.count({ where: { fileUrl: oldFileUrl } }),
-        ]);
-
-        if (submissionRefs > 0 || resourceRefs > 0) {
-            return false;
-        }
-
-        if (deleteFile) {
-            await deleteFile(oldFileUrl);
-            return true;
-        }
-
-        if (
-            !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-            !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-        ) {
-            return false;
-        }
-
-        const supabase = await createClient();
-        const { error } = await supabase.storage
-            .from(BUCKET_NAME)
-            .remove([oldFileUrl]);
-
-        if (error) {
-            console.warn(
-                `Failed to clean up superseded submission file "${oldFileUrl}": ${error.message}`
-            );
-            return false;
-        }
-
-        return true;
-    } catch (error) {
-        console.warn(
-            `Failed to clean up superseded submission file "${oldFileUrl}":`,
-            error instanceof Error ? error.message : error
-        );
-        return false;
-    }
 }
 
 // Generates a short-lived signed URL to view/download a submitted file.

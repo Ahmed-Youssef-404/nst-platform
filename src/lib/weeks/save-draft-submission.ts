@@ -40,7 +40,6 @@ import {
     hasSubmissionSolutionChanged,
 } from "@/lib/submissions/task-activity";
 import { lockRowsForUpdate } from "@/lib/submissions/first-solver";
-import { cleanupUnusedSubmissionFile } from "@/lib/submissions/upload-file";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const defaultPrisma = new PrismaClient({ adapter });
@@ -50,7 +49,6 @@ export async function saveDraftSubmission(
     options?: {
         prisma?: PrismaClient;
         now?: () => Date;
-        deleteFile?: (path: string) => Promise<void>;
     }
 ): Promise<DraftSubmissionResult> {
     const prisma = options?.prisma ?? defaultPrisma;
@@ -99,7 +97,7 @@ export async function saveDraftSubmission(
         textContent: input.mode === "TEXT" ? input.textContent ?? null : null,
     };
 
-    const txResult = await prisma.$transaction(async (tx) => {
+    return prisma.$transaction(async (tx) => {
         // Consistent lock order across all First Solver workflows:
         // Task first, then Student.
         await lockRowsForUpdate(tx, "tasks", [input.taskId]);
@@ -181,11 +179,7 @@ export async function saveDraftSubmission(
         // No-op re-save: skip the DB write entirely so lastSavedAt,
         // submittedAt (@updatedAt), and activityVersion stay untouched.
         if (existing && !hasSubmissionSolutionChanged(existing, nextSnapshot)) {
-            return {
-                submission: existing as unknown as DraftSubmissionResult,
-                previousFileUrl: existing.fileUrl,
-                didChange: false,
-            };
+            return existing as unknown as DraftSubmissionResult;
         }
 
         // Bump the activity counter and update server-generated lastSavedAt
@@ -217,27 +211,8 @@ export async function saveDraftSubmission(
             },
         });
 
-        return {
-            submission: submission as unknown as DraftSubmissionResult,
-            previousFileUrl: existing?.fileUrl ?? null,
-            didChange: true,
-        };
+        return submission as unknown as DraftSubmissionResult;
     });
-
-    if (
-        txResult.didChange &&
-        txResult.previousFileUrl &&
-        txResult.previousFileUrl !== txResult.submission.fileUrl
-    ) {
-        await cleanupUnusedSubmissionFile({
-            prisma,
-            oldFileUrl: txResult.previousFileUrl,
-            newFileUrl: txResult.submission.fileUrl,
-            deleteFile: options?.deleteFile,
-        });
-    }
-
-    return txResult.submission;
 }
 
 function validateContentForMode(input: SaveDraftSubmissionInput) {

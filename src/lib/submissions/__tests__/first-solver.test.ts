@@ -16,7 +16,6 @@ import {
     computeTaskFirstSolverSuggestions,
     confirmTaskFirstSolver,
 } from "@/lib/submissions/first-solver";
-import { cleanupUnusedSubmissionFile } from "@/lib/submissions/upload-file";
 import { saveDraftSubmission } from "@/lib/weeks/save-draft-submission";
 import { lockWeek } from "@/lib/weeks/lock-week";
 import {
@@ -2134,13 +2133,13 @@ async function runTests() {
         }
     }
 
-    // 4.5 Safe Storage Cleanup Tests
-    const cleanupDeadline = new Date("2026-11-30T20:00:00Z");
+    // 4.5 FILE submission replacement & safe no-deletion preservation
+    const fileTaskDeadline = new Date("2026-11-30T20:00:00Z");
     db.store.tasks.set("ctask-files", {
         id: "ctask-files",
-        title: "Storage Cleanup Task",
+        title: "File Replacement Task",
         type: "INTERNAL",
-        deadline: cleanupDeadline,
+        deadline: fileTaskDeadline,
         isBonus: false,
         weekId: null,
         sessionId: "sess-1",
@@ -2148,76 +2147,48 @@ async function runTests() {
         createdAt: new Date("2026-11-26T08:00:00Z"),
     });
 
-    const deletedPaths: string[] = [];
-    const mockDeleteFile = async (p: string) => {
-        deletedPaths.push(p);
-    };
-
-    // Initial file save -> nothing old to delete
     currentTime = new Date("2026-11-26T10:00:00Z");
-    await createOrUpdateSubmission(
+    const f1 = await createOrUpdateSubmission(
         { studentId: "istu-1", taskId: "ctask-files", mode: "FILE", fileUrl: "ctask-files/istu-1/submission-hash1.pdf" },
-        { prisma, now: nowFn, deleteFile: mockDeleteFile }
+        { prisma, now: nowFn }
     );
-    assert.deepStrictEqual(deletedPaths, []);
+    assert.strictEqual(f1.lastSavedAt?.toISOString(), "2026-11-26T10:00:00.000Z");
 
-    // Same-content upload -> no DB write, no deletion
+    // Same-content upload -> no DB write, lastSavedAt unchanged
+    const writesBeforeSameFile = db.submissionWriteCount;
     currentTime = new Date("2026-11-26T10:05:00Z");
-    await createOrUpdateSubmission(
+    const f2 = await createOrUpdateSubmission(
         { studentId: "istu-1", taskId: "ctask-files", mode: "FILE", fileUrl: "ctask-files/istu-1/submission-hash1.pdf" },
-        { prisma, now: nowFn, deleteFile: mockDeleteFile }
+        { prisma, now: nowFn }
     );
-    assert.deepStrictEqual(deletedPaths, []);
+    assert.strictEqual(db.submissionWriteCount, writesBeforeSameFile);
+    assert.strictEqual(f2.lastSavedAt?.toISOString(), "2026-11-26T10:00:00.000Z");
 
-    // Replaced with different file -> DB succeeds first, then old path hash1 deleted
+    // Replaced with different file -> updates fileUrl and lastSavedAt
     currentTime = new Date("2026-11-26T10:10:00Z");
-    await createOrUpdateSubmission(
+    const f3 = await createOrUpdateSubmission(
         { studentId: "istu-1", taskId: "ctask-files", mode: "FILE", fileUrl: "ctask-files/istu-1/submission-hash2.pdf" },
-        { prisma, now: nowFn, deleteFile: mockDeleteFile }
+        { prisma, now: nowFn }
     );
-    assert.deepStrictEqual(deletedPaths, ["ctask-files/istu-1/submission-hash1.pdf"]);
+    assert.strictEqual(f3.fileUrl, "ctask-files/istu-1/submission-hash2.pdf");
+    assert.strictEqual(f3.lastSavedAt?.toISOString(), "2026-11-26T10:10:00.000Z");
 
-    // If cleanup itself fails, the submission save still succeeds cleanly
-    currentTime = new Date("2026-11-26T10:15:00Z");
-    const savedDespiteCleanupErr = await createOrUpdateSubmission(
-        { studentId: "istu-1", taskId: "ctask-files", mode: "FILE", fileUrl: "ctask-files/istu-1/submission-hash3.pdf" },
-        {
-            prisma,
-            now: nowFn,
-            deleteFile: async () => {
-                throw new Error("Simulated Supabase Storage outage");
-            },
-        }
-    );
-    assert.strictEqual(savedDespiteCleanupErr.fileUrl, "ctask-files/istu-1/submission-hash3.pdf");
-
-    // If a file path is still referenced by another submission, NEVER delete it
-    await createOrUpdateSubmission(
-        { studentId: "istu-2", taskId: "ctask-files", mode: "FILE", fileUrl: "ctask-files/istu-1/submission-hash3.pdf" },
-        { prisma, now: nowFn, deleteFile: mockDeleteFile }
-    );
-    const blockedSharedDelete = await cleanupUnusedSubmissionFile({
-        prisma,
-        oldFileUrl: "ctask-files/istu-1/submission-hash3.pdf",
-        newFileUrl: "ctask-files/istu-1/submission-hash4.pdf",
-        deleteFile: mockDeleteFile,
-    });
-    assert.strictEqual(blockedSharedDelete, false, "Must never delete fileUrl still referenced in DB");
-
-    // Failed DB update (e.g. deadline passed) MUST NOT delete the old file
-    deletedPaths.length = 0;
+    // Failed DB update after deadline preserves existing submission & fileUrl
     currentTime = new Date("2026-11-30T20:05:00Z");
     await assert.rejects(
         () =>
             createOrUpdateSubmission(
-                { studentId: "istu-1", taskId: "ctask-files", mode: "FILE", fileUrl: "ctask-files/istu-1/submission-hash4.pdf" },
-                { prisma, now: nowFn, deleteFile: mockDeleteFile }
+                { studentId: "istu-1", taskId: "ctask-files", mode: "FILE", fileUrl: "ctask-files/istu-1/submission-hash3.pdf" },
+                { prisma, now: nowFn }
             ),
         /deadline for this Task has passed/
     );
-    assert.deepStrictEqual(deletedPaths, [], "Old storage file MUST NOT be deleted when DB update fails");
+    const preservedFileSub = await prisma.submission.findUniqueOrThrow({
+        where: { studentId_taskId: { studentId: "istu-1", taskId: "ctask-files" } },
+    });
+    assert.strictEqual(preservedFileSub.fileUrl, "ctask-files/istu-1/submission-hash2.pdf");
 
-    console.log("✔ Concurrency lock order, closure races, invalidation races, and storage cleanup verified.");
+    console.log("✔ Concurrency lock order, closure races, invalidation races, and file preservation verified.");
     console.log("\n🎉 ALL UNIFIED FIRST SOLVER TESTS PASSED!");
 }
 
